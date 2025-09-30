@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { PlanItem, PlanItemType } from '../types';
-// Fix: Added FaSitemap icon to support the 'process_analysis' type.
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 
@@ -19,7 +17,6 @@ const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode
     interview: { name: 'Интервью', icon: <FaUsers size={24} className="text-green-600" /> },
     doc_review: { name: 'Анализ документов', icon: <FaFileContract size={24} className="text-blue-600" /> },
     observation: { name: 'Наблюдение', icon: <FaBinoculars size={24} className="text-orange-600" /> },
-    // Fix: Added missing 'process_analysis' type to satisfy the PlanItemType.
     process_analysis: { name: 'Анализ процесса', icon: <FaSitemap size={24} className="text-teal-600" /> },
 };
 
@@ -28,18 +25,19 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
   const [loading, ] = useState(false);
 
   // Form states
-  const [content, setContent] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingLocation, setMeetingLocation] = useState('');
   const [meetingAgenda, setMeetingAgenda] = useState('');
   const [meetingParticipants, setMeetingParticipants] = useState('');
 
-  // Fallback for items created before the 'type' property existed. This prevents crashes.
   const itemTypeWithFallback = item?.type || 'task';
 
   useEffect(() => {
     if (item) {
-        setContent(item.content);
+        setTitle(item.title);
+        setDescription(item.description || '');
         if (itemTypeWithFallback === 'meeting' && item.data) {
             setMeetingTime(item.data.time || '');
             setMeetingLocation(item.data.location || '');
@@ -52,11 +50,12 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim()) {
+    if (title.trim()) {
       const updatedItem: PlanItem = {
         ...item,
-        type: itemTypeWithFallback, // Ensure type is set on the updated object
-        content: content.trim(),
+        type: itemTypeWithFallback,
+        title: title.trim(),
+        description: description.trim(),
       };
 
       if (itemTypeWithFallback === 'meeting') {
@@ -85,15 +84,24 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
             </h3>
             
             <div>
-                <label htmlFor="editItemContent" className="block text-sm font-medium text-gray-700">{itemTypeWithFallback === 'meeting' ? 'Тема встречи' : 'Описание'}</label>
-                <textarea
-                  id="editItemContent"
-                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                  rows={2}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                <label htmlFor="editItemTitle" className="block text-sm font-medium text-gray-700">{itemTypeWithFallback === 'meeting' ? 'Тема встречи' : 'Название'}</label>
+                <input
+                  id="editItemTitle"
+                  className="w-full mt-1 input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   required
                   autoFocus
+                />
+            </div>
+            <div>
+                <label htmlFor="editItemDescription" className="block text-sm font-medium text-gray-700">Подробное описание (опционально)</label>
+                 <textarea
+                  id="editItemDescription"
+                  className="w-full mt-1 input"
+                  rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
             </div>
             {itemTypeWithFallback === 'meeting' && (

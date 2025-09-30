@@ -28,7 +28,8 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
 *${eventTypeName} в проекте "${project.name}"*
 
 *От:* ${event.author_email}
-*Задача:* ${task.content}
+// Fix: The 'PlanItem' type was updated from 'content' to 'title'.
+*Задача:* ${task.title}
 
 *Сообщение:*
 ${event.content}

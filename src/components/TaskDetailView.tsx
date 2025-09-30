@@ -123,7 +123,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const renderTaskTools = () => {
         if (!user) return null; // Tools are for auditors only
         
-        // Fix: Correctly pass the handleNewEvent function as the onNewEvent prop.
         const props = { user, context, events, onNewEvent: handleNewEvent };
 
         switch (context.item.type) {
@@ -153,10 +152,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             <div className="bg-white m-2 md:m-4 lg:m-8 rounded-lg shadow-xl flex flex-col flex-1 overflow-hidden">
                 <header className="flex justify-between items-start p-4 border-b">
                     <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-800">Обсуждение задачи</h2>
-                        <div className="text-gray-600 prose prose-sm max-w-none mt-1">
-                            <ReactMarkdown>{context.item.content}</ReactMarkdown>
-                        </div>
+                        <h2 className="text-xl font-bold text-gray-800">{context.item.title}</h2>
                     </div>
                     <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 ml-4">
                         <FaTimes size={20} />
@@ -166,6 +162,12 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 {renderTaskTools()}
 
                 <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
+                     {context.item.description && (
+                        <div className="prose prose-sm max-w-none mb-6 p-4 bg-gray-50 rounded-md border">
+                            <ReactMarkdown>{context.item.description}</ReactMarkdown>
+                        </div>
+                     )}
+
                      {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
                         events.length > 0 ? (
                             <div className="divide-y divide-gray-200">

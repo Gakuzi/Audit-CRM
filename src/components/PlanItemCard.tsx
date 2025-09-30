@@ -32,7 +32,7 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
   const renderMeetingInvites = () => {
     if (item.type !== 'meeting' || !item.data?.participants || item.data.participants.length === 0) return null;
     
-    const inviteText = `Приглашение на встречу: "${item.content}".\nВремя: ${item.data.time || 'не указано'}\nМесто: ${item.data.location || 'не указано'}\nПовестка: ${item.data.agenda || 'не указана'}`;
+    const inviteText = `Приглашение на встречу: "${item.title}".\nВремя: ${item.data.time || 'не указано'}\nМесто: ${item.data.location || 'не указано'}\nПовестка: ${item.data.agenda || 'не указана'}`;
 
     return (
         <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-end space-x-2">
@@ -73,15 +73,13 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
 
       <div className="flex justify-between items-start gap-2">
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-        <div className="flex-1 pr-6">
-            <div className="text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2">
-                <ReactMarkdown>{item.content}</ReactMarkdown>
-            </div>
-            {item.data?.agenda && 
-                <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
-                    <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
+        <div className="flex-1 pr-6 min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{item.title}</p>
+            {item.description && (
+                <div className="text-xs text-gray-600 mt-1 line-clamp-2">
+                    {item.description}
                 </div>
-            }
+            )}
             
             {(item.type === 'meeting' || item.type === 'interview') && item.data?.time && (
                 <div className="flex items-center text-xs text-gray-500 mt-1">

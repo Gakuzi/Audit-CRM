@@ -27,7 +27,8 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   const [loading, setLoading] = useState(false);
 
   // Form states
-  const [content, setContent] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   // Meeting
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingLocation, setMeetingLocation] = useState('');
@@ -56,7 +57,8 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   
   const resetForm = () => {
       setItemType(null);
-      setContent('');
+      setTitle('');
+      setDescription('');
       setMeetingTime('');
       setMeetingLocation('');
       setMeetingAgenda('');
@@ -68,10 +70,11 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim() && itemType) {
+    if (title.trim() && itemType) {
       const newItem: PlanItem = {
         id: crypto.randomUUID(),
-        content: content.trim(),
+        title: title.trim(),
+        description: description.trim(),
         completed: false,
         type: itemType,
         event_count: 0,
@@ -115,16 +118,26 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
             </h3>
             
             <div>
-                <label htmlFor="itemContent" className="block text-sm font-medium text-gray-700">{itemType === 'meeting' ? 'Тема встречи' : 'Цель / Описание'}</label>
-                <textarea
-                  id="itemContent"
-                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                  rows={2}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Опишите событие или задачу..."
+                <label htmlFor="itemTitle" className="block text-sm font-medium text-gray-700">{itemType === 'meeting' ? 'Тема встречи' : 'Название'}</label>
+                <input
+                  id="itemTitle"
+                  className="w-full mt-1 input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Краткое название задачи..."
                   required
                   autoFocus
+                />
+            </div>
+            <div>
+                <label htmlFor="itemDescription" className="block text-sm font-medium text-gray-700">Подробное описание (опционально)</label>
+                 <textarea
+                  id="itemDescription"
+                  className="w-full mt-1 input"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Опишите цели, ожидаемый результат и другую важную информацию..."
                 />
             </div>
             {itemType === 'meeting' && (

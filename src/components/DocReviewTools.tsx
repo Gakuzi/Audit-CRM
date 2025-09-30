@@ -33,7 +33,9 @@ const DocReviewTools: React.FC<ToolProps> = ({ user, context, onNewEvent }) => {
     const handleGenerateChecklist = async () => {
         setLoading('checklist');
         try {
-            const checklist = await generateDocReviewChecklist(context.item.content);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const checklist = await generateDocReviewChecklist(taskContext);
             await createNewEvent(`**Сгенерированный чек-лист для анализа документов:**\n\n${checklist}`);
         } catch (error: any) {
             alert("Ошибка генерации чек-листа: " + error.message);

@@ -15,7 +15,8 @@ export type PlanItemType = 'task' | 'meeting' | 'interview' | 'doc_review' | 'ob
 
 export interface PlanItem {
   id: string;
-  content: string;
+  title: string;
+  description?: string;
   completed: boolean;
   type: PlanItemType;
   event_count?: number;

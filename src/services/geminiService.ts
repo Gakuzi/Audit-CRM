@@ -6,7 +6,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым)
-- "content": string (подробное описание задачи)
+- "title": string (краткое, емкое название задачи, до 10 слов)
+- "description": string (подробное описание задачи, ее цели и ожидаемого результата)
 - "completed": boolean (всегда false)
 - "type": string (ОБЯЗАТЕЛЬНО один из: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis')
 - "data": object (необязательное поле)
@@ -172,15 +173,15 @@ export const generateStagePlan = async (
 
 // --- Specialized Tools ---
 
-export const generateInterviewQuestions = async (taskContent: string): Promise<string> => {
-    const prompt = `Для задачи-интервью "${taskContent}", сгенерируй список из 5-7 ключевых открытых вопросов, которые аудитор должен задать. Отформатируй как Markdown список.`;
+export const generateInterviewQuestions = async (taskContext: string): Promise<string> => {
+    const prompt = `Для задачи-интервью "${taskContext}", сгенерируй список из 5-7 ключевых открытых вопросов, которые аудитор должен задать. Отформатируй как Markdown список.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
 };
 
-export const generateMindMapFromEvents = async (taskContent: string, events: Event[]): Promise<string> => {
+export const generateMindMapFromEvents = async (taskContext: string, events: Event[]): Promise<string> => {
     const prompt = `
-      Проанализируй задачу "${taskContent}" и связанное с ней обсуждение в формате JSON:
+      Проанализируй задачу "${taskContext}" и связанное с ней обсуждение в формате JSON:
       ${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content })), null, 2)}
       
       Сгенерируй ментальную карту (mind map), которая визуализирует ключевые темы, идеи и связи из этого обсуждения.
@@ -190,15 +191,15 @@ export const generateMindMapFromEvents = async (taskContent: string, events: Eve
     return response.text ?? '';
 };
 
-export const generateMeetingAgenda = async (taskContent: string): Promise<string> => {
-    const prompt = `Для встречи с темой "${taskContent}", сгенерируй краткую повестку из 3-5 пунктов. Отформатируй как Markdown список.`;
+export const generateMeetingAgenda = async (taskContext: string): Promise<string> => {
+    const prompt = `Для встречи с темой "${taskContext}", сгенерируй краткую повестку из 3-5 пунктов. Отформатируй как Markdown список.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
 };
 
-export const summarizeDiscussion = async (taskContent: string, events: Event[]): Promise<string> => {
+export const summarizeDiscussion = async (taskContext: string, events: Event[]): Promise<string> => {
     const prompt = `
-      Проанализируй обсуждение по задаче "${taskContent}". JSON событий:
+      Проанализируй обсуждение по задаче "${taskContext}". JSON событий:
       ${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content })), null, 2)}
 
       Напиши краткое резюме (meeting minutes), выделив основные принятые решения и поставленные задачи (action items). Отформатируй как Markdown.
@@ -207,15 +208,15 @@ export const summarizeDiscussion = async (taskContent: string, events: Event[]):
     return response.text ?? '';
 };
 
-export const generateDocReviewChecklist = async (taskContent: string): Promise<string> => {
-    const prompt = `Для задачи по анализу документов "${taskContent}", сгенерируй чек-лист в формате Markdown из 5-7 ключевых пунктов, на которые аудитору следует обратить внимание.`;
+export const generateDocReviewChecklist = async (taskContext: string): Promise<string> => {
+    const prompt = `Для задачи по анализу документов "${taskContext}", сгенерируй чек-лист в формате Markdown из 5-7 ключевых пунктов, на которые аудитору следует обратить внимание.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
 };
 
-export const generateProcessFlowchart = async (taskContent: string, events: Event[]): Promise<string> => {
+export const generateProcessFlowchart = async (taskContext: string, events: Event[]): Promise<string> => {
     const prompt = `
-      Проанализируй задачу по анализу процесса "${taskContent}" и ее обсуждение:
+      Проанализируй задачу по анализу процесса "${taskContext}" и ее обсуждение:
       ${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content })), null, 2)}
 
       Сгенерируй простую блок-схему (flowchart), иллюстрирующую основные шаги этого процесса.

@@ -34,7 +34,9 @@ const InterviewTools: React.FC<ToolProps> = ({ user, context, events, onNewEvent
     const handleGenerateQuestions = async () => {
         setLoading('questions');
         try {
-            const questions = await generateInterviewQuestions(context.item.content);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const questions = await generateInterviewQuestions(taskContext);
             await createNewEvent(`**Сгенерированные вопросы для интервью:**\n\n${questions}`);
         } catch (error: any) {
             alert("Ошибка генерации вопросов: " + error.message);
@@ -46,7 +48,9 @@ const InterviewTools: React.FC<ToolProps> = ({ user, context, events, onNewEvent
     const handleGenerateMindMap = async () => {
         setLoading('mindmap');
         try {
-            const mindmap = await generateMindMapFromEvents(context.item.content, events);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const mindmap = await generateMindMapFromEvents(taskContext, events);
             await createNewEvent(mindmap);
         } catch (error: any) {
             alert("Ошибка генерации Mind Map: " + error.message);

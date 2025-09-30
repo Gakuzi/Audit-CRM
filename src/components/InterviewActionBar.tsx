@@ -119,9 +119,8 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
 
         setLoading(`analyze-${audioEvent.id}`);
         try {
-            // Fix: Call processInterviewAudio with the correct text context argument.
-            // The service function simulates audio analysis and does not process audio data directly.
-            const resultText = await processInterviewAudio(context.item.content);
+            const fullContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const resultText = await processInterviewAudio(fullContext);
             
             await createNewEvent({
                 type: 'comment',

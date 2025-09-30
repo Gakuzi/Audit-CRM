@@ -34,7 +34,9 @@ const MeetingTools: React.FC<ToolProps> = ({ user, context, events, onNewEvent }
     const handleGenerateAgenda = async () => {
         setLoading('agenda');
         try {
-            const agenda = await generateMeetingAgenda(context.item.content);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const agenda = await generateMeetingAgenda(taskContext);
             await createNewEvent(`**Сгенерированная повестка встречи:**\n\n${agenda}`);
         } catch (error: any) {
             alert("Ошибка генерации повестки: " + error.message);
@@ -46,7 +48,9 @@ const MeetingTools: React.FC<ToolProps> = ({ user, context, events, onNewEvent }
     const handleSummarize = async () => {
         setLoading('summary');
         try {
-            const summary = await summarizeDiscussion(context.item.content, events);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const summary = await summarizeDiscussion(taskContext, events);
             await createNewEvent(`**Резюме обсуждения (Meeting Minutes):**\n\n${summary}`);
         } catch (error: any) {
             alert("Ошибка суммирования: " + error.message);

@@ -34,7 +34,9 @@ const ProcessAnalysisTools: React.FC<ToolProps> = ({ user, context, events, onNe
     const handleGenerateMindMap = async () => {
         setLoading('mindmap');
         try {
-            const mindmap = await generateMindMapFromEvents(context.item.content, events);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const mindmap = await generateMindMapFromEvents(taskContext, events);
             await createNewEvent(mindmap);
         } catch (error: any) {
             alert("Ошибка генерации Mind Map: " + error.message);
@@ -46,7 +48,9 @@ const ProcessAnalysisTools: React.FC<ToolProps> = ({ user, context, events, onNe
     const handleGenerateFlowchart = async () => {
         setLoading('flowchart');
         try {
-            const flowchart = await generateProcessFlowchart(context.item.content, events);
+            // Fix: Use `title` and `description` from PlanItem instead of non-existent `content`.
+            const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const flowchart = await generateProcessFlowchart(taskContext, events);
             await createNewEvent(flowchart);
         } catch (error: any) {
             alert("Ошибка генерации блок-схемы: " + error.message);
