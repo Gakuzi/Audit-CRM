@@ -6,10 +6,11 @@ import ReactMarkdown from 'react-markdown';
 interface ProjectCardProps {
   project: Project;
   onSelect: (project: Project) => void;
+  isPublicView: boolean;
   onDelete?: () => void;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, onDelete }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, isPublicView, onDelete }) => {
   
   const formatDate = (dateString?: string) => {
       if (!dateString) return 'Не указана';
@@ -20,9 +21,11 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, onDelete }
       });
   }
 
+  const cardClasses = `bg-white rounded-lg shadow-md flex flex-col ${isPublicView ? 'cursor-pointer hover:shadow-xl' : 'hover:shadow-xl'}`;
+
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col">
-      <div className="p-6 flex-grow cursor-pointer" onClick={() => onSelect(project)}>
+    <div className={cardClasses} onClick={() => onSelect(project)}>
+      <div className="p-6 flex-grow">
         <h3 className="text-lg font-bold text-gray-800 mb-2 truncate">{project.name}</h3>
         <div className="text-gray-600 text-sm line-clamp-3 mb-4 prose prose-sm max-w-none">
           <ReactMarkdown>{project.description || "Нет описания."}</ReactMarkdown>

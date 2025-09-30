@@ -85,7 +85,11 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
         handleClose();
 
     } catch (err: any) {
-      setError('Ошибка при создании проекта: ' + err.message);
+        if (err.message.includes('503') || err.message.toLowerCase().includes('overloaded')) {
+            setError('Сервер AI перегружен. Пожалуйста, попробуйте еще раз через несколько минут.');
+        } else {
+            setError('Ошибка при создании проекта: ' + err.message);
+        }
     } finally {
       setLoading(false);
       setStatusText('');

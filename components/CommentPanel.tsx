@@ -1,9 +1,8 @@
 
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event } from '../types';
+import { Event, Plan, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -20,10 +19,10 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-    // Fix: Added state for projectId, which is required by child components.
     const [projectId, setProjectId] = useState<string | null>(null);
+    const [project, setProject] = useState<Project | null>(null);
+    const [task, setTask] = useState<PlanItem | null>(null);
 
-    // Fix: Combined data fetching to get events and the project ID simultaneously.
     const fetchEventsAndProject = useCallback(async () => {
         setLoading(true);
         const eventsPromise = supabase
@@ -34,7 +33,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         
         const weekPromise = supabase
             .from('weeks')
-            .select('project_id')
+            .select('project_id, plan')
             .eq('id', context.weekId)
             .single();
 
@@ -49,11 +48,31 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         if (weekResult.error) {
             console.error("Error fetching project_id from week:", weekResult.error);
         } else if (weekResult.data) {
-            setProjectId(weekResult.data.project_id);
+            const fetchedProjectId = weekResult.data.project_id;
+            setProjectId(fetchedProjectId);
+            
+            const plan: Plan = weekResult.data.plan;
+            let foundTask: PlanItem | undefined;
+            for (const date in plan) {
+                if(plan[date]?.tasks) {
+                    foundTask = plan[date].tasks.find(t => t.id === context.taskId);
+                    if (foundTask) break;
+                }
+            }
+            setTask(foundTask || {id: context.taskId, content: context.taskContent, completed: false, type: 'task'});
+            
+            if(fetchedProjectId) {
+                const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', fetchedProjectId).single();
+                if (projectError) {
+                    console.error("Error fetching project:", projectError);
+                } else {
+                    setProject(projectData);
+                }
+            }
         }
 
         setLoading(false);
-    }, [context.taskId, context.weekId]);
+    }, [context.taskId, context.weekId, context.taskContent]);
 
     useEffect(() => {
         fetchEventsAndProject();
@@ -67,7 +86,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         };
     }, [context.taskId, fetchEventsAndProject]);
 
-    // Fix: Added dummy handlers to satisfy EventItem's required props.
     const handleReply = (event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
@@ -77,6 +95,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         // Quote click functionality is not implemented in this simplified panel.
     };
 
+    const isGuest = !user;
 
     return (
         <aside className="bg-white rounded-lg shadow-md p-4 sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
@@ -92,7 +111,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {/* Fix: Passed the required props to EventItem. Removed isLoggedIn as it's not a valid prop. */}
                             {events.map(event => <EventItem key={event.id} event={event} onReply={handleReply} onQuoteClick={handleQuoteClick} />)}
                         </div>
                     ) : (
@@ -102,24 +120,26 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
             </div>
             
             <div className="pt-2 border-t border-gray-200">
-                 {user && (
+                 {(user || isGuest) && (
                     <div className="flex items-center space-x-2 mb-2">
                          <button onClick={() => setIsMeetingModalOpen(true)} className="flex-1 flex items-center justify-center text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 py-2 px-3 rounded-md">
                             <FaVideo className="mr-2"/> Запланировать встречу
                         </button>
                     </div>
                  )}
-                 {/* Fix: Pass projectId to AddEventForm and provide other required props. The missing onAddStructuredEvent prop will be handled by making it optional in AddEventForm. */}
-                {user && projectId ? <AddEventForm user={user} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
+                {/* FIX: Pass all required props to AddEventForm, including isGuest, project, and task. */}
+                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} task={task} isGuest={isGuest} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
             </div>
 
-            {/* Fix: Pass projectId to AddMeetingModal context. */}
-            {user && projectId && (
+            {/* FIX: Pass all required props to AddMeetingModal, including project and task. */}
+            {(user || isGuest) && projectId && project && task && (
                 <AddMeetingModal
                     isOpen={isMeetingModalOpen}
                     onClose={() => setIsMeetingModalOpen(false)}
                     context={{...context, projectId}}
                     user={user}
+                    project={project}
+                    task={task}
                 />
             )}
         </aside>

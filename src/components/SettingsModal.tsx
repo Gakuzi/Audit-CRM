@@ -104,7 +104,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
             handleClose();
 
         } catch (err: any) {
-            setError('Ошибка пересоздания плана: ' + err.message);
+            if (err.message.includes('503') || err.message.toLowerCase().includes('overloaded')) {
+                setError('Сервер AI перегружен. Пожалуйста, попробуйте еще раз через несколько минут.');
+            } else {
+                setError('Ошибка пересоздания плана: ' + err.message);
+            }
         } finally {
             setLoading(false);
             setStatusText('');

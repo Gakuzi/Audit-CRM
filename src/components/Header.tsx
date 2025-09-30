@@ -10,11 +10,12 @@ interface HeaderProps {
     project: Project | null;
     companyProfile: CompanyProfile | null;
     isAuditor: boolean;
+    isGuest: boolean;
     onLogin: () => void;
     onProfile: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAuditor, onLogin, onProfile }) => {
+const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAuditor, isGuest, onLogin, onProfile }) => {
     
     const renderProjectContext = () => {
         if (!project) {
@@ -35,7 +36,9 @@ const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAudito
             <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                 {renderProjectContext()}
                 <div>
-                    {user ? (
+                    {isGuest ? (
+                        <span className="text-sm font-medium text-gray-600">Гостевой доступ</span>
+                    ) : user ? (
                         <button onClick={onProfile} className="flex items-center text-gray-600 hover:text-blue-600">
                            <FaUserCircle className="mr-2" size={24} />
                            <span className="hidden sm:inline">{user.email}</span>

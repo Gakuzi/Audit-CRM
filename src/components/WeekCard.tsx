@@ -13,6 +13,7 @@ import ReactMarkdown from 'react-markdown';
 interface WeekCardProps {
   week: Week;
   isAuditor: boolean;
+  isGuest: boolean;
   onUpdatePlan: (plan: Plan) => void;
   onTaskSelect: (item: PlanItem) => void;
   onDeleteRequest: () => void;
@@ -28,7 +29,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -104,7 +105,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTa
                 </button>
             );
         case 'pending_approval':
-            return !isAuditor && (
+            return !isAuditor && !isGuest && (
                 <div className="flex gap-2">
                     <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600">Отклонить</button>
                     <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700">Согласовать</button>

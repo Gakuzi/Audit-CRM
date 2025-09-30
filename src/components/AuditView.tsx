@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
+import { FaArrowLeft, FaCog, FaShareAlt, FaPlus, FaUserPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
 import ShareModal from './ShareModal';
@@ -17,9 +17,11 @@ interface AuditViewProps {
   user: User | null;
   onBack: () => void;
   isAuditor: boolean;
+  isGuest: boolean;
+  onRegister: () => void;
 }
 
-const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor }) => {
+const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor, isGuest, onRegister }) => {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -155,6 +157,19 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
           <button onClick={() => setIsShareModalOpen(true)} className="p-2 btn-secondary"><FaShareAlt/></button>
         </div>
       </div>
+
+      {isGuest && (
+        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded-md flex justify-between items-center">
+            <div>
+                <p className="font-bold">Вы просматриваете проект как гость.</p>
+                <p className="text-sm">Создайте аккаунт для постоянного доступа к вашим проектам.</p>
+            </div>
+            <button onClick={onRegister} className="btn-primary flex items-center gap-2">
+                <FaUserPlus />
+                Зарегистрироваться
+            </button>
+        </div>
+      )}
       
       {isAuditor && (
         <div className="flex justify-end mb-6">
@@ -171,6 +186,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
                 key={week.id} 
                 week={week} 
                 isAuditor={isAuditor}
+                isGuest={isGuest}
                 onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}
                 onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})}
                 onDeleteRequest={() => setWeekToDelete(week)}
@@ -216,6 +232,8 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
             user={user}
             context={selectedTaskForDetail!}
             onEventCountChange={handleEventCountChange}
+            isGuest={isGuest}
+            project={project}
        />
 
        <ConfirmationModal 

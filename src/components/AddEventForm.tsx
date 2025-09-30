@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabaseClient';
+import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event } from '../types';
+import { Event, Project, PlanItem } from '../types';
 import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaFileAlt, FaCamera } from 'react-icons/fa';
 import Modal from './ui/Modal';
 import AudioRecorder from './AudioRecorder';
 
 interface AddEventFormProps {
-  user: User;
+  user: User | null;
   context: { weekId: string; taskId: string; projectId: string; };
   quotedEvent: Event | null;
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
   onAddStructuredEvent?: () => void;
+  project: Project;
+  task: PlanItem;
+  isGuest: boolean;
 }
 
 const sanitizeFileName = (fileName: string) => {
@@ -27,7 +30,7 @@ const sanitizeFileName = (fileName: string) => {
     return cleanedName + extension;
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent, onClearQuote, onNewEvent, onAddStructuredEvent }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent, onClearQuote, onNewEvent, onAddStructuredEvent, project, task, isGuest }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -49,7 +52,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
         
         const uploadPromises = files.map(async file => {
             const sanitizedFileName = sanitizeFileName(file.name);
-            const filePath = `${user.id}/${context.taskId}/${Date.now()}-${sanitizedFileName}`;
+            const filePath = `${user ? user.id : 'guests'}/${context.taskId}/${Date.now()}-${sanitizedFileName}`;
             const { error: uploadError } = await supabase.storage.from('audit-files').upload(filePath, file);
             if (uploadError) throw uploadError;
             
@@ -73,17 +76,31 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
 
         setLoading(true);
         try {
+            let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
+            let isGuestSubmission = !user;
+
+            if (!user && !authorIdentifier) {
+                const guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в комментариях):', 'Гость');
+                if (!guestName || guestName.trim() === '') {
+                    setLoading(false);
+                    return; // User cancelled or entered empty name
+                }
+                authorIdentifier = guestName;
+                localStorage.setItem('guestName', guestName);
+            }
+
+
             const uploadedFiles = await uploadFiles(filesToAttach);
             const eventData = {
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user.id,
-                author_email: user.email,
+                user_id: user ? user.id : null,
+                author_email: authorIdentifier,
                 type: 'comment' as const,
                 content: content.trim(),
                 parent_event_id: quotedEvent ? quotedEvent.id : null,
-                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : {},
+                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : null,
             };
     
             const { data, error } = await supabase.from('events').insert(eventData).select().single();
@@ -91,10 +108,15 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
             if (error) {
                 throw error;
             } else if (data) {
-                onNewEvent(data as Event);
+                const newEvent = data as Event;
+                onNewEvent(newEvent);
                 setContent('');
                 setFilesToAttach([]);
                 onClearQuote();
+                
+                if (isGuestSubmission) {
+                    sendGuestEventNotification(project, task, newEvent);
+                }
             }
         } catch(err: any) {
             alert('Ошибка добавления комментария: ' + err.message);
@@ -180,7 +202,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                         >
                             <FaMicrophone size={18} />
                         </button>
-                        {onAddStructuredEvent && (
+                        {onAddStructuredEvent && !isGuest && (
                             <button
                                 type="button"
                                 onClick={onAddStructuredEvent}
@@ -189,6 +211,17 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                 disabled={loading}
                             >
                                 <FaFileAlt size={18} />
+                            </button>
+                        )}
+                         {onAddStructuredEvent && isGuest && (
+                            <button
+                                type="button"
+                                onClick={onAddStructuredEvent}
+                                className="p-2 text-gray-500 hover:text-purple-600 rounded-full hover:bg-gray-100"
+                                title="Запросить встречу"
+                                disabled={loading}
+                            >
+                                <FaVideo size={18} />
                             </button>
                         )}
                     </div>

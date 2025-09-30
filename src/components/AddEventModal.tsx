@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { User } from '@supabase/supabase-js';
-import { Event } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { Event, Project, PlanItem } from '../types';
+import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import AudioRecorder from './AudioRecorder';
 import { FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
@@ -10,12 +10,22 @@ import { FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
 interface AddEventModalProps {
     isOpen: boolean;
     onClose: () => void;
-    user: User;
+    user: User | null;
     context: { weekId: string; taskId: string; projectId: string };
     onNewEvent: (event: Event) => void;
+    project: Project;
+    task: PlanItem;
+    isGuest: boolean;
 }
 
 type EventStepType = 'meeting' | 'interview' | 'documentation_review';
+
+const eventTypeConfig: { type: EventStepType, name: string, icon: React.ReactNode, guest_allowed: boolean }[] = [
+    { type: 'meeting', name: 'Встреча', icon: <FaVideo size={24} className="mb-2 text-purple-600" />, guest_allowed: true },
+    { type: 'interview', name: 'Интервью', icon: <FaMicrophone size={24} className="mb-2 text-red-600" />, guest_allowed: false },
+    { type: 'documentation_review', name: 'Анализ документов', icon: <FaFileAlt size={24} className="mb-2 text-blue-600" />, guest_allowed: false },
+];
+
 
 const sanitizeFileName = (fileName: string) => {
     const parts = fileName.split('.');
@@ -28,7 +38,7 @@ const sanitizeFileName = (fileName: string) => {
     return cleanedName + extension;
 };
 
-const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, context, onNewEvent }) => {
+const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, context, onNewEvent, project, task, isGuest }) => {
     const [step, setStep] = useState<'select' | 'form'>('select');
     const [eventType, setEventType] = useState<EventStepType | null>(null);
     const [loading, setLoading] = useState(false);
@@ -74,7 +84,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
         
         const uploadPromises = filesArray.map(async file => {
             const sanitizedFileName = sanitizeFileName(file.name);
-            const filePath = `${user.id}/${context.taskId}/${Date.now()}-${sanitizedFileName}`;
+            const filePath = `${user ? user.id : 'guests'}/${context.taskId}/${Date.now()}-${sanitizedFileName}`;
             const { error: uploadError } = await supabase.storage.from('audit-files').upload(filePath, file);
             if (uploadError) throw uploadError;
             
@@ -87,16 +97,29 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!eventType || !user) return;
+        if (!eventType) return;
         setLoading(true);
 
         try {
+            let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
+            let isGuestSubmission = !user;
+
+            if (!user && !authorIdentifier) {
+                const guestName = prompt('Пожалуйста, представьтесь:', 'Гость');
+                if (!guestName || guestName.trim() === '') {
+                    setLoading(false);
+                    return;
+                }
+                authorIdentifier = guestName;
+                localStorage.setItem('guestName', guestName);
+            }
+
             const eventData: any = {
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user.id,
-                author_email: user.email,
+                user_id: user ? user.id : null,
+                author_email: authorIdentifier,
                 type: eventType,
                 content,
                 data: {}
@@ -119,7 +142,11 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
             if (error) throw error;
             
             if (data) {
-                onNewEvent(data as Event);
+                const newEvent = data as Event;
+                onNewEvent(newEvent);
+                if (isGuestSubmission) {
+                    sendGuestEventNotification(project, task, newEvent);
+                }
             }
             handleClose();
         } catch (error: any) {
@@ -177,23 +204,19 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
             default: return null;
         }
     }
+
+    const availableEventTypes = isGuest ? eventTypeConfig.filter(et => et.guest_allowed) : eventTypeConfig;
     
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Добавить событие">
             {step === 'select' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button onClick={() => handleSelectType('meeting')} className="flex flex-col items-center justify-center p-6 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
-                        <FaVideo size={24} className="mb-2 text-purple-600" />
-                        <span className="font-semibold">Встреча</span>
+                   {availableEventTypes.map(({ type, name, icon }) => (
+                     <button key={type} onClick={() => handleSelectType(type)} className="flex flex-col items-center justify-center p-6 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
+                        {icon}
+                        <span className="font-semibold">{name}</span>
                     </button>
-                     <button onClick={() => handleSelectType('interview')} className="flex flex-col items-center justify-center p-6 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
-                        <FaMicrophone size={24} className="mb-2 text-red-600" />
-                        <span className="font-semibold">Интервью</span>
-                    </button>
-                     <button onClick={() => handleSelectType('documentation_review')} className="flex flex-col items-center justify-center p-6 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors col-span-1 md:col-span-2">
-                        <FaFileAlt size={24} className="mb-2 text-blue-600" />
-                        <span className="font-semibold">Анализ документов</span>
-                    </button>
+                   ))}
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">

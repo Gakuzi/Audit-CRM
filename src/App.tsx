@@ -12,19 +12,38 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginModalMode, setLoginModalMode] = useState<'signIn' | 'signUp'>('signIn');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkSessionAndGuestStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-    });
+
+      const hash = window.location.hash.replace('#/', '');
+      if (hash && !session) {
+        setIsGuest(true);
+      } else {
+        setIsGuest(false);
+      }
+    };
+
+    checkSessionAndGuestStatus();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         setIsLoginModalOpen(false); // Close login modal on successful login
+        setIsGuest(false); // A logged-in user is never a guest
+      } else {
+        // If user logs out, check if they are on a project page to enable guest mode
+        const hash = window.location.hash.replace('#/', '');
+        if (hash) {
+          setIsGuest(true);
+        }
       }
     });
 
@@ -36,6 +55,11 @@ function App() {
     const handleHashChange = async () => {
         const hash = window.location.hash.replace('#/', '');
         if (hash) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                setIsGuest(true);
+            }
+
             const projectPromise = supabase
                 .from('projects')
                 .select('*')
@@ -53,8 +77,6 @@ function App() {
             if (projectResult.data) {
                 setSelectedProject(projectResult.data);
             } else {
-                // 'PGRST116' is the code for "No rows found", which is expected if the hash is invalid.
-                // We only want to log other, unexpected errors.
                 if (projectResult.error && projectResult.error.code !== 'PGRST116') {
                     console.error('Project not found error:', projectResult.error.message);
                 }
@@ -70,6 +92,7 @@ function App() {
         } else {
             setSelectedProject(null);
             setCompanyProfile(null);
+            setIsGuest(false);
         }
     };
 
@@ -93,6 +116,16 @@ function App() {
       setIsProfileModalOpen(false);
       handleBackToDashboard();
   };
+
+  const handleOpenLogin = () => {
+    setLoginModalMode('signIn');
+    setIsLoginModalOpen(true);
+  };
+
+  const handleOpenRegister = () => {
+    setLoginModalMode('signUp');
+    setIsLoginModalOpen(true);
+  }
   
   const isAuditor = !!user && !!selectedProject && user.id === selectedProject.user_id;
 
@@ -103,7 +136,8 @@ function App() {
         project={selectedProject}
         companyProfile={companyProfile}
         isAuditor={isAuditor}
-        onLogin={() => setIsLoginModalOpen(true)}
+        isGuest={isGuest}
+        onLogin={handleOpenLogin}
         onProfile={() => setIsProfileModalOpen(true)}
       />
       <main className="container mx-auto p-4 md:p-6">
@@ -113,15 +147,18 @@ function App() {
             user={user} 
             onBack={handleBackToDashboard}
             isAuditor={isAuditor}
+            isGuest={isGuest}
+            onRegister={handleOpenRegister}
           />
         ) : (
-          <Dashboard user={user} onSelectProject={handleSelectProject} />
+          <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={handleOpenLogin} />
         )}
       </main>
 
       <LoginModal 
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
+        initialMode={loginModalMode}
       />
 
       {user && (

@@ -55,7 +55,7 @@ export interface Event {
   project_id: string;
   week_id: string;
   task_id: string;
-  user_id: string;
+  user_id: string | null;
   author_email: string | null;
   type: 'comment' | 'meeting' | 'documentation_review' | 'interview';
   content: string;

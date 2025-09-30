@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, PlanItem } from '../types';
+import { Event, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -18,9 +18,11 @@ interface TaskDetailViewProps {
   user: User | null;
   context: { item: PlanItem; weekId: string; projectId: string; };
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
+  isGuest: boolean;
+  project: Project;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, isGuest, project }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
@@ -173,7 +175,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
 
                 {/* Footer / Input */}
                 <footer className="p-4 bg-gray-50 border-t">
-                    {user ? (
+                    {(user || isGuest) ? (
                          <AddEventForm 
                             user={user} 
                             context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }} 
@@ -181,6 +183,9 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             onClearQuote={() => setQuotedEvent(null)}
                             onNewEvent={handleNewEvent}
                             onAddStructuredEvent={() => setIsAddEventModalOpen(true)}
+                            project={project}
+                            task={context.item}
+                            isGuest={isGuest}
                         />
                     ) : (
                         <p className="text-sm text-center text-gray-500">Войдите, чтобы участвовать в обсуждении.</p>
@@ -188,13 +193,16 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 </footer>
             </div>
             
-             {user && (
+             {(user || isGuest) && (
                 <AddEventModal
                     isOpen={isAddEventModalOpen}
                     onClose={() => setIsAddEventModalOpen(false)}
                     user={user}
                     context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }}
                     onNewEvent={handleNewEvent}
+                    project={project}
+                    task={context.item}
+                    isGuest={isGuest}
                 />
             )}
             <ConfirmationModal

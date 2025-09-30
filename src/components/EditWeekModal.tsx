@@ -24,6 +24,7 @@ const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, on
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusText, setStatusText] = useState('');
+  const [error, setError] = useState('');
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
 
@@ -34,10 +35,12 @@ const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, on
       setStartDate(week.start_date);
       setEndDate(week.end_date);
       setPlan(week.plan);
+      setError('');
     }
-  }, [week]);
+  }, [week, isOpen]);
   
   const handleAiPlanGeneration = async () => {
+      setError('');
       if (!title || !description || !startDate || !endDate) {
           alert("Пожалуйста, заполните название, описание и даты, чтобы сгенерировать план.");
           return;
@@ -76,8 +79,12 @@ const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, on
           onUpdate();
           onClose();
 
-      } catch (error: any) {
-          alert("Ошибка при пересоздании плана: " + error.message);
+      } catch (err: any) {
+            if (err.message.includes('503') || err.message.toLowerCase().includes('overloaded')) {
+                setError('Сервер AI перегружен. Пожалуйста, попробуйте еще раз через несколько минут.');
+            } else {
+                setError("Ошибка при пересоздании плана: " + err.message);
+            }
       } finally {
           setIsGenerating(false);
           setStatusText('');
@@ -87,6 +94,7 @@ const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     setStatusText('Сохранение изменений...');
 
     const { error } = await supabase
@@ -108,6 +116,7 @@ const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, on
     <>
     <Modal isOpen={isOpen} onClose={onClose} title="Редактировать этап">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 bg-red-100 p-3 rounded-md text-sm">{error}</p>}
         <div>
           <label htmlFor="editWeekTitle" className="block text-sm font-medium text-gray-700">Название этапа</label>
           <input id="editWeekTitle" type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full mt-1 input" required />

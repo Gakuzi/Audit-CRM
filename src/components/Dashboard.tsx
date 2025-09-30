@@ -12,9 +12,10 @@ import ConfirmationModal from './ConfirmationModal';
 interface DashboardProps {
     user: User | null;
     onSelectProject: (project: Project) => void;
+    onLoginRequest: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginRequest }) => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,7 +87,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject }) => {
                         <ProjectCard 
                             key={project.id} 
                             project={project} 
-                            onSelect={onSelectProject} 
+                            onSelect={user ? onSelectProject : () => onLoginRequest()}
+                            isPublicView={!user}
                             onDelete={user?.id === project.user_id ? () => setProjectToDelete(project) : undefined}
                          />
                     ))}

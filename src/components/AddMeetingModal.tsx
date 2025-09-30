@@ -1,44 +1,66 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { supabase } from '../services/supabaseClient';
+import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Spinner } from './ui/Spinner';
+import { Project, PlanItem } from '../types';
 
 
 interface AddMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Fix: Added projectId to the context to ensure it can be saved with the event.
   context: { weekId: string; taskId: string; taskContent: string; projectId: string; };
   user: User | null;
+  project: Project;
+  task: PlanItem;
 }
 
-const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user }) => {
+const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user, project, task }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim() || !user) return;
+        if (!content.trim()) return;
         setLoading(true);
 
-        // Fix: Added project_id to the insert statement to ensure data integrity.
-        const { error } = await supabase.from('events').insert({
-            project_id: context.projectId,
-            week_id: context.weekId,
-            task_id: context.taskId,
-            user_id: user.id,
-            author_email: user.email,
-            type: 'meeting',
-            content: content.trim(),
-        });
-        
-        if (error) {
-            alert('Не удалось назначить встречу: ' + error.message);
-        } else {
-            handleClose();
+        try {
+            let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
+            let isGuestSubmission = !user;
+
+            if (!user && !authorIdentifier) {
+                const guestName = prompt('Пожалуйста, представьтесь:', 'Гость');
+                if (!guestName || guestName.trim() === '') {
+                    setLoading(false);
+                    return;
+                }
+                authorIdentifier = guestName;
+                localStorage.setItem('guestName', guestName);
+            }
+
+            const { data, error } = await supabase.from('events').insert({
+                project_id: context.projectId,
+                week_id: context.weekId,
+                task_id: context.taskId,
+                user_id: user ? user.id : null,
+                author_email: authorIdentifier,
+                type: 'meeting',
+                content: content.trim(),
+            }).select().single();
+            
+            if (error) {
+                throw error;
+            } else {
+                 if (isGuestSubmission && data) {
+                    sendGuestEventNotification(project, task, data);
+                }
+                handleClose();
+            }
+        } catch(err: any) {
+            alert('Не удалось назначить встречу: ' + err.message);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }
     
     const handleClose = () => {
