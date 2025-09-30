@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-// FIX: Import Project to be able to fetch and use project data.
 import { Event, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
@@ -45,7 +44,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         } else {
             setEvents(data || []);
         }
-
         if (showLoading) setLoading(false);
     }, [context]);
 
@@ -189,7 +187,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             isGuest={isGuest}
                         />
                     ) : (
-                        <p className="text-sm text-center text-gray-500">{isGuest ? "Загрузка..." : "Войдите, чтобы участвовать в обсуждении."}</p>
+                        <p className="text-sm text-center text-gray-500">Войдите, чтобы участвовать в обсуждении.</p>
                     )}
                 </footer>
             </div>
