@@ -93,20 +93,17 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
 
             const uploadedFiles = await uploadFiles(filesToAttach);
             
-            const eventData: Partial<Event> = {
+            const eventData = {
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
+                user_id: user ? user.id : project.user_id, // Fallback to auditor's ID for guests
                 author_email: authorIdentifier,
                 type: 'comment' as const,
                 content: content.trim(),
                 parent_event_id: quotedEvent ? quotedEvent.id : null,
                 data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : null,
             };
-
-            if (user) {
-                eventData.user_id = user.id;
-            }
     
             const { data, error } = await supabase.from('events').insert(eventData).select().single();
     

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
@@ -42,7 +43,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, cont
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user ? user.id : null,
+                user_id: user ? user.id : project.user_id, // Fallback to auditor's ID for guests
                 author_email: authorIdentifier,
                 type: 'meeting',
                 content: content.trim(),

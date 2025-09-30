@@ -51,7 +51,6 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
     const [files, setFiles] = useState<FileList | null>(null);
     const [audioBlob, setAudioBlob] = useState<{ blob: Blob, duration: number } | null>(null);
     
-    // Fix: Imported 'useEffect' from React to resolve the 'Cannot find name' error.
     useEffect(() => {
       if (isOpen && isGuest) {
         setStep('form');
@@ -132,15 +131,12 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
+                user_id: user ? user.id : project.user_id, // Fallback to auditor's ID for guests
                 author_email: authorIdentifier,
                 type: eventType,
                 content,
                 data: {}
             };
-
-            if (user) {
-              eventData.user_id = user.id;
-            }
 
             if (eventType === 'meeting') {
                 eventData.data!.meeting_time = new Date(meetingTime).toISOString();
