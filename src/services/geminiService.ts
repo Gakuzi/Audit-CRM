@@ -3,8 +3,6 @@ import { Project, Week, Event, Plan } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// This detailed description will be inserted into the prompts
-// to guide the AI, since we are using a less strict schema.
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым, будет заполнено программно)
@@ -25,11 +23,50 @@ const taskSchemaDescriptionForPrompt = `
 - Для других типов задач поле "data" может отсутствовать.
 `;
 
-// A simplified schema for a plan object with dynamic date keys.
-// This avoids the "properties should be non-empty for OBJECT type" error.
-const planSchema = {
-  type: Type.OBJECT,
-  description: "JSON-объект, представляющий план. Ключи - даты в формате 'YYYY-MM-DD'. Значения - объекты с ключом 'tasks', содержащим массив задач. Структура задач должна строго соответствовать инструкции в промпте."
+// Defines a schema for task data, which is optional and has optional fields.
+const taskDataSchema = {
+    type: Type.OBJECT,
+    properties: {
+        time: { type: Type.STRING },
+        location: { type: Type.STRING },
+        agenda: { type: Type.STRING },
+        participants: { type: Type.ARRAY, items: { type: Type.STRING } },
+        interviewee: { type: Type.STRING }
+    }
+};
+
+// Defines the schema for a single task item.
+const taskSchema = {
+    type: Type.OBJECT,
+    properties: {
+        id: { type: Type.STRING, description: "Пустая строка, будет заполнена на клиенте" },
+        content: { type: Type.STRING, description: "Описание задачи" },
+        completed: { type: Type.BOOLEAN, description: "Статус выполнения" },
+        type: { type: Type.STRING, description: "Тип задачи: 'task', 'meeting', 'interview', 'doc_review', 'observation'" },
+        data: taskDataSchema
+    },
+    required: ['id', 'content', 'completed', 'type']
+};
+
+// Defines the schema for a daily plan, which includes a date and a list of tasks.
+const dayPlanSchema = {
+    type: Type.OBJECT,
+    properties: {
+        date: { type: Type.STRING, description: "Дата в формате YYYY-MM-DD" },
+        tasks: {
+            type: Type.ARRAY,
+            items: taskSchema
+        }
+    },
+    required: ['date', 'tasks']
+};
+
+// Defines the schema for the entire plan, which is an array of daily plans.
+// This is the valid structure that resolves the "properties should be non-empty" error.
+const planAsArraySchema = {
+    type: Type.ARRAY,
+    description: "Массив объектов, где каждый объект представляет план на один день.",
+    items: dayPlanSchema
 };
 
 
@@ -54,7 +91,7 @@ export const generateAuditPlan = async (
     Для каждого этапа (недели):
     1. Придумай краткое, емкое название (например, "Этап 1: Сбор и анализ документации") и подробное описание целей этого этапа.
     2. Определи точные даты начала и окончания. Первая неделя начинается ${startDate}. Каждая неделя длится 7 дней.
-    3. Составь ежедневный план задач на 5 рабочих дней (ПН-ПТ). План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks', содержащим массив задач на этот день.
+    3. Составь ежедневный план задач на 5 рабочих дней (ПН-ПТ). План должен быть в формате JSON массива, где каждый элемент - это объект с ключами "date" (в формате 'YYYY-MM-DD') и "tasks" (массив задач на день).
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
@@ -87,7 +124,7 @@ export const generateAuditPlan = async (
                 type: Type.STRING,
                 description: 'Дата окончания недели в формате YYYY-MM-DD.'
             },
-            plan: planSchema,
+            plan: planAsArraySchema,
           },
           required: ['title', 'description', 'plan', 'start_date', 'end_date'],
         },
@@ -110,13 +147,23 @@ export const generateAuditPlan = async (
     const jsonText = (response.text ?? '').trim();
     const parsed = JSON.parse(jsonText);
     
+    // Convert the plan from an array of days to the object format expected by the app
     parsed.weeks.forEach((week: any) => {
-        if (week.plan) {
+        if (week.plan && Array.isArray(week.plan)) {
+            const planObject: Plan = {};
+            (week.plan as { date: string, tasks: any[] }[]).forEach(day => {
+                if (day.date && day.tasks) {
+                    planObject[day.date] = { tasks: day.tasks };
+                }
+            });
+            week.plan = planObject; // Replace the array with the constructed object
+
+            // Assign UUIDs and default states to each task
             Object.values(week.plan).forEach((day: any) => {
                 if (day.tasks && Array.isArray(day.tasks)) {
                     day.tasks.forEach((task: any) => {
                         task.id = crypto.randomUUID();
-                        task.completed = false; // Ensure default state
+                        task.completed = false;
                     });
                 }
             });
@@ -284,16 +331,19 @@ export const generateStagePlan = async (
     **Ключевые цели и задачи этапа:** "${description}"
 
     **ТРЕБОВАНИЯ К JSON:**
-    1.  Результат должен быть одним JSON-объектом.
-    2.  Ключами этого объекта должны быть ВСЕ дни в указанном диапазоне (с ${startDate} по ${endDate} включительно) в формате 'YYYY-MM-DD'.
-    3.  Значением для каждой даты должен быть объект вида \`{ "tasks": [] }\`.
-    4.  Наполни массив \`tasks\` для каждого дня 2-4 конкретными задачами, которые логически вытекают из целей этапа.
-    5.  Распредели задачи равномерно и логично по всему периоду.
+    1.  Результат должен быть JSON-массивом.
+    2.  Каждый элемент массива должен быть объектом, представляющим один день.
+    3.  Каждый объект дня должен иметь два ключа:
+        - "date": string (дата в формате 'YYYY-MM-DD')
+        - "tasks": array (массив задач на этот день)
+    4.  Массив должен содержать объекты для ВСЕХ дней в указанном диапазоне (с ${startDate} по ${endDate} включительно).
+    5.  Наполни массив \`tasks\` для каждого дня 2-4 конкретными задачами, которые логически вытекают из целей этапа.
+    6.  Распредели задачи равномерно и логично по всему периоду.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
 
-    Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования.
+    Верни ТОЛЬКО JSON-массив без каких-либо дополнительных пояснений или markdown-форматирования.
   `;
   
   const response = await ai.models.generateContent({
@@ -302,25 +352,33 @@ export const generateStagePlan = async (
     config: {
       systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a detailed daily plan for a single audit stage in JSON format. Strictly adhere to the user's instructions and the provided schema. Return only raw JSON text.",
       responseMimeType: 'application/json',
-      responseSchema: planSchema,
+      responseSchema: planAsArraySchema,
     },
   });
 
   try {
     const jsonText = (response.text ?? '').trim();
-    const parsedPlan = JSON.parse(jsonText);
+    const parsedArray: { date: string; tasks: any[] }[] = JSON.parse(jsonText);
 
-    // Ensure all tasks have a valid client-generated UUID
-    Object.values(parsedPlan).forEach((day: any) => {
+    // Convert the array of days back into the { [date]: { tasks: [] } } object format
+    const planObject: Plan = {};
+    parsedArray.forEach(day => {
+        if (day.date && day.tasks) {
+            planObject[day.date] = { tasks: day.tasks };
+        }
+    });
+
+    // Ensure all tasks have a valid client-generated UUID and default state
+    Object.values(planObject).forEach((day: any) => {
         if (day.tasks && Array.isArray(day.tasks)) {
             day.tasks.forEach((task: any) => {
                 task.id = crypto.randomUUID();
-                task.completed = false; // Ensure default state
+                task.completed = false;
             });
         }
     });
 
-    return parsedPlan as Plan;
+    return planObject as Plan;
   } catch (e) {
     console.error("Failed to parse Gemini plan response:", e);
     console.error("Raw response:", response.text);
