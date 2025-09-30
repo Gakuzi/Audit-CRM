@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { Week, PlanItem, Plan, PlanItemType } from '../types';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 
 interface AddPlanItemModalProps {
@@ -17,6 +17,7 @@ const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] 
     { type: 'meeting', name: 'Встреча', icon: <FaCalendarCheck size={24} className="mb-2 text-purple-600" /> },
     { type: 'interview', name: 'Интервью', icon: <FaUsers size={24} className="mb-2 text-green-600" /> },
     { type: 'doc_review', name: 'Анализ документов', icon: <FaFileContract size={24} className="mb-2 text-blue-600" /> },
+    { type: 'process_analysis', name: 'Анализ процесса', icon: <FaSitemap size={24} className="mb-2 text-teal-600" /> },
     { type: 'observation', name: 'Наблюдение', icon: <FaBinoculars size={24} className="mb-2 text-orange-600" /> },
 ];
 

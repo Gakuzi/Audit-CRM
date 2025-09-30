@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { PlanItem, PlanItemType } from '../types';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars } from 'react-icons/fa';
+// Fix: Added FaSitemap icon to support the 'process_analysis' type.
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 
 interface EditPlanItemModalProps {
@@ -17,6 +19,8 @@ const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode
     interview: { name: 'Интервью', icon: <FaUsers size={24} className="text-green-600" /> },
     doc_review: { name: 'Анализ документов', icon: <FaFileContract size={24} className="text-blue-600" /> },
     observation: { name: 'Наблюдение', icon: <FaBinoculars size={24} className="text-orange-600" /> },
+    // Fix: Added missing 'process_analysis' type to satisfy the PlanItemType.
+    process_analysis: { name: 'Анализ процесса', icon: <FaSitemap size={24} className="text-teal-600" /> },
 };
 
 

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Event } from '../types';
 import { FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaReply, FaUserFriends, FaClock, FaTrash } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
+import mermaid from 'mermaid';
 
 interface EventItemProps {
   event: Event;
@@ -9,6 +10,31 @@ interface EventItemProps {
   onQuoteClick: (eventId: string) => void;
   onDelete?: () => void;
 }
+
+mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+
+const MermaidDiagram: React.FC<{ chart: string }> = ({ chart }) => {
+    const ref = useRef<HTMLDivElement>(null);
+    const [svg, setSvg] = React.useState<string | null>(null);
+
+    useEffect(() => {
+        const renderMermaid = async () => {
+            if (ref.current) {
+                try {
+                    const { svg } = await mermaid.render(`mermaid-${Math.random().toString(36).substring(7)}`, chart);
+                    setSvg(svg);
+                } catch (error) {
+                    console.error('Mermaid rendering error:', error);
+                    setSvg('<p class="text-red-500 text-xs">Ошибка рендеринга диаграммы.</p>');
+                }
+            }
+        };
+        renderMermaid();
+    }, [chart]);
+
+    return svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div ref={ref}>Загрузка диаграммы...</div>;
+};
+
 
 const getEventTypeIcon = (type: Event['type']) => {
     switch (type) {
@@ -69,6 +95,8 @@ const renderAttachments = (files: { name: string, url: string, type?: string }[]
 
 const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onDelete }) => {
     
+    const isMermaid = event.content?.trim().startsWith('mindmap') || event.content?.trim().startsWith('graph');
+
     const renderEventDetails = () => {
         const eventData = event.data;
         if (!eventData) return null;
@@ -131,7 +159,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
 
                 {event.content && (
                     <div className="mt-2 text-sm text-gray-800 prose prose-sm max-w-none">
-                       <ReactMarkdown>{event.content}</ReactMarkdown>
+                        {isMermaid ? <MermaidDiagram chart={event.content} /> : <ReactMarkdown>{event.content}</ReactMarkdown>}
                     </div>
                 )}
                 

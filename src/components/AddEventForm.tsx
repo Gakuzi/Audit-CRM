@@ -204,21 +204,20 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                 >
                                     <FaMicrophone size={18} />
                                 </button>
+                                {onAddStructuredEvent && (
+                                    <button
+                                        type="button"
+                                        onClick={onAddStructuredEvent}
+                                        className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100"
+                                        title="Добавить событие (встреча, интервью)"
+                                        disabled={loading}
+                                    >
+                                        <FaFileAlt size={18} />
+                                    </button>
+                                )}
                             </>
                         )}
-                        
-                        {onAddStructuredEvent && !isGuest && (
-                            <button
-                                type="button"
-                                onClick={onAddStructuredEvent}
-                                className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100"
-                                title="Добавить событие (встреча, интервью)"
-                                disabled={loading}
-                            >
-                                <FaFileAlt size={18} />
-                            </button>
-                        )}
-                         {onAddStructuredEvent && isGuest && (
+                         {isGuest && onAddStructuredEvent && (
                             <button
                                 type="button"
                                 onClick={onAddStructuredEvent}

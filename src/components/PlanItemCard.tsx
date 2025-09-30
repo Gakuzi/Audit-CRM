@@ -1,6 +1,6 @@
 import React from 'react';
 import { PlanItem } from '../types';
-import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser } from 'react-icons/fa';
+import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 
 interface PlanItemCardProps {
@@ -18,6 +18,7 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
       case 'meeting': return <FaCalendarCheck className="text-purple-500" />;
       case 'interview': return <FaUsers className="text-green-500" />;
       case 'doc_review': return <FaFileContract className="text-blue-500" />;
+      case 'process_analysis': return <FaSitemap className="text-teal-500" />;
       case 'observation': return <FaBinoculars className="text-orange-500" />;
       default: return <FaTasks className="text-gray-500" />;
     }

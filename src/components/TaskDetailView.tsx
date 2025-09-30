@@ -7,10 +7,12 @@ import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
 import { FaTimes } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
-import InterviewActionBar from './InterviewActionBar';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
-
+import InterviewTools from './InterviewTools';
+import MeetingTools from './MeetingTools';
+import DocReviewTools from './DocReviewTools';
+import ProcessAnalysisTools from './ProcessAnalysisTools';
 
 interface TaskDetailViewProps {
   isOpen: boolean;
@@ -61,6 +63,10 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             }
             return currentEvents;
         });
+        // Scroll to bottom after new event is added
+        setTimeout(() => {
+            mainRef.current?.scrollTo({ top: mainRef.current.scrollHeight, behavior: 'smooth' });
+        }, 100);
     };
 
     const handleDeleteEvent = async () => {
@@ -87,7 +93,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             (payload) => {
                  setEvents(currentEvents => {
                     if (!currentEvents.some(e => e.id === payload.new.id)) {
-                        // We don't call onEventCountChange here to avoid double counting from local add
                         return [...currentEvents, payload.new as Event];
                     }
                     return currentEvents;
@@ -96,7 +101,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` },
             (payload) => {
                  setEvents(currentEvents => currentEvents.filter(e => e.id !== payload.old.id));
-                 // We don't call onEventCountChange here to avoid double counting from local delete
             })
         .subscribe();
 
@@ -116,6 +120,25 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         }
     };
     
+    const renderTaskTools = () => {
+        if (!user) return null; // Tools are for auditors only
+        
+        const props = { user, context, events, onNewEvent };
+
+        switch (context.item.type) {
+            case 'interview':
+                return <InterviewTools {...props} />;
+            case 'meeting':
+                return <MeetingTools {...props} />;
+            case 'doc_review':
+                return <DocReviewTools {...props} />;
+            case 'process_analysis':
+                return <ProcessAnalysisTools {...props} />;
+            default:
+                return null;
+        }
+    };
+
     if (!isOpen || !context) return null;
 
     return (
@@ -127,31 +150,20 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 }
             `}</style>
             <div className="bg-white m-2 md:m-4 lg:m-8 rounded-lg shadow-xl flex flex-col flex-1 overflow-hidden">
-                {/* Header */}
-                <header className="flex justify-between items-center p-4 border-b">
-                    <div>
+                <header className="flex justify-between items-start p-4 border-b">
+                    <div className="flex-1">
                         <h2 className="text-xl font-bold text-gray-800">Обсуждение задачи</h2>
-                        <div className="text-gray-600 prose prose-sm max-w-none">
+                        <div className="text-gray-600 prose prose-sm max-w-none mt-1">
                             <ReactMarkdown>{context.item.content}</ReactMarkdown>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100">
+                    <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 ml-4">
                         <FaTimes size={20} />
                     </button>
                 </header>
                 
-                 {/* Specialized Action Bar */}
-                {user && context.item.type === 'interview' && (
-                    <InterviewActionBar
-                        user={user}
-                        context={context}
-                        events={events}
-                        onNewEvent={handleNewEvent}
-                    />
-                )}
+                {renderTaskTools()}
 
-
-                {/* Event Feed */}
                 <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
                      {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
                         events.length > 0 ? (
@@ -172,7 +184,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     )}
                 </main>
 
-                {/* Footer / Input */}
                 <footer className="p-4 bg-gray-50 border-t">
                     {(user || isGuest) && project ? (
                          <AddEventForm 
@@ -198,6 +209,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     onClose={() => setIsAddEventModalOpen(false)}
                     user={user}
                     context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }}
+                    // Fix: Changed shorthand property to a proper key-value pair.
                     onNewEvent={handleNewEvent}
                     project={project}
                     task={context.item}

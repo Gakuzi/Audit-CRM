@@ -161,18 +161,18 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
             case 'meeting':
                 return (
                     <>
-                        <h3 className="text-lg font-bold">Запланировать встречу</h3>
+                        <h3 className="text-lg font-bold">Запросить встречу</h3>
                         <div>
                             <label htmlFor="meetingContent" className="block text-sm font-medium text-gray-700">Цель встречи</label>
                             <textarea id="meetingContent" value={content} onChange={e => setContent(e.target.value)} className="w-full mt-1 input" rows={3} required />
                         </div>
                         <div>
-                            <label htmlFor="meetingTime" className="block text-sm font-medium text-gray-700">Дата и время</label>
+                            <label htmlFor="meetingTime" className="block text-sm font-medium text-gray-700">Предпочтительные дата и время</label>
                             <input id="meetingTime" type="datetime-local" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="w-full mt-1 input" required />
                         </div>
                         <div>
                             <label htmlFor="participants" className="block text-sm font-medium text-gray-700">Участники (каждый с новой строки)</label>
-                            <textarea id="participants" value={participants} onChange={e => setParticipants(e.target.value)} className="w-full mt-1 input" rows={3} />
+                            <textarea id="participants" value={participants} onChange={e => setParticipants(e.target.value)} className="w-full mt-1 input" rows={3} placeholder="Например, ваше ФИО и должность"/>
                         </div>
                     </>
                 );
@@ -208,8 +208,8 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
     const availableEventTypes = isGuest ? eventTypeConfig.filter(et => et.guest_allowed) : eventTypeConfig;
     
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Добавить событие">
-            {step === 'select' ? (
+        <Modal isOpen={isOpen} onClose={handleClose} title={isGuest ? "Запрос на встречу" : "Добавить событие"}>
+            {step === 'select' && !isGuest ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {availableEventTypes.map(({ type, name, icon }) => (
                      <button key={type} onClick={() => handleSelectType(type)} className="flex flex-col items-center justify-center p-6 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
@@ -222,7 +222,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {renderForm()}
                     <div className="pt-2 flex justify-between items-center">
-                         <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
+                         <button type="button" onClick={handleBack} disabled={isGuest} className={`flex items-center btn-secondary ${isGuest ? 'hidden' : ''}`}><FaArrowLeft className="mr-2"/> Назад</button>
                          <button type="submit" disabled={loading || (eventType === 'interview' && !audioBlob)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
                             {loading ? <Spinner size="sm" /> : 'Добавить'}
                         </button>

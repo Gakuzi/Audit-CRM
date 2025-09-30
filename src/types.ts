@@ -1,4 +1,3 @@
-// Fix: Removed self-import of 'ApprovalPeriod' that conflicted with the type definition below.
 export type ApprovalPeriod = 'weekly' | 'monthly';
 
 export interface Project {
@@ -12,7 +11,7 @@ export interface Project {
   approval_period: ApprovalPeriod;
 }
 
-export type PlanItemType = 'task' | 'meeting' | 'interview' | 'doc_review' | 'observation';
+export type PlanItemType = 'task' | 'meeting' | 'interview' | 'doc_review' | 'observation' | 'process_analysis';
 
 export interface PlanItem {
   id: string;
@@ -56,7 +55,7 @@ export interface Event {
   project_id: string;
   week_id: string;
   task_id: string;
-  user_id: string;
+  user_id: string | null;
   author_email: string | null;
   type: 'comment' | 'meeting' | 'documentation_review' | 'interview';
   content: string;
