@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { Project, ApprovalPeriod } from '../types';
+import { Project, ApprovalPeriod, ApprovalPeriodType } from '../types';
 import { supabase } from '../services/supabaseClient';
 // Fix: Use relative path for service import.
 import { generateAuditPlan } from '../services/geminiService';
@@ -19,21 +19,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
     const [description, setDescription] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>('weekly');
+    const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>({ type: 'weekly', interval: 1, dayOfWeek: 0 });
     const [loading, setLoading] = useState(false);
     const [statusText, setStatusText] = useState('');
     const [error, setError] = useState('');
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
     useEffect(() => {
-        if (project) {
+        if (project && isOpen) {
             setName(project.name);
             setDescription(project.description);
             setStartDate(project.start_date);
             setEndDate(project.end_date || '');
-            setApprovalPeriod(project.approval_period);
+            // Handle old string format and new object format for backward compatibility
+            if (typeof project.approval_period === 'string') {
+                setApprovalPeriod({ type: 'weekly', interval: 1, dayOfWeek: 0 }); // Default for old data
+            } else {
+                setApprovalPeriod(project.approval_period);
+            }
         }
     }, [project, isOpen]);
+
+    const handlePeriodTypeChange = (type: ApprovalPeriodType) => {
+        if (type === 'weekly') {
+            setApprovalPeriod({ type: 'weekly', interval: 1, dayOfWeek: 0 });
+        } else if (type === 'daily') {
+            setApprovalPeriod({ type: 'daily', interval: 1 });
+        }
+    };
     
      const handleClose = () => {
         setError('');
@@ -89,14 +102,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
                 return start.toISOString().split('T')[0];
             })();
 
-             const start = new Date(startDate);
-             const end = new Date(finalEndDate);
-
-             const durationInDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-             const durationInWeeks = Math.ceil(durationInDays / 7);
-
             setStatusText('Генерация нового плана с помощью AI...');
-            const generatedData = await generateAuditPlan(name, description, startDate, finalEndDate, durationInWeeks, approvalPeriod);
+            const generatedData = await generateAuditPlan(name, description, startDate, finalEndDate, approvalPeriod);
 
             const weeksToInsert = generatedData.weeks.map((week: any) => ({
                 project_id: project.id,
@@ -162,11 +169,48 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
                     </div>
                 </div>
                 <div>
-                    <label htmlFor="approvalPeriodSettings" className="block text-sm font-medium text-gray-700">Период отчетности</label>
-                    <select id="approvalPeriodSettings" value={approvalPeriod} onChange={e => setApprovalPeriod(e.target.value as ApprovalPeriod)} className="w-full mt-1 input bg-white" disabled={loading}>
-                        <option value="weekly">Еженедельно</option>
-                        <option value="monthly">Ежемесячно</option>
-                    </select>
+                    <label className="block text-sm font-medium text-gray-700">Период отчетности</label>
+                    <div className="mt-1 grid grid-cols-2 gap-2 items-center">
+                        <select 
+                            value={approvalPeriod.type} 
+                            onChange={e => handlePeriodTypeChange(e.target.value as ApprovalPeriodType)} 
+                            className="input bg-white"
+                            disabled={loading}
+                        >
+                            <option value="weekly">Еженедельно</option>
+                            <option value="daily">Каждые N дней</option>
+                        </select>
+                        {approvalPeriod.type === 'weekly' && (
+                            <select 
+                                value={approvalPeriod.dayOfWeek}
+                                onChange={e => setApprovalPeriod({ ...approvalPeriod, dayOfWeek: parseInt(e.target.value) })}
+                                className="input bg-white"
+                                disabled={loading}
+                            >
+                                <option value={1}>по понедельникам</option>
+                                <option value={2}>по вторникам</option>
+                                <option value={3}>по средам</option>
+                                <option value={4}>по четвергам</option>
+                                <option value={5}>по пятницам</option>
+                                <option value={6}>по субботам</option>
+                                <option value={0}>по воскресеньям</option>
+                            </select>
+                        )}
+                        {approvalPeriod.type === 'daily' && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">Каждые</span>
+                                <input 
+                                    type="number"
+                                    min="1"
+                                    value={approvalPeriod.interval}
+                                    onChange={e => setApprovalPeriod({ ...approvalPeriod, interval: parseInt(e.target.value) || 1 })}
+                                    className="input w-16"
+                                    disabled={loading}
+                                />
+                                <span className="text-sm">дн.</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="pt-2 flex justify-end">
                     <button type="button" onClick={handleClose} className="mr-2 py-2 px-4 btn-secondary" disabled={loading}>Отмена</button>

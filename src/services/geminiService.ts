@@ -1,18 +1,16 @@
 // Fix: Use the correct import for GoogleGenAI
-import { GoogleGenAI, Type } from "@google/genai";
-import { Project, Week, Event, Plan, PlanItem } from '../types';
+import { GoogleGenAI } from "@google/genai";
+import { Project, Week, Event, Plan, ApprovalPeriod, ApprovalPeriodType, PlanItem } from '../types';
 
 // Fix: Use process.env.API_KEY to initialize the Gemini client,
 // as defined in the `define` section of vite.config.ts.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// This detailed description will be inserted into the prompts
-// to guide the AI, since we are using a less strict schema.
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым, будет заполнено программно)
-- "title": string (краткое название задачи)
-- "description": string (опциональное подробное описание)
+- "title": string (КРАТКОЕ, емкое название задачи, до 10 слов)
+- "description": string (ОПЦИОНАЛЬНОЕ, подробное описание задачи, если требуется)
 - "completed": boolean (всегда false по умолчанию)
 - "type": string (ОБЯЗАТЕЛЬНО один из: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis')
 - "data": object (необязательное поле для дополнительной информации)
@@ -29,30 +27,47 @@ const taskSchemaDescriptionForPrompt = `
 - Для других типов задач поле "data" может отсутствовать.
 `;
 
+const describeApprovalPeriod = (period: ApprovalPeriod): string => {
+    if (period.type === 'daily') {
+        if (period.interval === 1) return 'ежедневно';
+        return `каждые ${period.interval} дня`;
+    }
+    if (period.type === 'weekly') {
+        const days = ['воскресеньям', 'понедельникам', 'вторникам', 'средам', 'четвергам', 'пятницам', 'субботам'];
+        const dayName = days[period.dayOfWeek || 0];
+        return `каждую неделю по ${dayName}`;
+    }
+    return 'еженедельно'; // fallback
+}
+
 export const generateAuditPlan = async (
   projectName: string,
   projectDescription: string,
   startDate: string,
   endDate: string,
-  durationInWeeks: number,
-  approvalPeriod: string
+  approvalPeriod: ApprovalPeriod
 ): Promise<{ weeks: { title: string, description: string, plan: any, start_date: string, end_date: string }[] }> => {
 
+  const approvalDescription = describeApprovalPeriod(approvalPeriod);
   const prompt = `
     Создай детальный план аудита для проекта.
-    Название проекта: "${projectName}"
-    Описание/цели: "${projectDescription}"
-    Даты проведения: с ${startDate} по ${endDate}.
-    Общая продолжительность: ${durationInWeeks} недель.
-    Период отчетности: ${approvalPeriod === 'weekly' ? 'Еженедельно' : 'Ежемесячно'}.
 
-    План должен быть разбит на ${durationInWeeks} этапов (недель).
-    Для каждого этапа (недели):
-    1. Придумай краткое, емкое название (например, "Этап 1: Сбор и анализ документации") и подробное описание целей этого этапа.
-    2. Определи точные даты начала и окончания. Первая неделя начинается ${startDate}. Каждая неделя длится 7 дней. Даты должны быть последовательными от этапа к этапу, без пропусков.
-    3. Составь ежедневный план задач на рабочие дни (с понедельника по пятницу). **Субботу и воскресенье следует оставлять свободными.** Не планируй никаких задач на выходные дни. План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks', содержащим массив задач на этот день.
+    **Информация о проекте:**
+    - Название: "${projectName}"
+    - Описание/цели: "${projectDescription}"
+    - Даты проведения: с ${startDate} по ${endDate}.
+    - Период отчетности: ${approvalDescription}.
+
+    **Твоя задача:**
+    1.  **Разбить проект на этапы.** Разбей весь период проекта на последовательные этапы (недели/периоды), которые соответствуют указанному "Периоду отчетности". Дата окончания каждого этапа должна совпадать с днем отчетности. Даты начала и окончания каждого этапа должны быть точными и идти друг за другом без пропусков.
+    2.  **Спланировать каждый этап.** Для каждого этапа придумай краткое, емкое название и подробное описание целей.
+    3.  **Составить ежедневный план задач.** Для каждого этапа составь план задач на **рабочие дни (понедельник-пятница)**.
+        - **ВАЖНО: Субботу и воскресенье следует оставлять свободными.** Не планируй никаких задач на выходные дни.
+        - План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks'.
+        - Задачи в рамках этапа должны быть распределены последовательно по рабочим дням, не пропуская их.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
+    Когда это уместно, используй разнообразные типы задач: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis'.
     ${taskSchemaDescriptionForPrompt}
     
     Верни результат в виде единого JSON-объекта. Не добавляй никаких комментариев или markdown.
@@ -239,12 +254,13 @@ export const generateStagePlan = async (
 
     **ТРЕБОВАНИЯ К JSON:**
     1.  Результат должен быть одним JSON-объектом.
-    2.  Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate} включительно) в формате 'YYYY-MM-DD'. **Не включай субботу и воскресенье в ключи объекта.**
-    3.  Значением для каждой даты должен быть объект вида \`{ "tasks": [] }\`.
-    4.  Наполни массив \`tasks\` для каждого рабочего дня 2-4 конкретными задачами, которые логически вытекают из целей этапа.
-    5.  Распредели задачи равномерно и логично по рабочим дням.
+    2.  Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate} включительно).
+    3.  **ВАЖНО: Не включай субботу и воскресенье в ключи объекта.**
+    4.  Значением для каждой даты должен быть объект вида \`{ "tasks": [] }\`.
+    5.  Наполни массив \`tasks\` для каждого рабочего дня 2-4 конкретными задачами, которые логически вытекают из целей этапа. Распредели задачи равномерно и последовательно по рабочим дням.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
+    Используй разнообразные типы задач, когда это уместно: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis'.
     ${taskSchemaDescriptionForPrompt}
 
     Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования.

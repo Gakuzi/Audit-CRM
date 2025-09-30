@@ -1,5 +1,11 @@
-// Fix: Removed self-import of 'PlanItem' that conflicts with the local declaration of the type.
-export type ApprovalPeriod = 'weekly' | 'monthly';
+export type ApprovalPeriodType = 'daily' | 'weekly';
+
+export interface ApprovalPeriod {
+  type: ApprovalPeriodType;
+  interval: number;
+  dayOfWeek?: number; // For weekly: 0 = Sunday, 1 = Monday, etc.
+}
+
 
 export interface Project {
   id: string;
@@ -49,9 +55,9 @@ export interface Week {
   start_date: string;
   end_date: string;
   created_at: string;
-  rejection_comment: string | null;
-  report_content?: string | null;
-  report_generated_at?: string | null;
+  rejection_comment?: string;
+  report_content?: string;
+  report_generated_at?: string;
 }
 
 export interface Event {
@@ -88,6 +94,7 @@ export interface Profile {
 }
 
 export type ContactMethod = 'telegram' | 'whatsapp' | 'email' | 'phone';
+
 
 export interface ContactPerson {
   id: string; // client-side UUID
