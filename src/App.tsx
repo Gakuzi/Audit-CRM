@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './services/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import Header from './components/Header';
@@ -9,7 +9,6 @@ import ProfileModal from './components/ProfileModal';
 import { Project, CompanyProfile } from './types';
 
 function App() {
-  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<User | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
@@ -19,12 +18,10 @@ function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
       setUser(session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         setIsLoginModalOpen(false); // Close login modal on successful login

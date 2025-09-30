@@ -203,6 +203,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                 </div>
             </form>
             <Modal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} title="Записать аудио">
+                {/* Fix: Added the missing 'duration' parameter to the onSave callback to match the AudioRecorder's prop type. */}
                 <AudioRecorder onSave={(blob, duration) => {
                     const audioFile = new File([blob], `audio-recording-${Date.now()}.webm`, { type: blob.type });
                     setFilesToAttach(prev => [...prev, audioFile]);

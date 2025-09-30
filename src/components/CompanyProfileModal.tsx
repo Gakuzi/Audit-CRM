@@ -3,7 +3,7 @@ import Modal from './ui/Modal';
 import { Project, CompanyProfile, ContactPerson } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaEdit, FaSave, FaTimes, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
+import { FaEdit, FaSave, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
 
 interface CompanyProfileModalProps {
   isOpen: boolean;

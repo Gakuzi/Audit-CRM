@@ -108,7 +108,7 @@ export const generateAuditPlan = async (
   });
   
   try {
-    const jsonText = response.text.trim();
+    const jsonText = (response.text ?? '').trim();
     const parsed = JSON.parse(jsonText);
     
     parsed.weeks.forEach((week: any) => {
@@ -149,12 +149,12 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
     contents: { parts: [imagePart, textPart] },
   });
 
-  return response.text;
+  return response.text ?? '';
 };
 
 export const processInterviewAudio = async (
-  base64AudioData: string,
-  mimeType: string,
+  _base64AudioData: string,
+  _mimeType: string,
   interviewContext: string
 ): Promise<string> => {
     // Note: The standard generateContent API does not support direct audio file inputs.
@@ -183,7 +183,7 @@ export const processInterviewAudio = async (
         contents: prompt
     });
 
-    return response.text;
+    return response.text ?? '';
 };
 
 export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
@@ -245,7 +245,7 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
         contents: prompt
     });
 
-    return response.text;
+    return response.text ?? '';
 }
 
 export const generateStageDescription = async (
@@ -268,7 +268,7 @@ export const generateStageDescription = async (
     }
   });
 
-  return response.text;
+  return response.text ?? '';
 };
 
 export const generateStagePlan = async (
@@ -308,7 +308,7 @@ export const generateStagePlan = async (
   });
 
   try {
-    const jsonText = response.text.trim();
+    const jsonText = (response.text ?? '').trim();
     const parsedPlan = JSON.parse(jsonText);
 
     // Ensure all tasks have a valid client-generated UUID

@@ -21,7 +21,7 @@ const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode
 
 
 const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, onUpdateItem, item }) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, ] = useState(false);
 
   // Form states
   const [content, setContent] = useState('');

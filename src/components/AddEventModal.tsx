@@ -5,7 +5,7 @@ import { Event } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import AudioRecorder from './AudioRecorder';
-import { FaComment, FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
+import { FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
 
 interface AddEventModalProps {
     isOpen: boolean;

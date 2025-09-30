@@ -171,6 +171,7 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
             <Modal isOpen={isRecorderModalOpen} onClose={() => setIsRecorderModalOpen(false)} title="Запись интервью">
                 <AudioRecorder 
                     enableWakeLock={true}
+                    // Fix: Added the missing 'duration' parameter to the onSave callback to match the AudioRecorder's prop type.
                     onSave={(blob, duration) => {
                         setIsRecorderModalOpen(false);
                         handleAudioUpload(blob, `interview-recording-${Date.now()}.webm`);

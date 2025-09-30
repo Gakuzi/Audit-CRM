@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project, Event } from '../types';
+import { Week, Project } from '../types';
 import { generateComprehensiveReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
@@ -19,7 +19,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const fetchAndGenerateReport = async () => {
+    const fetchAndGenerateReport = useCallback(async () => {
         setLoading(true);
         setError('');
         setReport('');
@@ -41,13 +41,13 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
         } finally {
             setLoading(false);
         }
-    };
+    }, [week, project]);
 
     useEffect(() => {
         if (isOpen) {
             fetchAndGenerateReport();
         }
-    }, [isOpen, week.id]);
+    }, [isOpen, fetchAndGenerateReport]);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`AI Отчет: ${week.title}`}>

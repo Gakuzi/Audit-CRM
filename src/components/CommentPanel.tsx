@@ -66,12 +66,12 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     }, [context.taskId, fetchEventsAndProject]);
 
     // Fix: Added dummy handlers to satisfy EventItem's required props.
-    const handleReply = (event: Event) => {
+    const handleReply = (_event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
     };
 
-    const handleQuoteClick = (eventId: string) => {
+    const handleQuoteClick = (_eventId: string) => {
         // Quote click functionality is not implemented in this simplified panel.
     };
 

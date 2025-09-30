@@ -1,7 +1,9 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Project, Week, Event, Plan } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Fix: Use import.meta.env.VITE_API_KEY for Vite environment variables.
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 
 // This detailed description will be inserted into the prompts
 // to guide the AI, since we are using a less strict schema.

@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaMicrophone, FaStop, FaPlay, FaSave, FaTrash } from 'react-icons/fa';
-import { Spinner } from './ui/Spinner';
+import { FaMicrophone, FaStop, FaSave, FaTrash } from 'react-icons/fa';
 import { FiAlertTriangle } from 'react-icons/fi';
 
 interface AudioRecorderProps {

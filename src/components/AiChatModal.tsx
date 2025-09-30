@@ -75,7 +75,10 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ isOpen, onClose, onConfirm, i
                     {messages.map((msg, index) => (
                         <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-xs lg:max-w-md p-3 rounded-lg ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 border'}`}>
-                                <ReactMarkdown className="prose prose-sm">{msg.text}</ReactMarkdown>
+                                {/* Fix: Added prose-invert for user messages to ensure readability on dark background. */}
+                                <div className={`prose prose-sm ${msg.sender === 'user' ? 'prose-invert' : ''}`}>
+                                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                </div>
                             </div>
                         </div>
                     ))}
