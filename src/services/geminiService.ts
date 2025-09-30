@@ -50,8 +50,8 @@ export const generateAuditPlan = async (
     Разбей план на ${durationInWeeks} этапов (недель).
     Для каждого этапа:
     1. Краткое название и емкое описание (2-4 предложения).
-    2. Точные даты начала и окончания (первая неделя с ${startDate}, каждая 7 дней).
-    3. Ежедневный план на 5 рабочих дней (ПН-ПТ) в формате JSON.
+    2. Точные даты начала и окончания (первая неделя с ${startDate}, каждая 7 дней, даты должны быть последовательными от этапа к этапу).
+    3. Составь ежедневный план задач на рабочие дни (с понедельника по пятницу). **Субботу и воскресенье следует оставлять свободными.** Не планируй никаких задач на выходные дни. План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks', содержащим массив задач на этот день.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
@@ -128,10 +128,11 @@ export const generateStagePlan = async (
     Цели: "${description}"
 
     ТРЕБОВАНИЯ К JSON:
-    1. Ключи - ВСЕ дни в диапазоне в формате 'YYYY-MM-DD'.
-    2. Значение - \`{ "tasks": [...] }\`.
-    3. Наполни \`tasks\` 2-4 задачами по теме этапа.
-    4. Распредели задачи логично по дням.
+    1. Результат должен быть одним JSON-объектом.
+    2. Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate} включительно) в формате 'YYYY-MM-DD'. **Не включай субботу и воскресенье в ключи объекта.**
+    3. Значение для каждой даты - \`{ "tasks": [] }\`.
+    4. Наполни массив \`tasks\` для каждого рабочего дня 2-4 конкретными задачами, которые логически вытекают из целей этапа.
+    5. Распредели задачи равномерно и логично по рабочим дням.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
@@ -225,7 +226,6 @@ export const generateProcessFlowchart = async (taskContent: string, events: Even
 };
 
 // --- Reporting ---
-// Fix: Added missing function generateComprehensiveReport.
 export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
     const allTasks = Object.values(week.plan).flatMap(day => day.tasks);
     const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0);
@@ -289,7 +289,6 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
 }
 
 // --- Media Processing ---
-// Fix: Added missing function recognizeTextFromImage.
 export const recognizeTextFromImage = async (base64ImageData: string): Promise<string> => {
   const imagePart = {
     inlineData: {
@@ -309,10 +308,7 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
   return response.text ?? '';
 };
 
-// Fix: Added missing function processInterviewAudio.
 export const processInterviewAudio = async (
-  base64AudioData: string,
-  mimeType: string,
   interviewContext: string
 ): Promise<string> => {
     // Note: The standard generateContent API does not support direct audio file inputs.

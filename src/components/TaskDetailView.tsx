@@ -209,7 +209,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     onClose={() => setIsAddEventModalOpen(false)}
                     user={user}
                     context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }}
-                    // Fix: Changed shorthand property to a proper key-value pair.
                     onNewEvent={handleNewEvent}
                     project={project}
                     task={context.item}
