@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Warehouse Audit CRM",
+  "description": "An intuitive and functional CRM system for conducting warehouse audits, with a clear separation of roles for managers and auditors, and complete history preservation in a Supabase backend.",
+  "requestFramePermissions": []
+}
