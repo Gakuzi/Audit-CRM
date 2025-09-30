@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -53,12 +51,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
     // Client-side logic for non-auditors
     if (!isAuditor) {
-        if (isGuest) {
-            alert("Пожалуйста, зарегистрируйтесь, чтобы согласовывать этапы.");
-            return;
-        }
         if (week.status === 'pending_approval' && (newStatus === 'rejected' || newStatus === 'approved')) {
-             // This is an action for the client/owner
+             // This is an action for the client/owner or guest, allow it
         } else {
             alert("У вас нет прав для изменения этого статуса.");
             return;
@@ -109,7 +103,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   }, []);
 
   const getActionButtons = () => {
-    const canApprove = !isGuest && !isAuditor;
+    const canApprove = !isAuditor; // Guest or logged-in client
     switch (week.status) {
         case 'draft':
             return isAuditor && (
@@ -186,7 +180,14 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                  <button 
                     onClick={(e) => {
                         e.stopPropagation();
-                        if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
+                        if (isAuditor) {
+                            setIsStatusDropdownOpen(prev => !prev);
+                        } else if (!isGuest) {
+                           // Allow client to change status if it's pending approval
+                           if (week.status === 'pending_approval') {
+                                // This action is handled by the buttons, but we could add a dropdown here too if desired.
+                           }
+                        }
                     }}
                     className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
                     title={isAuditor ? "Изменить статус" : ""}
