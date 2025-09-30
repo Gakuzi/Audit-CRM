@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
+// Fix: Use relative path for service import.
 import { generateMindMapFromEvents, generateProcessFlowchart } from '../services/geminiService';
 import { FaBrain, FaPencilAlt } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';

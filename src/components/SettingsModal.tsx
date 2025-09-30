@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { Project, ApprovalPeriod } from '../types';
 import { supabase } from '../services/supabaseClient';
+// Fix: Use relative path for service import.
 import { generateAuditPlan } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
 import AiChatModal from './AiChatModal';

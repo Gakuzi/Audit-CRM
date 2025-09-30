@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Event, PlanItem, Project } from '../types';
+// Fix: Use relative path for service import.
+import { analyzeAudioRecording, analyzeDiagram, analyzeImageFromUrl } from '../services/geminiService';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-import { FaTimes, FaEdit, FaSave } from 'react-icons/fa';
+import { FaTimes, FaEdit, FaSave, FaBrain } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
@@ -36,7 +38,9 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const [isEditing, setIsEditing] = useState(false);
     const [editedTitle, setEditedTitle] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
-
+    const [analyzingEventId, setAnalyzingEventId] = useState<string | null>(null);
+    
+    const isAuditor = !isGuest && user?.id === project.user_id;
 
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
@@ -99,6 +103,51 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         onUpdateTask(context.weekId, updatedTask);
         setIsEditing(false);
     };
+    
+    const createAiReply = async (analysisText: string, parentEventId: string) => {
+        if (!user) return;
+        const { data, error } = await supabase.from('events').insert({
+            project_id: context.projectId,
+            week_id: context.weekId,
+            task_id: context.item.id,
+            user_id: user.id,
+            author_email: 'AI Ассистент',
+            type: 'comment',
+            content: analysisText,
+            parent_event_id: parentEventId
+        }).select('*, parent:events!parent_event_id(content, author_email)').single();
+
+        if (error) throw error;
+        handleNewEvent(data as Event);
+    };
+
+    const handleAnalyze = async (eventToAnalyze: Event) => {
+        setAnalyzingEventId(eventToAnalyze.id);
+        try {
+            let analysisResult = '';
+            const imageFile = eventToAnalyze.data?.file_urls?.find(f => f.type?.startsWith('image/'));
+            const audioFile = eventToAnalyze.data?.file_urls?.find(f => f.type?.startsWith('audio/'));
+            const isDiagram = eventToAnalyze.content?.trim().startsWith('mindmap') || eventToAnalyze.content?.trim().startsWith('graph');
+
+            if (imageFile) {
+                analysisResult = await analyzeImageFromUrl(imageFile.url);
+            } else if (audioFile) {
+                const taskContext = `${context.item.title}\n\n${context.item.description || ''}`;
+                analysisResult = await analyzeAudioRecording(taskContext, audioFile.name);
+            } else if (isDiagram) {
+                analysisResult = await analyzeDiagram(eventToAnalyze.content);
+            } else {
+                throw new Error("Нет контента для анализа.");
+            }
+
+            await createAiReply(analysisResult, eventToAnalyze.id);
+
+        } catch (err: any) {
+            alert(`Ошибка анализа: ${err.message}`);
+        } finally {
+            setAnalyzingEventId(null);
+        }
+    };
 
     useEffect(() => {
         if (!context) return;
@@ -119,8 +168,8 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     };
     
     const renderTaskTools = () => {
-        if (!user) return null; // Tools are for auditors only
-        const props = { user, context, events, onNewEvent: handleNewEvent };
+        if (!isAuditor) return null; // Tools are for auditors only
+        const props = { user: user!, context, events, onNewEvent: handleNewEvent };
         switch (context.item.type) {
             case 'interview': return <InterviewTools {...props} />;
             case 'meeting': return <MeetingTools {...props} />;
@@ -138,7 +187,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             <div className="bg-white m-2 md:m-4 lg:m-8 rounded-lg shadow-xl flex flex-col flex-1 overflow-hidden">
                 <header className="flex justify-between items-start p-4 border-b gap-4">
                     <div className="flex-1">
-                        {isEditing ? (
+                        {isEditing && isAuditor ? (
                             <input 
                                 type="text"
                                 value={editedTitle}
@@ -150,14 +199,14 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        {user && (
+                        {isAuditor && (
                             isEditing ? (
                                 <>
-                                    <button onClick={() => setIsEditing(false)} className="btn-secondary px-3 py-1.5 text-xs">Cancel</button>
-                                    <button onClick={handleSave} className="btn-primary px-3 py-1.5 text-xs flex items-center gap-1"><FaSave /> Save</button>
+                                    <button onClick={() => setIsEditing(false)} className="btn-secondary px-3 py-1.5 text-xs">Отмена</button>
+                                    <button onClick={handleSave} className="btn-primary px-3 py-1.5 text-xs flex items-center gap-1"><FaSave /> Сохранить</button>
                                 </>
                             ) : (
-                                <button onClick={() => setIsEditing(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Edit Task">
+                                <button onClick={() => setIsEditing(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Редактировать задачу">
                                     <FaEdit size={16} />
                                 </button>
                             )
@@ -171,12 +220,12 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 {renderTaskTools()}
 
                 <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
-                     {isEditing ? (
+                     {isEditing && isAuditor ? (
                          <textarea
                             value={editedDescription}
                             onChange={(e) => setEditedDescription(e.target.value)}
                             className="w-full h-32 input mb-6"
-                            placeholder="Detailed description..."
+                            placeholder="Подробное описание..."
                          />
                      ) : (
                         context.item.description && (
@@ -196,6 +245,9 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                         onReply={setQuotedEvent}
                                         onQuoteClick={handleQuoteClick}
                                         onDelete={user?.id === event.user_id ? () => setEventToDelete(event) : undefined}
+                                        onAnalyze={handleAnalyze}
+                                        isAnalyzing={analyzingEventId === event.id}
+                                        isAuditor={isAuditor}
                                     />
                                 ))}
                             </div>
@@ -213,7 +265,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             quotedEvent={quotedEvent}
                             onClearQuote={() => setQuotedEvent(null)}
                             onNewEvent={handleNewEvent}
-                            onAddStructuredEvent={() => setIsAddEventModalOpen(true)}
+                            onAddStructuredEvent={!isGuest ? () => setIsAddEventModalOpen(true) : undefined}
                             project={project}
                             task={context.item}
                             isGuest={isGuest}

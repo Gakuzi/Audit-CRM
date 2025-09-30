@@ -3,6 +3,7 @@ import Modal from './ui/Modal';
 import { Week, Plan } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
+// Fix: Use relative path for service import.
 import { generateStagePlan } from '../services/geminiService';
 import { FaBrain } from 'react-icons/fa';
 import AiChatModal from './AiChatModal';

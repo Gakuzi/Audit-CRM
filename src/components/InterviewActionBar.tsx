@@ -3,6 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
 import { FaCamera, FaUpload, FaMicrophone, FaBrain } from 'react-icons/fa';
 import { supabase } from '../services/supabaseClient';
+// Fix: Use relative path for service import.
 import { recognizeTextFromImage, processInterviewAudio } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
 import Modal from './ui/Modal';

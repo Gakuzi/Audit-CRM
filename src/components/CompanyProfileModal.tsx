@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
-import { Project, CompanyProfile, ContactPerson } from '../types';
+import { Project, CompanyProfile, ContactPerson, ContactMethod } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { FaEdit, FaSave, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
@@ -11,6 +11,13 @@ interface CompanyProfileModalProps {
   project: Project;
   isAuditor: boolean;
 }
+
+const contactMethods: { value: ContactMethod, label: string }[] = [
+    { value: 'telegram', label: 'Telegram' },
+    { value: 'whatsapp', label: 'WhatsApp' },
+    { value: 'email', label: 'Email' },
+    { value: 'phone', label: 'Телефон' },
+];
 
 const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClose, project, isAuditor }) => {
   const [loading, setLoading] = useState(true);
@@ -67,15 +74,14 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   const handleContactChange = (index: number, field: keyof ContactPerson, value: string | boolean) => {
       let newContacts = [...(profile.contacts || [])];
       
-      if (field === 'is_priority' && value === true) {
+      if (field === 'priority_contact_method') {
+          const newMethod = value === 'none' ? null : value as ContactMethod;
           newContacts = newContacts.map((contact, i) => ({
               ...contact,
-              is_priority: i === index
+              priority_contact_method: i === index ? newMethod : null // Enforce only one priority
           }));
       } else {
-        // Create a new object for the contact being changed
         const newContact = { ...newContacts[index], [field]: value };
-        // Replace the old object with the new one in the array
         newContacts = newContacts.map((contact, i) => i === index ? newContact : contact);
       }
       
@@ -83,7 +89,7 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   };
   
   const addContact = () => {
-      const newContact: ContactPerson = { id: crypto.randomUUID(), name: '', role: '', email: '', phone: '', telegram: '', is_priority: false };
+      const newContact: ContactPerson = { id: crypto.randomUUID(), name: '', role: '', email: '', phone: '', telegram: '', whatsapp: '', priority_contact_method: null };
       setProfile(prev => ({ ...prev, contacts: [...(prev.contacts || []), newContact] }));
   };
 
@@ -109,15 +115,16 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
                   <div className="mt-2 space-y-3">
                       {profile.contacts.map(contact => (
                            <div key={contact.id} className="p-3 border rounded-md relative">
-                               {contact.is_priority && <span className="absolute top-2 right-2 text-xs bg-yellow-200 text-yellow-800 font-bold py-0.5 px-2 rounded-full">Приоритетный</span>}
+                               {contact.priority_contact_method && <span className="absolute top-2 right-2 text-xs bg-yellow-200 text-yellow-800 font-bold py-0.5 px-2 rounded-full">Приоритетный контакт</span>}
                                <p className="font-bold">{contact.name} <span className="text-sm font-normal text-gray-600">- {contact.role}</span></p>
                                {contact.email && <p className="text-sm">Email: <a href={`mailto:${contact.email}`} className="text-blue-600">{contact.email}</a></p>}
                                {contact.phone && <p className="text-sm">Тел: <a href={`tel:${contact.phone}`} className="text-blue-600">{contact.phone}</a></p>}
+                               {contact.whatsapp && <p className="text-sm">WhatsApp: <a href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} className="text-blue-600">{contact.whatsapp}</a></p>}
                                {contact.telegram && <p className="text-sm">Telegram: <a href={`https://t.me/${contact.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600">{contact.telegram}</a></p>}
                                <div className="mt-2 flex items-center space-x-2">
                                     {contact.phone && <ActionButton href={`tel:${contact.phone}`} icon={<FaPhone />} colorClass="text-gray-600" title="Позвонить" />}
                                     {contact.email && <ActionButton href={`mailto:${contact.email}`} icon={<FaEnvelope />} colorClass="text-blue-600" title="Написать Email" />}
-                                    {contact.phone && <ActionButton href={`https://wa.me/${contact.phone.replace(/\D/g, '')}`} icon={<FaWhatsapp />} colorClass="text-green-500" title="Написать в WhatsApp" />}
+                                    {contact.whatsapp && <ActionButton href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} icon={<FaWhatsapp />} colorClass="text-green-500" title="Написать в WhatsApp" />}
                                     {contact.telegram && <ActionButton href={`https://t.me/${contact.telegram.replace('@', '')}`} icon={<FaTelegramPlane />} colorClass="text-sky-500" title="Написать в Telegram" />}
                                </div>
                            </div>
@@ -149,11 +156,22 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
                              <input type="text" placeholder="Должность" value={contact.role} onChange={e => handleContactChange(index, 'role', e.target.value)} className="input text-sm"/>
                              <input type="text" placeholder="Телефон" value={contact.phone} onChange={e => handleContactChange(index, 'phone', e.target.value)} className="input text-sm"/>
                              <input type="email" placeholder="Email" value={contact.email} onChange={e => handleContactChange(index, 'email', e.target.value)} className="input text-sm col-span-2"/>
-                             <input type="text" placeholder="Telegram @username" value={contact.telegram || ''} onChange={e => handleContactChange(index, 'telegram', e.target.value)} className="input text-sm col-span-2"/>
-                             <div className="col-span-2 flex items-center gap-2 mt-1">
-                                <input type="checkbox" id={`priority-${contact.id}`} checked={!!contact.is_priority} onChange={e => handleContactChange(index, 'is_priority', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                <label htmlFor={`priority-${contact.id}`} className="text-sm text-gray-700">Приоритетный способ связи</label>
-                            </div>
+                             <input type="text" placeholder="WhatsApp (с кодом)" value={contact.whatsapp || ''} onChange={e => handleContactChange(index, 'whatsapp', e.target.value)} className="input text-sm col-span-1"/>
+                             <input type="text" placeholder="Telegram @username" value={contact.telegram || ''} onChange={e => handleContactChange(index, 'telegram', e.target.value)} className="input text-sm col-span-1"/>
+                             <div className="col-span-2 mt-1">
+                                <label htmlFor={`priority-method-${contact.id}`} className="text-xs font-medium text-gray-600">Приоритетный способ связи</label>
+                                <select 
+                                    id={`priority-method-${contact.id}`}
+                                    value={contact.priority_contact_method || 'none'}
+                                    onChange={e => handleContactChange(index, 'priority_contact_method', e.target.value)}
+                                    className="w-full input text-sm mt-1"
+                                >
+                                    <option value="none">Нет</option>
+                                    {contactMethods.map(method => (
+                                        <option key={method.value} value={method.value}>{method.label}</option>
+                                    ))}
+                                </select>
+                             </div>
                         </div>
                     </div>
                 ))}
@@ -172,7 +190,7 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
              <div className="mt-6 pt-4 border-t flex justify-end">
                 {isEditing ? (
                     <div className="flex gap-2">
-                        <button onClick={() => setIsEditing(false)} className="btn-secondary">Отмена</button>
+                        <button onClick={() => { setIsEditing(false); fetchProfile(); }} className="btn-secondary">Отмена</button>
                         <button onClick={handleSave} disabled={loading} className="btn-primary w-28 flex items-center justify-center gap-2">
                             {loading ? <Spinner size="sm"/> : <><FaSave/> Сохранить</>}
                         </button>

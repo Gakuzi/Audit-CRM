@@ -1,9 +1,10 @@
+// Fix: Replaced placeholder content with the actual component implementation.
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaArrowLeft, FaCog, FaShareAlt, FaPlus, FaUserPlus } from 'react-icons/fa';
+import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
 import ShareModal from './ShareModal';
@@ -35,6 +36,19 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   
   const [weekToDelete, setWeekToDelete] = useState<Week | null>(null);
 
+  const findTaskAndOpenDetails = useCallback((taskId: string, weeksData: Week[]) => {
+      if (!taskId) return;
+      for (const week of weeksData) {
+          for (const date in week.plan) {
+              const task = week.plan[date].tasks.find(t => t.id === taskId);
+              if (task) {
+                  setSelectedTaskForDetail({ item: task, weekId: week.id, projectId: project.id });
+                  return;
+              }
+          }
+      }
+  }, [project.id]);
+
   const fetchWeeks = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     const { data, error } = await supabase
@@ -46,49 +60,23 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       console.error('Error fetching weeks:', error);
     } else {
-      setWeeks(data || []);
+      const weeksData = data || [];
+      setWeeks(weeksData);
+      if (initialTaskId) {
+          findTaskAndOpenDetails(initialTaskId, weeksData);
+      }
     }
     if (showLoading) setLoading(false);
-  }, [project.id]);
+  }, [project.id, initialTaskId, findTaskAndOpenDetails]);
 
   useEffect(() => {
     fetchWeeks();
   }, [fetchWeeks]);
-
-  useEffect(() => {
-    // Effect to open task detail view if taskId is in URL
-    if (initialTaskId && weeks.length > 0 && !selectedTaskForDetail) {
-        let taskToOpen: PlanItem | null = null;
-        let weekIdForTask: string | null = null;
-        
-        for (const week of weeks) {
-            for (const date in week.plan) {
-                const task = week.plan[date].tasks.find(t => t.id === initialTaskId);
-                if (task) {
-                    taskToOpen = task;
-                    weekIdForTask = week.id;
-                    break;
-                }
-            }
-            if (taskToOpen) break;
-        }
-
-        if (taskToOpen && weekIdForTask) {
-            setSelectedTaskForDetail({ item: taskToOpen, weekId: weekIdForTask, projectId: project.id });
-        }
-    }
-  }, [initialTaskId, weeks, project.id, selectedTaskForDetail]);
   
   useEffect(() => {
     const subscription = supabase.channel(`public:weeks:project_id=eq.${project.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weeks', filter: `project_id=eq.${project.id}` }, 
-        (payload) => {
-            if (payload.eventType === 'UPDATE') {
-                setWeeks(currentWeeks => currentWeeks.map(w => w.id === payload.new.id ? payload.new as Week : w));
-            } else {
-                fetchWeeks(false);
-            }
-        }
+        () => fetchWeeks(false)
       )
       .subscribe();
     
@@ -106,34 +94,28 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     }
   };
 
-  const handleUpdateTask = async (weekId: string, updatedTask: PlanItem) => {
-    const weekToUpdate = weeks.find(w => w.id === weekId);
-    if (!weekToUpdate) return;
+  const handleUpdateTask = (weekId: string, updatedTask: PlanItem) => {
+        const weekToUpdate = weeks.find(w => w.id === weekId);
+        if (!weekToUpdate) return;
 
-    const newPlan = JSON.parse(JSON.stringify(weekToUpdate.plan)); // Deep copy
-    let taskFound = false;
-
-    for (const date in newPlan) {
-        const taskIndex = newPlan[date].tasks.findIndex((t: PlanItem) => t.id === updatedTask.id);
-        if (taskIndex !== -1) {
-            newPlan[date].tasks[taskIndex] = updatedTask;
-            taskFound = true;
-            break;
+        const newPlan = { ...weekToUpdate.plan };
+        let taskFound = false;
+        for (const date in newPlan) {
+            const taskIndex = newPlan[date].tasks.findIndex(t => t.id === updatedTask.id);
+            if (taskIndex !== -1) {
+                newPlan[date].tasks[taskIndex] = updatedTask;
+                taskFound = true;
+                break;
+            }
         }
-    }
 
-    if (taskFound) {
-        // Optimistic UI update
-        const updatedWeeks = weeks.map(w => w.id === weekId ? { ...w, plan: newPlan } : w);
-        setWeeks(updatedWeeks);
-        if (selectedTaskForDetail) {
-          setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
+        if (taskFound) {
+            handleUpdatePlan(weekId, newPlan);
+            if (selectedTaskForDetail?.item.id === updatedTask.id) {
+                setSelectedTaskForDetail(prev => prev ? { ...prev, item: updatedTask } : null);
+            }
         }
-        
-        // Persist to DB
-        await handleUpdatePlan(weekId, newPlan);
-    }
-  };
+    };
   
    const handleEventCountChange = async (weekId: string, taskId: string, change: 1 | -1) => {
         const weekToUpdate = weeks.find(w => w.id === weekId);
@@ -214,19 +196,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
           <button onClick={() => setIsShareModalOpen(true)} className="p-2 btn-secondary"><FaShareAlt/></button>
         </div>
       </div>
-
-      {isGuest && (
-        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded-md flex justify-between items-center">
-            <div>
-                <p className="font-bold">Вы просматриваете проект как гость.</p>
-                <p className="text-sm">Создайте аккаунт для постоянного доступа к вашим проектам.</p>
-            </div>
-            <button onClick={onRegister} className="btn-primary flex items-center gap-2">
-                <FaUserPlus />
-                Зарегистрироваться
-            </button>
-        </div>
-      )}
       
       {isAuditor && (
         <div className="flex justify-end mb-6">
@@ -249,6 +218,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
                 onDeleteRequest={() => setWeekToDelete(week)}
                 onUpdateRequest={() => fetchWeeks(false)}
                 onGenerateReport={() => handleOpenReport(week)}
+                onRegisterRequest={onRegister}
             />
           ))}
           {weeks.length === 0 && (

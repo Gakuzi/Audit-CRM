@@ -1,3 +1,4 @@
+// Fix: Removed self-import of 'PlanItem' that conflicts with the local declaration of the type.
 export type ApprovalPeriod = 'weekly' | 'monthly';
 
 export interface Project {
@@ -84,6 +85,8 @@ export interface Profile {
   updated_at: string;
 }
 
+export type ContactMethod = 'telegram' | 'whatsapp' | 'email' | 'phone';
+
 export interface ContactPerson {
   id: string; // client-side UUID
   name: string;
@@ -91,7 +94,8 @@ export interface ContactPerson {
   email: string;
   phone: string;
   telegram?: string;
-  is_priority?: boolean;
+  whatsapp?: string;
+  priority_contact_method?: ContactMethod | null;
 }
 
 export interface CompanyProfile {

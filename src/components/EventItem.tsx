@@ -1,14 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { Event } from '../types';
-import { FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaReply, FaUserFriends, FaClock, FaTrash } from 'react-icons/fa';
+import { FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaReply, FaUserFriends, FaClock, FaTrash, FaBrain } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
+import { Spinner } from './ui/Spinner';
 
 interface EventItemProps {
   event: Event;
   onReply: (event: Event) => void;
   onQuoteClick: (eventId: string) => void;
   onDelete?: () => void;
+  onAnalyze?: (event: Event) => void;
+  isAnalyzing?: boolean;
+  isAuditor?: boolean;
 }
 
 mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
@@ -93,9 +97,10 @@ const renderAttachments = (files: { name: string, url: string, type?: string }[]
 };
 
 
-const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onDelete }) => {
+const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onDelete, onAnalyze, isAnalyzing, isAuditor }) => {
     
     const isMermaid = event.content?.trim().startsWith('mindmap') || event.content?.trim().startsWith('graph');
+    const hasAnalyzableContent = (event.data?.file_urls && event.data.file_urls.length > 0) || isMermaid;
 
     const renderEventDetails = () => {
         const eventData = event.data;
@@ -172,6 +177,16 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
                     {onDelete && (
                         <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium">
                             <FaTrash className="mr-1.5" /> Удалить
+                        </button>
+                    )}
+                    {isAuditor && onAnalyze && hasAnalyzableContent && (
+                        <button 
+                            onClick={() => onAnalyze(event)}
+                            disabled={isAnalyzing}
+                            className="flex items-center text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50"
+                        >
+                            {isAnalyzing ? <Spinner size="sm" /> : <FaBrain className="mr-1.5" />}
+                            {isAnalyzing ? 'Анализ...' : 'Анализ с AI'}
                         </button>
                     )}
                 </div>

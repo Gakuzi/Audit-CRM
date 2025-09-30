@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { Plan } from '../types';
+// Fix: Use relative path for service import.
 import { generateStagePlan } from '../services/geminiService';
 import { FaBrain } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';

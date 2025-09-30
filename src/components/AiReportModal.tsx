@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// Fix: Replaced placeholder content with the actual component implementation.
+import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project } from '../types';
+import { Week, Project, Event } from '../types';
 import { generateComprehensiveReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
@@ -19,7 +20,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const fetchAndGenerateReport = useCallback(async () => {
+    const fetchAndGenerateReport = async () => {
         setLoading(true);
         setError('');
         setReport('');
@@ -41,13 +42,13 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
         } finally {
             setLoading(false);
         }
-    }, [week, project]);
+    };
 
     useEffect(() => {
         if (isOpen) {
             fetchAndGenerateReport();
         }
-    }, [isOpen, fetchAndGenerateReport]);
+    }, [isOpen, week.id, project]);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`AI Отчет: ${week.title}`}>
