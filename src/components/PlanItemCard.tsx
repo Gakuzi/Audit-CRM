@@ -1,6 +1,7 @@
 import React from 'react';
 import { PlanItem } from '../types';
 import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap } from 'react-icons/fa';
+import ReactMarkdown from 'react-markdown';
 
 interface PlanItemCardProps {
   item: PlanItem;
@@ -17,8 +18,8 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
       case 'meeting': return <FaCalendarCheck className="text-purple-500" />;
       case 'interview': return <FaUsers className="text-green-500" />;
       case 'doc_review': return <FaFileContract className="text-blue-500" />;
-      case 'process_analysis': return <FaSitemap className="text-teal-500" />;
       case 'observation': return <FaBinoculars className="text-orange-500" />;
+      case 'process_analysis': return <FaSitemap className="text-teal-500" />;
       default: return <FaTasks className="text-gray-500" />;
     }
   }
@@ -72,13 +73,15 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
 
       <div className="flex justify-between items-start gap-2">
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-        <div className="flex-1 pr-6 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">{item.title}</p>
-            {item.description && (
-                <div className="text-xs text-gray-600 mt-1 line-clamp-2">
-                    {item.description}
+        <div className="flex-1 pr-6">
+            <div className="text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2">
+                <ReactMarkdown>{item.title}</ReactMarkdown>
+            </div>
+            {item.data?.agenda && 
+                <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
+                    <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
                 </div>
-            )}
+            }
             
             {(item.type === 'meeting' || item.type === 'interview') && item.data?.time && (
                 <div className="flex items-center text-xs text-gray-500 mt-1">

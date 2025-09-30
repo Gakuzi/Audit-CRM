@@ -35,19 +35,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   
   const [weekToDelete, setWeekToDelete] = useState<Week | null>(null);
 
-  const findTaskAndOpenDetails = useCallback((taskId: string, weeksData: Week[]) => {
-      if (!taskId) return;
-      for (const week of weeksData) {
-          for (const date in week.plan) {
-              const task = week.plan[date].tasks.find(t => t.id === taskId);
-              if (task) {
-                  setSelectedTaskForDetail({ item: task, weekId: week.id, projectId: project.id });
-                  return;
-              }
-          }
-      }
-  }, [project.id]);
-
   const fetchWeeks = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     const { data, error } = await supabase
@@ -59,19 +46,33 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       console.error('Error fetching weeks:', error);
     } else {
-      const weeksData = data || [];
-      setWeeks(weeksData);
-      if (initialTaskId) {
-          findTaskAndOpenDetails(initialTaskId, weeksData);
-      }
+      setWeeks(data || []);
     }
     if (showLoading) setLoading(false);
-  }, [project.id, initialTaskId, findTaskAndOpenDetails]);
+  }, [project.id]);
 
   useEffect(() => {
     fetchWeeks();
   }, [fetchWeeks]);
+
+  useEffect(() => {
+    if (initialTaskId && weeks.length > 0) {
+        let taskFound = false;
+        for (const week of weeks) {
+            for (const date in week.plan) {
+                const task = week.plan[date].tasks.find(t => t.id === initialTaskId);
+                if (task) {
+                    setSelectedTaskForDetail({ item: task, weekId: week.id, projectId: project.id });
+                    taskFound = true;
+                    break;
+                }
+            }
+            if (taskFound) break;
+        }
+    }
+  }, [initialTaskId, weeks, project.id]);
   
+  // This subscription is a fallback and ensures eventual consistency
   useEffect(() => {
     const subscription = supabase.channel(`public:weeks:project_id=eq.${project.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weeks', filter: `project_id=eq.${project.id}` }, 
@@ -89,32 +90,33 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       alert('Ошибка обновления плана: ' + error.message);
     } else {
-      fetchWeeks(false);
+      fetchWeeks(false); // Refetch to get latest data
     }
   };
 
   const handleUpdateTask = (weekId: string, updatedTask: PlanItem) => {
-        const weekToUpdate = weeks.find(w => w.id === weekId);
-        if (!weekToUpdate) return;
+    const weekToUpdate = weeks.find(w => w.id === weekId);
+    if (!weekToUpdate) return;
 
-        const newPlan = { ...weekToUpdate.plan };
-        let taskFound = false;
-        for (const date in newPlan) {
-            const taskIndex = newPlan[date].tasks.findIndex(t => t.id === updatedTask.id);
-            if (taskIndex !== -1) {
-                newPlan[date].tasks[taskIndex] = updatedTask;
-                taskFound = true;
-                break;
-            }
-        }
+    const newPlan = JSON.parse(JSON.stringify(weekToUpdate.plan)); // Deep copy
+    let taskFound = false;
 
-        if (taskFound) {
-            handleUpdatePlan(weekId, newPlan);
-            if (selectedTaskForDetail?.item.id === updatedTask.id) {
-                setSelectedTaskForDetail(prev => prev ? { ...prev, item: updatedTask } : null);
-            }
+    for (const date in newPlan) {
+        const day = newPlan[date];
+        const taskIndex = day.tasks.findIndex((t: PlanItem) => t.id === updatedTask.id);
+        if (taskIndex !== -1) {
+            day.tasks[taskIndex] = updatedTask;
+            taskFound = true;
+            break;
         }
-    };
+    }
+
+    if (taskFound) {
+        handleUpdatePlan(weekId, newPlan);
+        // also update the selected task in detail view to reflect changes immediately
+        setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
+    }
+  };
   
    const handleEventCountChange = async (weekId: string, taskId: string, change: 1 | -1) => {
         const weekToUpdate = weeks.find(w => w.id === weekId);
@@ -135,11 +137,13 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
         }
 
         if (taskFound) {
+            // Optimistic update
             setWeeks(currentWeeks => currentWeeks.map(w => w.id === weekId ? { ...w, plan: newPlan } : w));
+            // Persist change
             const { error } = await supabase.from('weeks').update({ plan: newPlan }).eq('id', weekId);
             if(error) {
                 alert("Ошибка синхронизации: " + error.message);
-                fetchWeeks(false);
+                fetchWeeks(false); // Revert if error
             }
         }
     };
@@ -210,15 +214,14 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
              <WeekCard 
                 key={week.id} 
                 week={week} 
-                project={project}
                 isAuditor={isAuditor}
                 isGuest={isGuest}
+                onRegister={onRegister}
                 onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}
                 onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})}
                 onDeleteRequest={() => setWeekToDelete(week)}
                 onUpdateRequest={() => fetchWeeks(false)}
                 onGenerateReport={() => handleOpenReport(week)}
-                onRegisterRequest={onRegister}
             />
           ))}
           {weeks.length === 0 && (
@@ -272,7 +275,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
           message={`Вы уверены, что хотите удалить этап "${weekToDelete?.title}" и все связанные с ним задачи?`}
        />
 
-       {selectedWeekForReport && (
+       {selectedWeekForReport && isAuditor && (
           <AiReportModal
             isOpen={isAiReportModalOpen}
             onClose={() => {
@@ -284,7 +287,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             onUpdate={() => fetchWeeks(false)}
            />
        )}
-
     </div>
   );
 };

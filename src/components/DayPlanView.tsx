@@ -12,9 +12,10 @@ interface DayPlanViewProps {
     onUpdatePlan: (plan: Plan) => void;
     onTaskSelect: (item: PlanItem) => void;
     isAuditor: boolean;
+    isGuest: boolean;
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, isGuest }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [itemToEdit, setItemToEdit] = useState<PlanItem | null>(null);
