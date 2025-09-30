@@ -8,6 +8,18 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const formatPhoneNumberForLink = (phone: string | undefined): string => {
+    if (!phone) return '';
+    let digits = phone.replace(/\D/g, '');
+    if (digits.length === 11 && (digits.startsWith('8') || digits.startsWith('7'))) {
+        digits = '7' + digits.substring(1);
+    }
+    if (digits.length > 0 && !digits.startsWith('+')) {
+        return `+${digits}`;
+    }
+    return `+${digits.replace('+', '')}`;
+};
+
 export const sendGuestEventNotification = async (project: Project, task: PlanItem, event: Event, baseUrl: string) => {
   try {
     // 1. Fetch auditor's profile to get Telegram credentials
@@ -45,12 +57,18 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
       let priorityText = '';
       const method = priorityContact.priority_contact_method;
 
-      if (method === 'telegram' && priorityContact.telegram) {
-          priorityUrl = `https://t.me/${priorityContact.telegram.replace('@', '')}`;
-          priorityText = `Связаться (Telegram)`;
-      } else if (method === 'whatsapp' && priorityContact.whatsapp) {
-          priorityUrl = `https://wa.me/${priorityContact.whatsapp.replace(/\D/g, '')}`;
-          priorityText = `Связаться (WhatsApp)`;
+      if (method === 'telegram' && priorityContact.phone) {
+          const formattedPhone = formatPhoneNumberForLink(priorityContact.phone);
+          if (formattedPhone) {
+            priorityUrl = `https://t.me/${formattedPhone}`;
+            priorityText = `Связаться (Telegram)`;
+          }
+      } else if (method === 'whatsapp' && (priorityContact.whatsapp || priorityContact.phone)) {
+          const formattedWhatsapp = formatPhoneNumberForLink(priorityContact.whatsapp || priorityContact.phone);
+          if (formattedWhatsapp) {
+            priorityUrl = `https://wa.me/${formattedWhatsapp}`;
+            priorityText = `Связаться (WhatsApp)`;
+          }
       } else if (method === 'email' && priorityContact.email) {
           priorityUrl = `mailto:${priorityContact.email}`;
           priorityText = `Связаться (Email)`;

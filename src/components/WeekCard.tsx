@@ -1,4 +1,3 @@
-// Fix: Replaced placeholder content with the actual component implementation.
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -71,14 +70,29 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
     } else {
         rejection_comment = null;
     }
-
-
-    const { error } = await supabase.from('weeks').update({ status: newStatus, rejection_comment }).eq('id', week.id);
-    if (error) {
-      alert('Ошибка изменения статуса: ' + error.message);
+    
+    if (isGuest) {
+      // Use a dedicated RPC for guests to bypass RLS
+      const { error } = await supabase.rpc('update_week_status_as_guest', {
+        week_id_input: week.id,
+        new_status: newStatus,
+        rejection_comment_input: rejection_comment
+      });
+      if (error) {
+        alert('Ошибка изменения статуса: ' + error.message);
+      } else {
+        onUpdateRequest(); // refetch data
+      }
     } else {
-      onUpdateRequest();
+      // Authenticated auditor uses standard update
+      const { error } = await supabase.from('weeks').update({ status: newStatus, rejection_comment }).eq('id', week.id);
+      if (error) {
+        alert('Ошибка изменения статуса: ' + error.message);
+      } else {
+        onUpdateRequest();
+      }
     }
+
     setShowStatusChangeConfirm(null);
   };
   
@@ -109,13 +123,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                     Отправить на согласование
                 </button>
             );
-        case 'pending_approval':
-            return (isAuditor || isGuest) && (
-                <div className="flex gap-2">
-                    <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600">Отклонить</button>
-                    <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700">Согласовать</button>
-                </div>
-            );
         case 'approved':
              return isAuditor && <button onClick={() => handleStatusChange('completed')} className="btn-primary flex items-center gap-2"><FaCheckCircle/> Завершить этап</button>;
         case 'rejected':
@@ -133,11 +140,11 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300">
       <header
-        className="p-4 cursor-pointer border-b"
+        className="p-4 border-b"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 pr-4">
+            <div className="flex-1 pr-4 cursor-pointer">
                 <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
                  <div className="text-sm text-gray-500 mt-1">
                     <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
@@ -153,14 +160,20 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                     )}
                 </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                {week.status === 'pending_approval' && (isAuditor || isGuest) && (
+                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600 px-3 py-1 text-sm">Отклонить</button>
+                        <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700 px-3 py-1 text-sm">Согласовать</button>
+                    </div>
+                )}
                  {isAuditor && week.status === 'draft' && (
                      <>
                         <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
                         <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
                      </>
                  )}
-                <button className="p-2">
+                <button className="p-2 cursor-pointer">
                     {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
                 </button>
             </div>

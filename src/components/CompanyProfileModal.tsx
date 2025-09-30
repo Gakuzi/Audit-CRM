@@ -19,6 +19,19 @@ const contactMethods: { value: ContactMethod, label: string }[] = [
     { value: 'phone', label: 'Телефон' },
 ];
 
+const formatPhoneNumberForLink = (phone: string | undefined): string => {
+    if (!phone) return '';
+    let digits = phone.replace(/\D/g, '');
+    if (digits.length === 11 && (digits.startsWith('8') || digits.startsWith('7'))) {
+        digits = '7' + digits.substring(1);
+    }
+    if (digits.length > 0 && !digits.startsWith('+')) {
+        return `+${digits}`;
+    }
+    return `+${digits.replace('+', '')}`;
+};
+
+
 const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClose, project, isAuditor }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Partial<CompanyProfile>>({
@@ -113,22 +126,24 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
               <h4 className="text-sm font-semibold text-gray-500">Контактные лица</h4>
               {profile.contacts && profile.contacts.length > 0 ? (
                   <div className="mt-2 space-y-3">
-                      {profile.contacts.map(contact => (
-                           <div key={contact.id} className="p-3 border rounded-md relative">
-                               {contact.priority_contact_method && <span className="absolute top-2 right-2 text-xs bg-yellow-200 text-yellow-800 font-bold py-0.5 px-2 rounded-full">Приоритетный контакт</span>}
-                               <p className="font-bold">{contact.name} <span className="text-sm font-normal text-gray-600">- {contact.role}</span></p>
-                               {contact.email && <p className="text-sm">Email: <a href={`mailto:${contact.email}`} className="text-blue-600">{contact.email}</a></p>}
-                               {contact.phone && <p className="text-sm">Тел: <a href={`tel:${contact.phone}`} className="text-blue-600">{contact.phone}</a></p>}
-                               {contact.whatsapp && <p className="text-sm">WhatsApp: <a href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} className="text-blue-600">{contact.whatsapp}</a></p>}
-                               {contact.telegram && <p className="text-sm">Telegram: <a href={`https://t.me/${contact.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600">{contact.telegram}</a></p>}
-                               <div className="mt-2 flex items-center space-x-2">
-                                    {contact.phone && <ActionButton href={`tel:${contact.phone}`} icon={<FaPhone />} colorClass="text-gray-600" title="Позвонить" />}
-                                    {contact.email && <ActionButton href={`mailto:${contact.email}`} icon={<FaEnvelope />} colorClass="text-blue-600" title="Написать Email" />}
-                                    {contact.whatsapp && <ActionButton href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} icon={<FaWhatsapp />} colorClass="text-green-500" title="Написать в WhatsApp" />}
-                                    {contact.telegram && <ActionButton href={`https://t.me/${contact.telegram.replace('@', '')}`} icon={<FaTelegramPlane />} colorClass="text-sky-500" title="Написать в Telegram" />}
+                      {profile.contacts.map(contact => {
+                           const formattedPhone = formatPhoneNumberForLink(contact.phone);
+                           const formattedWhatsapp = formatPhoneNumberForLink(contact.whatsapp || contact.phone);
+                           return (
+                               <div key={contact.id} className="p-3 border rounded-md relative">
+                                   {contact.priority_contact_method && <span className="absolute top-2 right-2 text-xs bg-yellow-200 text-yellow-800 font-bold py-0.5 px-2 rounded-full">Приоритетный контакт</span>}
+                                   <p className="font-bold">{contact.name} <span className="text-sm font-normal text-gray-600">- {contact.role}</span></p>
+                                   {contact.email && <p className="text-sm">Email: <a href={`mailto:${contact.email}`} className="text-blue-600">{contact.email}</a></p>}
+                                   {contact.phone && <p className="text-sm">Тел: <a href={`tel:${contact.phone}`} className="text-blue-600">{contact.phone}</a></p>}
+                                   <div className="mt-2 flex items-center space-x-2">
+                                        {formattedPhone && <ActionButton href={`tel:${formattedPhone}`} icon={<FaPhone />} colorClass="text-gray-600" title="Позвонить" />}
+                                        {contact.email && <ActionButton href={`mailto:${contact.email}`} icon={<FaEnvelope />} colorClass="text-blue-600" title="Написать Email" />}
+                                        {formattedWhatsapp && <ActionButton href={`https://wa.me/${formattedWhatsapp}`} icon={<FaWhatsapp />} colorClass="text-green-500" title="Написать в WhatsApp" />}
+                                        {formattedPhone && <ActionButton href={`https://t.me/${formattedPhone}`} icon={<FaTelegramPlane />} colorClass="text-sky-500" title="Написать в Telegram" />}
+                                   </div>
                                </div>
-                           </div>
-                      ))}
+                           )
+                       })}
                   </div>
               ) : <p className="text-sm text-gray-500">Контакты не добавлены.</p>}
           </div>
