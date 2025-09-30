@@ -1,11 +1,13 @@
 // Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI } from "@google/genai";
-import { Project, Week, Event, Plan, ApprovalPeriod, PlanItem } from '../types';
+import { Project, Week, Event, Plan, PlanItem, ApprovalPeriod } from '../types';
 
 // Fix: Use process.env.API_KEY to initialize the Gemini client,
 // as defined in the `define` section of vite.config.ts.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// This detailed description will be inserted into the prompts
+// to guide the AI, since we are using a less strict schema.
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым, будет заполнено программно)
@@ -39,6 +41,7 @@ const describeApprovalPeriod = (period: ApprovalPeriod): string => {
     }
     return 'еженедельно'; // fallback
 }
+
 
 export const generateAuditPlan = async (
   projectName: string,
@@ -78,11 +81,13 @@ export const generateAuditPlan = async (
     contents: prompt,
     config: {
       systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a comprehensive audit plan in JSON format based on the user's request. Strictly adhere to the schema described in the prompt. Your response MUST be only the raw JSON text, without any markdown, comments, or other text.",
+      responseMimeType: 'application/json',
     },
   });
   
   try {
     const jsonText = (response.text ?? '').trim();
+    // In case the model still wraps the output in markdown, try to extract it.
     const jsonMatch = jsonText.match(/```(?:json)?\n([\s\S]*?)\n```/);
     const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
     const parsed = JSON.parse(finalJsonText);
@@ -91,7 +96,7 @@ export const generateAuditPlan = async (
         if (week.plan) {
             Object.values(week.plan).forEach((day: any) => {
                 if (day.tasks && Array.isArray(day.tasks)) {
-                    day.tasks.forEach((task: any) => {
+                    day.tasks.forEach((task: PlanItem) => {
                         task.id = crypto.randomUUID();
                         task.completed = false; // Ensure default state
                     });
@@ -271,11 +276,13 @@ export const generateStagePlan = async (
     contents: prompt,
     config: {
       systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a detailed daily plan for a single audit stage in JSON format. Strictly adhere to the user's instructions and the schema described in the prompt. Your response MUST be only the raw JSON text, without any markdown, comments, or other text.",
+      responseMimeType: 'application/json',
     },
   });
 
   try {
     const jsonText = (response.text ?? '').trim();
+    // In case the model still wraps the output in markdown, try to extract it.
     const jsonMatch = jsonText.match(/```(?:json)?\n([\s\S]*?)\n```/);
     const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
     const parsedPlan = JSON.parse(finalJsonText);
