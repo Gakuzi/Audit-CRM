@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
 import { generateDocReviewChecklist } from '../services/geminiService';
-import { FaTasks, FaPencilAlt, FaBrain } from 'react-icons/fa';
+import { FaPencilAlt, FaBrain } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import { supabase } from '../services/supabaseClient';
 import ManualToolModal from './ManualToolModal';
