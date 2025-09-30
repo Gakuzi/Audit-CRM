@@ -50,6 +50,8 @@ export interface Week {
   end_date: string;
   created_at: string;
   rejection_comment: string | null;
+  report_content?: string | null;
+  report_generated_at?: string | null;
 }
 
 export interface Event {

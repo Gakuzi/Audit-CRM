@@ -281,6 +281,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             }}
             week={selectedWeekForReport}
             project={project}
+            onUpdate={() => fetchWeeks(false)}
            />
        )}
 
