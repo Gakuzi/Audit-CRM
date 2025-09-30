@@ -5,7 +5,7 @@ import { Event, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaEdit, FaSave } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
@@ -20,17 +20,23 @@ interface TaskDetailViewProps {
   user: User | null;
   context: { item: PlanItem; weekId: string; projectId: string; };
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
+  onUpdateTask: (weekId: string, updatedTask: PlanItem) => void;
   isGuest: boolean;
   project: Project;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, isGuest, project }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, onUpdateTask, isGuest, project }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
     const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const mainRef = useRef<HTMLElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedTitle, setEditedTitle] = useState('');
+    const [editedDescription, setEditedDescription] = useState('');
+
 
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
@@ -52,8 +58,11 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     useEffect(() => {
         if (isOpen) {
             fetchEvents();
+            setEditedTitle(context.item.title);
+            setEditedDescription(context.item.description || '');
+            setIsEditing(false);
         }
-    }, [isOpen, fetchEvents]);
+    }, [isOpen, fetchEvents, context]);
 
     const handleNewEvent = (newEvent: Event) => {
         setEvents(currentEvents => {
@@ -63,7 +72,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             }
             return currentEvents;
         });
-        // Scroll to bottom after new event is added
         setTimeout(() => {
             mainRef.current?.scrollTo({ top: mainRef.current.scrollHeight, behavior: 'smooth' });
         }, 100);
@@ -72,9 +80,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const handleDeleteEvent = async () => {
         if (!eventToDelete) return;
         const eventIdToDelete = eventToDelete.id;
-
         const { error } = await supabase.from('events').delete().eq('id', eventIdToDelete);
-
         if (error) {
             alert('Ошибка удаления события: ' + error.message);
         } else {
@@ -84,58 +90,43 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         }
     };
 
+    const handleSave = () => {
+        const updatedTask = {
+            ...context.item,
+            title: editedTitle,
+            description: editedDescription,
+        };
+        onUpdateTask(context.weekId, updatedTask);
+        setIsEditing(false);
+    };
+
     useEffect(() => {
         if (!context) return;
-        
         const channel = supabase.channel(`public:events:task_id=eq.${context.item.id}`);
-        
-        channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, 
-            (payload) => {
-                 setEvents(currentEvents => {
-                    if (!currentEvents.some(e => e.id === payload.new.id)) {
-                        return [...currentEvents, payload.new as Event];
-                    }
-                    return currentEvents;
-                });
-            })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` },
-            (payload) => {
-                 setEvents(currentEvents => currentEvents.filter(e => e.id !== payload.old.id));
-            })
-        .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [context]);
+        channel.on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, 
+            () => fetchEvents(false)
+        ).subscribe();
+        return () => { supabase.removeChannel(channel) };
+    }, [context, fetchEvents]);
     
     const handleQuoteClick = (eventId: string) => {
         const element = document.getElementById(`event-${eventId}`);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             element.classList.add('highlight');
-            setTimeout(() => {
-                element.classList.remove('highlight');
-            }, 1500);
+            setTimeout(() => { element.classList.remove('highlight'); }, 1500);
         }
     };
     
     const renderTaskTools = () => {
         if (!user) return null; // Tools are for auditors only
-        
         const props = { user, context, events, onNewEvent: handleNewEvent };
-
         switch (context.item.type) {
-            case 'interview':
-                return <InterviewTools {...props} />;
-            case 'meeting':
-                return <MeetingTools {...props} />;
-            case 'doc_review':
-                return <DocReviewTools {...props} />;
-            case 'process_analysis':
-                return <ProcessAnalysisTools {...props} />;
-            default:
-                return null;
+            case 'interview': return <InterviewTools {...props} />;
+            case 'meeting': return <MeetingTools {...props} />;
+            case 'doc_review': return <DocReviewTools {...props} />;
+            case 'process_analysis': return <ProcessAnalysisTools {...props} />;
+            default: return null;
         }
     };
 
@@ -143,29 +134,56 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
 
     return (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-75 z-40 flex flex-col">
-            <style>{`
-                .highlight {
-                    background-color: #eef2ff; /* indigo-100 */
-                    transition: background-color 0.5s ease-in-out;
-                }
-            `}</style>
+            <style>{`.highlight { background-color: #eef2ff; transition: background-color 0.5s ease-in-out; }`}</style>
             <div className="bg-white m-2 md:m-4 lg:m-8 rounded-lg shadow-xl flex flex-col flex-1 overflow-hidden">
-                <header className="flex justify-between items-start p-4 border-b">
+                <header className="flex justify-between items-start p-4 border-b gap-4">
                     <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-800">{context.item.title}</h2>
+                        {isEditing ? (
+                            <input 
+                                type="text"
+                                value={editedTitle}
+                                onChange={(e) => setEditedTitle(e.target.value)}
+                                className="text-xl font-bold text-gray-800 w-full input"
+                            />
+                        ) : (
+                            <h2 className="text-xl font-bold text-gray-800">{context.item.title}</h2>
+                        )}
                     </div>
-                    <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 ml-4">
-                        <FaTimes size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {user && (
+                            isEditing ? (
+                                <>
+                                    <button onClick={() => setIsEditing(false)} className="btn-secondary px-3 py-1.5 text-xs">Cancel</button>
+                                    <button onClick={handleSave} className="btn-primary px-3 py-1.5 text-xs flex items-center gap-1"><FaSave /> Save</button>
+                                </>
+                            ) : (
+                                <button onClick={() => setIsEditing(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Edit Task">
+                                    <FaEdit size={16} />
+                                </button>
+                            )
+                        )}
+                        <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100">
+                            <FaTimes size={20} />
+                        </button>
+                    </div>
                 </header>
                 
                 {renderTaskTools()}
 
                 <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
-                     {context.item.description && (
-                        <div className="prose prose-sm max-w-none mb-6 p-4 bg-gray-50 rounded-md border">
-                            <ReactMarkdown>{context.item.description}</ReactMarkdown>
-                        </div>
+                     {isEditing ? (
+                         <textarea
+                            value={editedDescription}
+                            onChange={(e) => setEditedDescription(e.target.value)}
+                            className="w-full h-32 input mb-6"
+                            placeholder="Detailed description..."
+                         />
+                     ) : (
+                        context.item.description && (
+                            <div className="prose prose-sm max-w-none mb-6 p-4 bg-gray-50 rounded-md border">
+                                <ReactMarkdown>{context.item.description}</ReactMarkdown>
+                            </div>
+                        )
                      )}
 
                      {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
@@ -182,7 +200,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет. Начните обсуждение!</p>
+                            !isEditing && <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет. Начните обсуждение!</p>
                         )
                     )}
                 </main>

@@ -147,7 +147,6 @@ export const generateStagePlan = async (
     config: {
       systemInstruction: "You are an AI assistant for auditors. Generate a daily plan for an audit stage in JSON format. Strictly adhere to the schema. Return only raw JSON text.",
       responseMimeType: 'application/json',
-      responseSchema: planSchema,
     },
   });
 

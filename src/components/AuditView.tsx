@@ -54,11 +54,16 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     fetchWeeks();
   }, [fetchWeeks]);
   
-  // This subscription is a fallback and ensures eventual consistency
   useEffect(() => {
     const subscription = supabase.channel(`public:weeks:project_id=eq.${project.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weeks', filter: `project_id=eq.${project.id}` }, 
-        () => fetchWeeks(false)
+        (payload) => {
+            if (payload.eventType === 'UPDATE') {
+                setWeeks(currentWeeks => currentWeeks.map(w => w.id === payload.new.id ? payload.new as Week : w));
+            } else {
+                fetchWeeks(false);
+            }
+        }
       )
       .subscribe();
     
@@ -72,7 +77,36 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       alert('Ошибка обновления плана: ' + error.message);
     } else {
-      fetchWeeks(false); // Refetch to get latest data
+      fetchWeeks(false);
+    }
+  };
+
+  const handleUpdateTask = async (weekId: string, updatedTask: PlanItem) => {
+    const weekToUpdate = weeks.find(w => w.id === weekId);
+    if (!weekToUpdate) return;
+
+    const newPlan = JSON.parse(JSON.stringify(weekToUpdate.plan)); // Deep copy
+    let taskFound = false;
+
+    for (const date in newPlan) {
+        const taskIndex = newPlan[date].tasks.findIndex((t: PlanItem) => t.id === updatedTask.id);
+        if (taskIndex !== -1) {
+            newPlan[date].tasks[taskIndex] = updatedTask;
+            taskFound = true;
+            break;
+        }
+    }
+
+    if (taskFound) {
+        // Optimistic UI update
+        const updatedWeeks = weeks.map(w => w.id === weekId ? { ...w, plan: newPlan } : w);
+        setWeeks(updatedWeeks);
+        if (selectedTaskForDetail) {
+          setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
+        }
+        
+        // Persist to DB
+        await handleUpdatePlan(weekId, newPlan);
     }
   };
   
@@ -95,13 +129,11 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
         }
 
         if (taskFound) {
-            // Optimistic update
             setWeeks(currentWeeks => currentWeeks.map(w => w.id === weekId ? { ...w, plan: newPlan } : w));
-            // Persist change
             const { error } = await supabase.from('weeks').update({ plan: newPlan }).eq('id', weekId);
             if(error) {
                 alert("Ошибка синхронизации: " + error.message);
-                fetchWeeks(false); // Revert if error
+                fetchWeeks(false);
             }
         }
     };
@@ -232,6 +264,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             user={user}
             context={selectedTaskForDetail!}
             onEventCountChange={handleEventCountChange}
+            onUpdateTask={handleUpdateTask}
             isGuest={isGuest}
             project={project}
        />
