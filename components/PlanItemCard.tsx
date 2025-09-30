@@ -73,7 +73,7 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
       <div className="flex justify-between items-start gap-2">
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
         <div className="flex-1 pr-6">
-            <div className="text-sm text-gray-800 prose prose-sm max-w-none">
+            <div className="text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2">
                 <ReactMarkdown>{item.content}</ReactMarkdown>
             </div>
             {item.data?.agenda && 

@@ -123,7 +123,8 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const renderTaskTools = () => {
         if (!user) return null; // Tools are for auditors only
         
-        const props = { user, context, events, onNewEvent };
+        // Fix: Correctly pass the handleNewEvent function as the onNewEvent prop.
+        const props = { user, context, events, onNewEvent: handleNewEvent };
 
         switch (context.item.type) {
             case 'interview':

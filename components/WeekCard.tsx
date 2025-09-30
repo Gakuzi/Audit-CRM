@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -122,7 +123,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTa
     }
   }
   
-  const descriptionNeedsTruncation = (week.description?.length || 0) > 250;
+  const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300">
@@ -134,7 +135,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTa
             <div className="flex-1 pr-4">
                 <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
                  <div className="text-sm text-gray-500 mt-1">
-                    <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded ? 'line-clamp-3' : ''}`}>
+                    <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
                         <ReactMarkdown>{week.description || "Нет описания."}</ReactMarkdown>
                     </div>
                     {descriptionNeedsTruncation && (

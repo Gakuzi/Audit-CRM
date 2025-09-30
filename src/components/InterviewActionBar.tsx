@@ -119,12 +119,9 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
 
         setLoading(`analyze-${audioEvent.id}`);
         try {
-            // Using a proxy to bypass potential CORS issues with Supabase Storage if RLS is strict
-            const response = await fetch(audioFile.url);
-            const blob = await response.blob();
-            const base64Data = await blobToBase64(blob);
-            
-            const resultText = await processInterviewAudio(base64Data, audioFile.type || blob.type, context.item.content);
+            // Fix: Call processInterviewAudio with the correct text context argument.
+            // The service function simulates audio analysis and does not process audio data directly.
+            const resultText = await processInterviewAudio(context.item.content);
             
             await createNewEvent({
                 type: 'comment',
