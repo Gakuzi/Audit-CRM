@@ -158,7 +158,8 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 const newEvent = data as Event;
                 onNewEvent(newEvent);
                 if (isGuestSubmission) {
-                    sendGuestEventNotification(project, task, newEvent);
+                    // Fix: Add the missing `baseUrl` argument to the function call.
+                    sendGuestEventNotification(project, task, newEvent, window.location.origin);
                 }
             }
             onClose(); // Use onClose which resets state properly

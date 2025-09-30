@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Project, PlanItem, Event } from '../types';
+import { Project, PlanItem, Event, ContactPerson } from '../types';
 
 // These are your public Supabase keys.
 // Security is handled by Supabase Row Level Security (RLS) policies.
@@ -8,7 +8,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const sendGuestEventNotification = async (project: Project, task: PlanItem, event: Event) => {
+export const sendGuestEventNotification = async (project: Project, task: PlanItem, event: Event, baseUrl: string) => {
   try {
     // 1. Fetch auditor's profile to get Telegram credentials
     const { data: auditorProfile, error: profileError } = await supabase
@@ -22,20 +22,42 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
       return; // Fail silently without blocking UI
     }
 
-    // 2. Format the message
+    // 2. Fetch company profile for priority contact
+    const { data: companyProfile } = await supabase
+        .from('company_profiles')
+        .select('contacts')
+        .eq('project_id', project.id)
+        .single();
+    
+    const priorityContact = companyProfile?.contacts?.find((c: ContactPerson) => c.is_priority && c.telegram);
+
+
+    // 3. Construct inline keyboard
+    const inline_keyboard = [];
+    
+    // Button 1: Go to comment
+    const commentUrl = `${baseUrl}#/${project.id}?taskId=${task.id}`;
+    inline_keyboard.push([{ text: 'Перейти к комментарию', url: commentUrl }]);
+
+    // Button 2: Priority contact
+    if (priorityContact) {
+      const telegramUrl = `https://t.me/${priorityContact.telegram.replace('@', '')}`;
+      inline_keyboard.push([{ text: `Связаться с ${priorityContact.name}`, url: telegramUrl }]);
+    }
+
+    // 4. Format the message
     const eventTypeName = event.type === 'meeting' ? 'Запрос на встречу' : 'Комментарий';
     const message = `
 *${eventTypeName} в проекте "${project.name}"*
 
 *От:* ${event.author_email}
-// Fix: The 'PlanItem' type was updated from 'content' to 'title'.
 *Задача:* ${task.title}
 
 *Сообщение:*
 ${event.content}
     `;
 
-    // 3. Send the message via Telegram Bot API
+    // 5. Send the message via Telegram Bot API
     const { telegram_bot_token, telegram_chat_id } = auditorProfile;
     const url = `https://api.telegram.org/bot${telegram_bot_token}/sendMessage`;
 
@@ -46,6 +68,9 @@ ${event.content}
         chat_id: telegram_chat_id,
         text: message.trim(),
         parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: inline_keyboard
+        }
       }),
     });
 

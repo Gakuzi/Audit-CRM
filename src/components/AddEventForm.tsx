@@ -117,7 +117,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                 onClearQuote();
                 
                 if (isGuestSubmission) {
-                    sendGuestEventNotification(project, task, newEvent);
+                    sendGuestEventNotification(project, task, newEvent, window.location.origin);
                 }
             }
         } catch(err: any) {

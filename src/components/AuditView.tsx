@@ -19,9 +19,10 @@ interface AuditViewProps {
   isAuditor: boolean;
   isGuest: boolean;
   onRegister: () => void;
+  initialTaskId: string | null;
 }
 
-const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor, isGuest, onRegister }) => {
+const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor, isGuest, onRegister, initialTaskId }) => {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -53,6 +54,30 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   useEffect(() => {
     fetchWeeks();
   }, [fetchWeeks]);
+
+  useEffect(() => {
+    // Effect to open task detail view if taskId is in URL
+    if (initialTaskId && weeks.length > 0 && !selectedTaskForDetail) {
+        let taskToOpen: PlanItem | null = null;
+        let weekIdForTask: string | null = null;
+        
+        for (const week of weeks) {
+            for (const date in week.plan) {
+                const task = week.plan[date].tasks.find(t => t.id === initialTaskId);
+                if (task) {
+                    taskToOpen = task;
+                    weekIdForTask = week.id;
+                    break;
+                }
+            }
+            if (taskToOpen) break;
+        }
+
+        if (taskToOpen && weekIdForTask) {
+            setSelectedTaskForDetail({ item: taskToOpen, weekId: weekIdForTask, projectId: project.id });
+        }
+    }
+  }, [initialTaskId, weeks, project.id, selectedTaskForDetail]);
   
   useEffect(() => {
     const subscription = supabase.channel(`public:weeks:project_id=eq.${project.id}`)

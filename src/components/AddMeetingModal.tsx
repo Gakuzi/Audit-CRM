@@ -53,7 +53,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, cont
                 throw error;
             } else {
                  if (isGuestSubmission && data) {
-                    sendGuestEventNotification(project, task, data);
+                    sendGuestEventNotification(project, task, data, window.location.origin);
                 }
                 handleClose();
             }

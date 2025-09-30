@@ -13,6 +13,7 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [initialTaskId, setInitialTaskId] = useState<string | null>(null);
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [loginModalMode, setLoginModalMode] = useState<'signIn' | 'signUp'>('signIn');
@@ -54,7 +55,13 @@ function App() {
   useEffect(() => {
     const handleHashChange = async () => {
         const hash = window.location.hash.replace('#/', '');
-        if (hash) {
+        const [projectId, query] = hash.split('?');
+        const params = new URLSearchParams(query);
+        const taskId = params.get('taskId');
+        setInitialTaskId(taskId);
+
+
+        if (projectId) {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 setIsGuest(true);
@@ -63,13 +70,13 @@ function App() {
             const projectPromise = supabase
                 .from('projects')
                 .select('*')
-                .eq('id', hash)
+                .eq('id', projectId)
                 .single();
             
             const profilePromise = supabase
                 .from('company_profiles')
                 .select('*')
-                .eq('project_id', hash)
+                .eq('project_id', projectId)
                 .single();
 
             const [projectResult, profileResult] = await Promise.all([projectPromise, profilePromise]);
@@ -93,6 +100,7 @@ function App() {
             setSelectedProject(null);
             setCompanyProfile(null);
             setIsGuest(false);
+            setInitialTaskId(null);
         }
     };
 
@@ -149,6 +157,7 @@ function App() {
             isAuditor={isAuditor}
             isGuest={isGuest}
             onRegister={handleOpenRegister}
+            initialTaskId={initialTaskId}
           />
         ) : (
           <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={handleOpenLogin} />

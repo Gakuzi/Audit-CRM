@@ -90,6 +90,8 @@ export interface ContactPerson {
   role: string;
   email: string;
   phone: string;
+  telegram?: string;
+  is_priority?: boolean;
 }
 
 export interface CompanyProfile {
