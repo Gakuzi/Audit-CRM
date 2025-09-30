@@ -1,9 +1,11 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Project, Week, Event, Plan } from '../types';
 
-// Fix: Use import.meta.env.VITE_API_KEY for Vite environment variables.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+// Fix: Use process.env.API_KEY to initialize the Gemini client,
+// as defined in the `define` section of vite.config.ts.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // This detailed description will be inserted into the prompts
 // to guide the AI, since we are using a less strict schema.
@@ -109,7 +111,8 @@ export const generateAuditPlan = async (
   });
   
   try {
-    const jsonText = response.text.trim();
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    const jsonText = (response.text ?? '').trim();
     const parsed = JSON.parse(jsonText);
     
     parsed.weeks.forEach((week: any) => {
@@ -150,7 +153,8 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
     contents: { parts: [imagePart, textPart] },
   });
 
-  return response.text;
+  // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+  return response.text ?? '';
 };
 
 export const processInterviewAudio = async (
@@ -184,7 +188,8 @@ export const processInterviewAudio = async (
         contents: prompt
     });
 
-    return response.text;
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    return response.text ?? '';
 };
 
 export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
@@ -246,7 +251,8 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
         contents: prompt
     });
 
-    return response.text;
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    return response.text ?? '';
 }
 
 export const generateStageDescription = async (
@@ -269,7 +275,8 @@ export const generateStageDescription = async (
     }
   });
 
-  return response.text;
+  // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+  return response.text ?? '';
 };
 
 export const generateStagePlan = async (
@@ -309,7 +316,8 @@ export const generateStagePlan = async (
   });
 
   try {
-    const jsonText = response.text.trim();
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    const jsonText = (response.text ?? '').trim();
     const parsedPlan = JSON.parse(jsonText);
 
     // Ensure all tasks have a valid client-generated UUID

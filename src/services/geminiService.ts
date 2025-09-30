@@ -1,7 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Project, Week, Event, Plan } from '../types';
 
-// Fix: Use process.env.API_KEY as per the coding guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // This detailed description will be inserted into the prompts
