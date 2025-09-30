@@ -14,22 +14,132 @@
     @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors;
 }
 
-/* Print-specific styles for the AI Report Modal */
+/* --- PRINT STYLES --- */
 @media print {
+    /* Page setup and counters */
+    @page {
+        size: A4;
+        margin: 2cm;
+
+        @bottom-right {
+            content: "Страница " counter(page);
+            font-family: Arial, sans-serif;
+            font-size: 9pt;
+            color: #666;
+        }
+    }
+    
+    body {
+        counter-reset: page;
+    }
+
+    /* Hide on-screen elements */
+    .no-print {
+        display: none !important;
+    }
+
+    /* Show only the print container */
     body * {
         visibility: hidden;
     }
-    .print-area, .print-area * {
+
+    .print-container, .print-container * {
         visibility: visible;
     }
-    .print-area {
+
+    .print-container {
         position: absolute;
         left: 0;
         top: 0;
         width: 100%;
-        padding: 2rem;
+        padding: 0 1cm;
     }
-    .no-print {
-        display: none !important;
+    
+    /* Typography */
+    .print-container {
+        font-family: Georgia, 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        line-height: 1.5;
+        color: #000;
+    }
+    
+    /* Title Block */
+    .print-title-block {
+        text-align: center;
+        margin-bottom: 2cm;
+    }
+    .print-title-block h1 {
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        font-size: 22pt;
+        font-weight: bold;
+        margin-bottom: 1.5cm;
+    }
+    .print-title-block h2, .print-title-block .stage-name {
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        font-size: 14pt;
+        font-weight: normal;
+        margin: 0.5cm 0;
+    }
+    .print-title-block .details {
+        margin-top: 4cm;
+        display: table;
+        width: 100%;
+        font-size: 11pt;
+        text-align: left;
+    }
+    .print-title-block .details div {
+        display: table-row;
+    }
+    .print-title-block .details p {
+        display: table-cell;
+        padding: 8px 10px;
+        font-size: 11pt;
+    }
+    .print-title-block .details p:first-child {
+        font-weight: bold;
+        width: 40%;
+    }
+
+    /* Report Content */
+    .print-content {
+        margin-top: 1cm;
+    }
+    .print-content h1, .print-content h2, .print-content h3, .print-content h4 {
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        font-weight: bold;
+        color: #333;
+        margin-top: 1.5em;
+        margin-bottom: 0.7em;
+        break-after: avoid;
+        break-inside: avoid;
+    }
+    .print-content h1 { font-size: 18pt; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+    .print-content h2 { font-size: 16pt; }
+    .print-content h3 { font-size: 14pt; }
+    .print-content h4 { font-size: 12pt; }
+    .print-content p, .print-content li {
+        text-align: justify;
+    }
+    .print-content ul, .print-content ol {
+        padding-left: 2em;
+    }
+    .print-content a {
+        color: #000;
+        text-decoration: none;
+    }
+    .print-content pre, .print-content code {
+        font-family: 'Courier New', Courier, monospace;
+        background-color: #f4f4f4;
+        padding: 2px 4px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        font-size: 10pt;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    .print-content blockquote {
+        border-left: 4px solid #ccc;
+        padding-left: 1em;
+        color: #666;
     }
 }

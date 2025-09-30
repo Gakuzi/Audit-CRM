@@ -29,14 +29,6 @@ const taskSchemaDescriptionForPrompt = `
 - Для других типов задач поле "data" может отсутствовать.
 `;
 
-// A simplified schema for a plan object with dynamic date keys.
-// This avoids the "properties should be non-empty for OBJECT type" error.
-const planSchema = {
-  type: Type.OBJECT,
-  description: "JSON-объект, представляющий план. Ключи - даты в формате 'YYYY-MM-DD'. Значения - объекты с ключом 'tasks', содержащим массив задач. Структура задач должна строго соответствовать инструкции в промпте."
-};
-
-
 export const generateAuditPlan = async (
   projectName: string,
   projectDescription: string,
@@ -63,59 +55,22 @@ export const generateAuditPlan = async (
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
     
-    Верни результат в виде единого JSON-объекта, соответствующего предоставленной схеме. Не добавляй никаких комментариев или markdown.
+    Верни результат в виде единого JSON-объекта. Не добавляй никаких комментариев или markdown.
   `;
   
-  const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      weeks: {
-        type: Type.ARRAY,
-        description: 'Массив этапов (недель) аудита.',
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: {
-              type: Type.STRING,
-              description: 'Название этапа (недели).',
-            },
-            description: {
-                type: Type.STRING,
-                description: 'Подробное описание целей и задач этапа.'
-            },
-            start_date: {
-                type: Type.STRING,
-                description: 'Дата начала недели в формате YYYY-MM-DD.'
-            },
-            end_date: {
-                type: Type.STRING,
-                description: 'Дата окончания недели в формате YYYY-MM-DD.'
-            },
-            plan: planSchema,
-          },
-          required: ['title', 'description', 'plan', 'start_date', 'end_date'],
-        },
-      },
-    },
-    required: ['weeks'],
-  };
-
-  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
-      systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a comprehensive audit plan in JSON format based on the user's request. Strictly adhere to the provided JSON schema. Return only raw JSON text.",
-      responseMimeType: 'application/json',
-      responseSchema: responseSchema,
+      systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a comprehensive audit plan in JSON format based on the user's request. Strictly adhere to the schema described in the prompt. Your response MUST be only the raw JSON text, without any markdown, comments, or other text.",
     },
   });
   
   try {
-    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
-    const parsed = JSON.parse(jsonText);
+    const jsonMatch = jsonText.match(/```(?:json)?\n([\s\S]*?)\n```/);
+    const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
+    const parsed = JSON.parse(finalJsonText);
     
     parsed.weeks.forEach((week: any) => {
         if (week.plan) {
@@ -133,7 +88,6 @@ export const generateAuditPlan = async (
     return parsed;
   } catch (e) {
     console.error("Failed to parse Gemini response:", e);
-    // Fix: Access the response text directly from the response object
     console.error("Raw response:", response.text);
     throw new Error("Не удалось сгенерировать план аудита. Ответ от AI имел неверный формат.");
   }
@@ -151,25 +105,17 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
     text: "Распознай и верни весь рукописный и печатный текст с этого изображения. Сохрани оригинальное форматирование, включая переносы строк и отступы, насколько это возможно. Верни только текст, без каких-либо дополнительных комментариев или пояснений.",
   };
 
-  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: { parts: [imagePart, textPart] },
   });
 
-  // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-  // Fix: Access the response text directly from the response object
   return response.text ?? '';
 };
 
 export const processInterviewAudio = async (
   interviewContext: string
 ): Promise<string> => {
-    // Note: The standard generateContent API does not support direct audio file inputs.
-    // This function simulates the analysis by using a text prompt based on the interview context.
-    // A production implementation would typically use a Speech-to-Text service first,
-    // then send the resulting transcript to the Gemini API for analysis.
-
     const prompt = `
         Представь, что ты - ассистент аудитора. Тебе предоставлен контекст интервью.
         Твоя задача - проанализировать этот контекст и сгенерировать краткую сводку, основные выводы и ключевые моменты, которые могли бы обсуждаться.
@@ -186,14 +132,11 @@ export const processInterviewAudio = async (
         Отформатируй ответ, используя markdown.
     `;
     
-    // Fix: Use the correct API call `ai.models.generateContent`
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
     });
 
-    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-    // Fix: Access the response text directly from the response object
     return response.text ?? '';
 };
 
@@ -251,14 +194,11 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
     Твой отчет должен быть убедительным и подкрепленным фактами из предоставленных данных.
     `;
 
-    // Fix: Use the correct API call `ai.models.generateContent`
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
     });
 
-    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-    // Fix: Access the response text directly from the response object
     return response.text ?? '';
 }
 
@@ -273,7 +213,6 @@ export const generateStageDescription = async (
 
     Сгенерируй развернутое описание. Не добавляй никаких вступлений или заключений, верни только сам текст описания.
   `;
-  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: fullPrompt,
@@ -282,8 +221,6 @@ export const generateStageDescription = async (
     }
   });
 
-  // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-  // Fix: Access the response text directly from the response object
   return response.text ?? '';
 };
 
@@ -313,22 +250,19 @@ export const generateStagePlan = async (
     Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования.
   `;
   
-  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
-      systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a detailed daily plan for a single audit stage in JSON format. Strictly adhere to the user's instructions and the provided schema. Return only raw JSON text.",
-      responseMimeType: 'application/json',
-      responseSchema: planSchema,
+      systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a detailed daily plan for a single audit stage in JSON format. Strictly adhere to the user's instructions and the schema described in the prompt. Your response MUST be only the raw JSON text, without any markdown, comments, or other text.",
     },
   });
 
   try {
-    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
-    const parsedPlan = JSON.parse(jsonText);
+    const jsonMatch = jsonText.match(/```(?:json)?\n([\s\S]*?)\n```/);
+    const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
+    const parsedPlan = JSON.parse(finalJsonText);
 
     // Ensure all tasks have a valid client-generated UUID
     Object.values(parsedPlan).forEach((day: any) => {
@@ -343,7 +277,6 @@ export const generateStagePlan = async (
     return parsedPlan as Plan;
   } catch (e) {
     console.error("Failed to parse Gemini plan response:", e);
-    // Fix: Access the response text directly from the response object
     console.error("Raw response:", response.text);
     throw new Error("Не удалось сгенерировать план этапа. Ответ от AI имел неверный формат.");
   }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
-import { Project, Week, Plan, PlanItem } from '../types';
+import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
@@ -30,6 +30,9 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   const [isAddWeekModalOpen, setIsAddWeekModalOpen] = useState(false);
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [selectedWeekForReport, setSelectedWeekForReport] = useState<Week | null>(null);
+  const [auditorForReport, setAuditorForReport] = useState<Profile | null>(null);
+  const [companyForReport, setCompanyForReport] = useState<CompanyProfile | null>(null);
+
 
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<{ item: PlanItem; weekId: string; projectId: string; } | null>(null);
   
@@ -178,7 +181,14 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
       setWeekToDelete(null);
   }
 
-  const handleOpenReport = (week: Week) => {
+  const handleOpenReport = async (week: Week) => {
+      // Fetch auditor and company profiles before opening the modal
+      const { data: auditorData } = await supabase.from('profiles').select('*').eq('id', project.user_id).single();
+      setAuditorForReport(auditorData);
+
+      const { data: companyData } = await supabase.from('company_profiles').select('*').eq('project_id', project.id).single();
+      setCompanyForReport(companyData);
+
       setSelectedWeekForReport(week);
       setIsAiReportModalOpen(true);
   }
@@ -284,9 +294,12 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             }}
             week={selectedWeekForReport}
             project={project}
+            auditor={auditorForReport}
+            company={companyForReport}
             onUpdate={() => fetchWeeks(false)}
            />
        )}
+
     </div>
   );
 };

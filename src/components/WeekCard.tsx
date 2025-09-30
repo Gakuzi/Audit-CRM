@@ -235,7 +235,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
                 onUpdatePlan={onUpdatePlan}
                 onTaskSelect={onTaskSelect}
                 isAuditor={isAuditor}
-                isGuest={isGuest}
             />
             
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
