@@ -162,8 +162,8 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
 };
 
 export const processInterviewAudio = async (
-  base64AudioData: string,
-  mimeType: string,
+  _base64AudioData: string,
+  _mimeType: string,
   interviewContext: string
 ): Promise<string> => {
     // Note: The standard generateContent API does not support direct audio file inputs.
