@@ -215,7 +215,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
       <ShareModal 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        projectId={project.id}
+        project={project}
       />
       
       {isAuditor && (

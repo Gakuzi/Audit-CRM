@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -50,10 +51,12 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
 
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
-    if (!isAuditor && !isGuest) return; // Guests can't change status directly, but might need to trigger actions. Logic for guests is below.
-    
     // Client-side logic for non-auditors
     if (!isAuditor) {
+        if (isGuest) {
+            alert("Пожалуйста, зарегистрируйтесь, чтобы согласовывать этапы.");
+            return;
+        }
         if (week.status === 'pending_approval' && (newStatus === 'rejected' || newStatus === 'approved')) {
              // This is an action for the client/owner
         } else {
@@ -106,7 +109,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   }, []);
 
   const getActionButtons = () => {
-    const canApprove = !isAuditor || isGuest;
+    const canApprove = !isGuest && !isAuditor;
     switch (week.status) {
         case 'draft':
             return isAuditor && (
