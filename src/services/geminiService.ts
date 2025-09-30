@@ -73,7 +73,24 @@ export const generateAuditPlan = async (
     Когда это уместно, используй разнообразные типы задач: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis'.
     ${taskSchemaDescriptionForPrompt}
     
-    Верни результат в виде единого JSON-объекта. Не добавляй никаких комментариев или markdown.
+    **СТРОГИЙ ФОРМАТ ВЫВОДА:**
+    Верни результат в виде ОДНОГО JSON-объекта, имеющего следующую структуру. Не добавляй никаких комментариев или markdown.
+    {
+      "weeks": [
+        {
+          "title": "Название этапа (недели)",
+          "description": "Подробное описание целей этапа.",
+          "start_date": "YYYY-MM-DD",
+          "end_date": "YYYY-MM-DD",
+          "plan": {
+            "YYYY-MM-DD": {
+              "tasks": [ /* массив задач на этот день, соответствующих схеме задач */ ]
+            }
+          }
+        }
+      ]
+    }
+    Ключевой массив должен называться "weeks". Каждый объект в этом массиве должен иметь ключи "title", "description", "start_date", "end_date", и "plan".
   `;
   
   const response = await ai.models.generateContent({
@@ -268,7 +285,16 @@ export const generateStagePlan = async (
     Используй разнообразные типы задач, когда это уместно: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis'.
     ${taskSchemaDescriptionForPrompt}
 
-    Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования.
+    **СТРОГИЙ ФОРМАТ ВЫВОДА:**
+    Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования. Пример структуры:
+    {
+      "2025-10-01": {
+        "tasks": [ /* массив задач на эту дату */ ]
+      },
+      "2025-10-02": {
+        "tasks": [ /* массив задач на эту дату */ ]
+      }
+    }
   `;
   
   const response = await ai.models.generateContent({
