@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { Week, Plan, PlanItem, WeekStatus, Project, Event } from '../types';
+import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaUserPlus } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown';
 
 interface WeekCardProps {
   week: Week;
+  project: Project;
   isAuditor: boolean;
   isGuest: boolean;
   onUpdatePlan: (plan: Plan) => void;
@@ -30,7 +31,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onRegisterRequest }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onRegisterRequest }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -46,7 +47,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState<WeekStatus | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
-
+  const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
     if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation && isAuditor) {
@@ -54,49 +55,76 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
         return;
     }
     
-    let rejection_comment: string | null = week.rejection_comment;
-    if (newStatus === 'rejected') {
-        let author = isGuest ? localStorage.getItem('guestName') : 'Аудитор';
-        if (isGuest && !author) {
-            const guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в причине отклонения):', 'Гость');
+    if (isGuest) {
+        if (newStatus !== 'approved' && newStatus !== 'rejected') return;
+
+        let author = localStorage.getItem('guestName');
+        if (!author) {
+            const guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в комментарии):', 'Гость');
             if (!guestName || guestName.trim() === '') return;
             author = guestName;
             localStorage.setItem('guestName', guestName);
         }
 
-        const comment = prompt(`[${author}] Укажите причину отклонения:`);
-        if (comment === null) return;
-        rejection_comment = comment;
-    } else {
-        rejection_comment = null;
+        let content = '';
+        if (newStatus === 'approved') {
+            content = '✅ **[РЕШЕНИЕ ГОСТЯ]**\nЭтап был **согласован**.';
+        } else { // newStatus === 'rejected'
+            const comment = prompt(`[${author}] Укажите причину отклонения:`);
+            if (comment === null) return;
+            content = `❌ **[РЕШЕНИЕ ГОСТЯ]**\nЭтап был **отклонен** по причине: ${comment}`;
+        }
+        
+        const firstTask = allTasks.length > 0 ? allTasks[0] : null;
+        if (!firstTask) {
+            alert("Невозможно отправить решение, так как на этом этапе нет задач для привязки события.");
+            return;
+        }
+
+        const { data, error } = await supabase.from('events').insert({
+            project_id: project.id,
+            week_id: week.id,
+            task_id: firstTask.id,
+            user_id: project.user_id, // Event is for the auditor
+            author_email: author,
+            type: 'comment',
+            content: content,
+        }).select().single();
+
+        if (error) {
+            alert('Ошибка отправки решения: ' + error.message);
+        } else {
+            if (data) {
+                sendGuestEventNotification(project, firstTask, data as Event, window.location.origin);
+            }
+            alert('Ваше решение было отправлено аудитору на рассмотрение.');
+        }
+
+    } else { // Auditor logic
+        const updateData: { status: WeekStatus; rejection_comment: string | null } = { 
+            status: newStatus, 
+            rejection_comment: week.rejection_comment 
+        };
+
+        if (newStatus === 'rejected') {
+            const comment = prompt("Пожалуйста, укажите причину отклонения:", week.rejection_comment || "");
+            if (comment === null) return; // User cancelled prompt
+            updateData.rejection_comment = comment;
+        } else if (week.rejection_comment) {
+            updateData.rejection_comment = null;
+        }
+
+        const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
+        if (error) {
+            alert('Ошибка изменения статуса: ' + error.message);
+        } else {
+            onUpdateRequest();
+        }
     }
     
-    if (isGuest) {
-      // Use a dedicated RPC for guests to bypass RLS
-      const { error } = await supabase.rpc('update_week_status_as_guest', {
-        week_id_input: week.id,
-        new_status: newStatus,
-        rejection_comment_input: rejection_comment
-      });
-      if (error) {
-        alert('Ошибка изменения статуса: ' + error.message);
-      } else {
-        onUpdateRequest(); // refetch data
-      }
-    } else {
-      // Authenticated auditor uses standard update
-      const { error } = await supabase.from('weeks').update({ status: newStatus, rejection_comment }).eq('id', week.id);
-      if (error) {
-        alert('Ошибка изменения статуса: ' + error.message);
-      } else {
-        onUpdateRequest();
-      }
-    }
-
     setShowStatusChangeConfirm(null);
   };
   
-  const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
   const totalTasks = allTasks.length;
   const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0).length;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;

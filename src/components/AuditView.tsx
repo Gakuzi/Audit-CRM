@@ -1,4 +1,3 @@
-// Fix: Replaced placeholder content with the actual component implementation.
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem } from '../types';
@@ -211,6 +210,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
              <WeekCard 
                 key={week.id} 
                 week={week} 
+                project={project}
                 isAuditor={isAuditor}
                 isGuest={isGuest}
                 onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}
