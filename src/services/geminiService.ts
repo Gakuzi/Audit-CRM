@@ -1,6 +1,6 @@
 // Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI } from "@google/genai";
-import { Project, Week, Event, Plan, ApprovalPeriod, ApprovalPeriodType, PlanItem } from '../types';
+import { Project, Week, Event, Plan, ApprovalPeriod, PlanItem } from '../types';
 
 // Fix: Use process.env.API_KEY to initialize the Gemini client,
 // as defined in the `define` section of vite.config.ts.

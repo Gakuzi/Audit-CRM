@@ -64,7 +64,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
         setRejectionComment(comment);
     } else if (week.rejection_comment) {
         // If there's a rejection comment, clear it on any status change OTHER than to 'rejected'
-        updateData.rejection_comment = null;
+        updateData.rejection_comment = undefined;
     }
 
 
