@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-// Fix: Import additional types needed for fetching and passing props.
-import { Event, Project, PlanItem, Plan } from '../types';
+import { Event, Plan, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -20,12 +19,9 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     const [loading, setLoading] = useState(true);
     const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
     const [projectId, setProjectId] = useState<string | null>(null);
-    // Fix: Add state for project and task to pass to child components.
     const [project, setProject] = useState<Project | null>(null);
     const [task, setTask] = useState<PlanItem | null>(null);
 
-
-    // Fix: Expanded data fetching to include project and task details.
     const fetchEventsAndProject = useCallback(async () => {
         setLoading(true);
         const eventsPromise = supabase
@@ -87,17 +83,18 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [fetchEventsAndProject]);
+    }, [context.taskId, fetchEventsAndProject]);
 
-    const handleReply = (_event: Event) => {
+    const handleReply = (event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
     };
 
-    const handleQuoteClick = (_eventId: string) => {
+    const handleQuoteClick = (eventId: string) => {
         // Quote click functionality is not implemented in this simplified panel.
     };
 
+    const isGuest = !user;
 
     return (
         <aside className="bg-white rounded-lg shadow-md p-4 sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
@@ -122,23 +119,33 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
             </div>
             
             <div className="pt-2 border-t border-gray-200">
-                 {user && (
+                 {(user || isGuest) && (
                     <div className="flex items-center space-x-2 mb-2">
                          <button onClick={() => setIsMeetingModalOpen(true)} className="flex-1 flex items-center justify-center text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 py-2 px-3 rounded-md">
                             <FaVideo className="mr-2"/> Запланировать встречу
                         </button>
                     </div>
                  )}
-                {/* Fix: Pass missing project and task props to AddEventForm. */}
-                {user && projectId && project && task ? <AddEventForm user={user} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} task={task} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
+                {(user || isGuest) && projectId && project && task ? 
+                    <AddEventForm 
+                        user={user} 
+                        context={{...context, projectId}} 
+                        quotedEvent={null} 
+                        onClearQuote={() => {}} 
+                        onNewEvent={() => {}} 
+                        project={project} 
+                        task={task} 
+                        isGuest={isGuest} 
+                    /> 
+                    : <p className="text-sm text-center text-gray-500">{(user || isGuest) ? "Загрузка данных..." : "Войдите, чтобы оставлять комментарии."}</p>
+                }
             </div>
 
-            {/* Fix: Pass missing project and task props to AddMeetingModal. */}
-            {user && projectId && project && task && (
+            {(user || isGuest) && projectId && project && task && (
                 <AddMeetingModal
                     isOpen={isMeetingModalOpen}
                     onClose={() => setIsMeetingModalOpen(false)}
-                    context={{...context, projectId, taskContent: task.content}}
+                    context={{...context, projectId}}
                     user={user}
                     project={project}
                     task={task}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, PlanItem } from '../types';
+// FIX: Import Project to be able to fetch and use project data.
+import { Event, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -23,34 +24,51 @@ interface TaskDetailViewProps {
 const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
+    // FIX: Add state to store project details.
+    const [project, setProject] = useState<Project | null>(null);
     const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
     const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const mainRef = useRef<HTMLElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
 
-
-    const fetchEvents = useCallback(async (showLoading = true) => {
+    // FIX: Updated fetch logic to get both events and project details.
+    const fetchEventsAndProject = useCallback(async (showLoading = true) => {
         if (!context) return;
         if (showLoading) setLoading(true);
-        const { data, error } = await supabase
+        const eventsPromise = supabase
             .from('events')
             .select('*, parent:events!parent_event_id(content, author_email)')
             .eq('task_id', context.item.id)
             .order('created_at', { ascending: true });
         
-        if (error) {
-            console.error("Error fetching events:", error);
+        const projectPromise = supabase
+            .from('projects')
+            .select('*')
+            .eq('id', context.projectId)
+            .single();
+        
+        const [eventsResult, projectResult] = await Promise.all([eventsPromise, projectPromise]);
+        
+        if (eventsResult.error) {
+            console.error("Error fetching events:", eventsResult.error);
         } else {
-            setEvents(data || []);
+            setEvents(eventsResult.data || []);
         }
+
+        if (projectResult.error) {
+            console.error("Error fetching project:", projectResult.error);
+        } else {
+            setProject(projectResult.data);
+        }
+
         if (showLoading) setLoading(false);
     }, [context]);
 
     useEffect(() => {
         if (isOpen) {
-            fetchEvents();
+            fetchEventsAndProject();
         }
-    }, [isOpen, fetchEvents]);
+    }, [isOpen, fetchEventsAndProject]);
 
     const handleNewEvent = (newEvent: Event) => {
         setEvents(currentEvents => {
@@ -173,15 +191,18 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
 
                 {/* Footer / Input */}
                 <footer className="p-4 bg-gray-50 border-t">
-                    {user ? (
+                    {/* FIX: Pass missing props to AddEventForm and wait for project to be loaded. Also enable guest commenting. */}
+                    {(user || !user) && project ? (
                          <AddEventForm 
                             user={user} 
                             context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }} 
                             quotedEvent={quotedEvent}
                             onClearQuote={() => setQuotedEvent(null)}
                             onNewEvent={handleNewEvent}
-                            // Fix: Added the missing onAddStructuredEvent prop to open the AddEventModal.
                             onAddStructuredEvent={() => setIsAddEventModalOpen(true)}
+                            project={project}
+                            task={context.item}
+                            isGuest={!user}
                         />
                     ) : (
                         <p className="text-sm text-center text-gray-500">Войдите, чтобы участвовать в обсуждении.</p>
