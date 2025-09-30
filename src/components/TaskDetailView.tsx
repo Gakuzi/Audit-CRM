@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
+// FIX: Import Project to be able to fetch and use project data.
 import { Event, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
@@ -30,7 +31,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const mainRef = useRef<HTMLElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
 
-
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
         if (showLoading) setLoading(true);
@@ -45,6 +45,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         } else {
             setEvents(data || []);
         }
+
         if (showLoading) setLoading(false);
     }, [context]);
 
@@ -175,7 +176,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
 
                 {/* Footer / Input */}
                 <footer className="p-4 bg-gray-50 border-t">
-                    {(user || isGuest) ? (
+                    {(user || isGuest) && project ? (
                          <AddEventForm 
                             user={user} 
                             context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }} 
@@ -188,7 +189,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             isGuest={isGuest}
                         />
                     ) : (
-                        <p className="text-sm text-center text-gray-500">Войдите, чтобы участвовать в обсуждении.</p>
+                        <p className="text-sm text-center text-gray-500">{isGuest ? "Загрузка..." : "Войдите, чтобы участвовать в обсуждении."}</p>
                     )}
                 </footer>
             </div>

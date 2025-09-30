@@ -1,3 +1,4 @@
+// Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI, Type } from "@google/genai";
 import { Project, Week, Event, Plan } from '../types';
 
@@ -10,7 +11,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым, будет заполнено программно)
-- "content": string (краткое, емкое описание задачи в 2-4 предложения)
+- "content": string (подробное описание задачи)
 - "completed": boolean (всегда false по умолчанию)
 - "type": string (ОБЯЗАТЕЛЬНО один из: 'task', 'meeting', 'interview', 'doc_review', 'observation')
 - "data": object (необязательное поле для дополнительной информации)
@@ -27,43 +28,11 @@ const taskSchemaDescriptionForPrompt = `
 - Для других типов задач поле "data" может отсутствовать.
 `;
 
-const taskItemSchema = {
-    type: Type.OBJECT,
-    properties: {
-        id: { type: Type.STRING },
-        content: { type: Type.STRING },
-        completed: { type: Type.BOOLEAN },
-        type: { type: Type.STRING },
-        data: { 
-            type: Type.OBJECT,
-            properties: {
-                time: { type: Type.STRING },
-                location: { type: Type.STRING },
-                agenda: { type: Type.STRING },
-                participants: { type: Type.ARRAY, items: { type: Type.STRING } },
-                interviewee: { type: Type.STRING },
-            }
-        },
-    },
-    required: ['id', 'content', 'completed', 'type']
-};
-
-const dailyPlanSchemaForArray = {
-    type: Type.OBJECT,
-    properties: {
-        date: { type: Type.STRING, description: "Дата в формате YYYY-MM-DD." },
-        tasks: {
-            type: Type.ARRAY,
-            items: taskItemSchema
-        }
-    },
-    required: ['date', 'tasks']
-};
-
-const planAsArraySchema = {
-    type: Type.ARRAY,
-    description: "Массив ежедневных планов.",
-    items: dailyPlanSchemaForArray
+// A simplified schema for a plan object with dynamic date keys.
+// This avoids the "properties should be non-empty for OBJECT type" error.
+const planSchema = {
+  type: Type.OBJECT,
+  description: "JSON-объект, представляющий план. Ключи - даты в формате 'YYYY-MM-DD'. Значения - объекты с ключом 'tasks', содержащим массив задач. Структура задач должна строго соответствовать инструкции в промпте."
 };
 
 
@@ -86,9 +55,9 @@ export const generateAuditPlan = async (
 
     План должен быть разбит на ${durationInWeeks} этапов (недель).
     Для каждого этапа (недели):
-    1. Придумай краткое, емкое название (например, "Этап 1: Сбор и анализ документации") и краткое, емкое описание целей этого этапа (2-4 предложения).
+    1. Придумай краткое, емкое название (например, "Этап 1: Сбор и анализ документации") и подробное описание целей этого этапа.
     2. Определи точные даты начала и окончания. Первая неделя начинается ${startDate}. Каждая неделя длится 7 дней.
-    3. Составь ежедневный план задач на 5 рабочих дней (ПН-ПТ). Свойство 'plan' для каждой недели должно быть JSON-массивом. Каждый элемент массива - это объект с двумя ключами: "date" (строка в формате 'YYYY-MM-DD') и "tasks" (массив задач на этот день).
+    3. Составь ежедневный план задач на 5 рабочих дней (ПН-ПТ). План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks', содержащим массив задач на этот день.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
@@ -121,7 +90,7 @@ export const generateAuditPlan = async (
                 type: Type.STRING,
                 description: 'Дата окончания недели в формате YYYY-MM-DD.'
             },
-            plan: planAsArraySchema,
+            plan: planSchema,
           },
           required: ['title', 'description', 'plan', 'start_date', 'end_date'],
         },
@@ -130,6 +99,7 @@ export const generateAuditPlan = async (
     required: ['weeks'],
   };
 
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
@@ -141,28 +111,28 @@ export const generateAuditPlan = async (
   });
   
   try {
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
     const parsed = JSON.parse(jsonText);
     
     parsed.weeks.forEach((week: any) => {
-        if (week.plan && Array.isArray(week.plan)) {
-            const planObject: Plan = {};
-            week.plan.forEach((day: { date: string, tasks: any[] }) => {
-                if(day.date && day.tasks) {
+        if (week.plan) {
+            Object.values(week.plan).forEach((day: any) => {
+                if (day.tasks && Array.isArray(day.tasks)) {
                     day.tasks.forEach((task: any) => {
                         task.id = crypto.randomUUID();
                         task.completed = false; // Ensure default state
                     });
-                    planObject[day.date] = { tasks: day.tasks };
                 }
             });
-            week.plan = planObject; // Replace the array with the object
         }
     });
 
     return parsed;
   } catch (e) {
     console.error("Failed to parse Gemini response:", e);
+    // Fix: Access the response text directly from the response object
     console.error("Raw response:", response.text);
     throw new Error("Не удалось сгенерировать план аудита. Ответ от AI имел неверный формат.");
   }
@@ -180,17 +150,20 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
     text: "Распознай и верни весь рукописный и печатный текст с этого изображения. Сохрани оригинальное форматирование, включая переносы строк и отступы, насколько это возможно. Верни только текст, без каких-либо дополнительных комментариев или пояснений.",
   };
 
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: { parts: [imagePart, textPart] },
   });
 
+  // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+  // Fix: Access the response text directly from the response object
   return response.text ?? '';
 };
 
 export const processInterviewAudio = async (
-  _base64AudioData: string,
-  _mimeType: string,
+  base64AudioData: string,
+  mimeType: string,
   interviewContext: string
 ): Promise<string> => {
     // Note: The standard generateContent API does not support direct audio file inputs.
@@ -214,11 +187,14 @@ export const processInterviewAudio = async (
         Отформатируй ответ, используя markdown.
     `;
     
+    // Fix: Use the correct API call `ai.models.generateContent`
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
     });
 
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     return response.text ?? '';
 };
 
@@ -276,11 +252,14 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
     Твой отчет должен быть убедительным и подкрепленным фактами из предоставленных данных.
     `;
 
+    // Fix: Use the correct API call `ai.models.generateContent`
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
     });
 
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     return response.text ?? '';
 }
 
@@ -289,20 +268,24 @@ export const generateStageDescription = async (
 ): Promise<string> => {
   const fullPrompt = `
     Ты — эксперт по бизнес-аудиту. Помоги аудитору сформулировать детальное, ясное и полное описание целей и задач для этапа аудита.
-    Описание должно быть кратким и емким (2-4 предложения), фокусируясь на сути этапа, ключевых действиях и ожидаемых результатах.
+    Задавай уточняющие вопросы, если первоначальный запрос слишком общий.
+    Твоя цель — создать текст, который будет исчерпывающе описывать, что должно быть сделано на этом этапе.
     
     Запрос аудитора: "${prompt}"
 
-    Сгенерируй улучшенное описание.
+    Сгенерируй развернутое описание.
   `;
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: fullPrompt,
     config: {
-        systemInstruction: "You are an expert business auditor. Your task is to help a user flesh out the goals and objectives for a stage of their audit. Produce a concise and professional description (2-4 sentences). The output should be only the description text, without any conversational fluff."
+        systemInstruction: "You are an expert business auditor. Your task is to help a user flesh out the goals and objectives for a stage of their audit. Ask clarifying questions if needed to produce a comprehensive and professional description. The output should be only the description text, without any conversational fluff."
     }
   });
 
+  // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+  // Fix: Access the response text directly from the response object
   return response.text ?? '';
 };
 
@@ -320,47 +303,49 @@ export const generateStagePlan = async (
     **Ключевые цели и задачи этапа:** "${description}"
 
     **ТРЕБОВАНИЯ К JSON:**
-    1.  Результат должен быть JSON-массивом.
-    2.  Каждый элемент массива - это объект с двумя ключами: "date" (строка в формате 'YYYY-MM-DD', для ВСЕХ дней в указанном диапазоне) и "tasks" (массив задач на этот день).
-    3.  Наполни массив \`tasks\` для каждого дня 2-4 конкретными задачами, которые логически вытекают из целей этапа.
-    4.  Распредели задачи равномерно и логично по всему периоду.
+    1.  Результат должен быть одним JSON-объектом.
+    2.  Ключами этого объекта должны быть ВСЕ дни в указанном диапазоне (с ${startDate} по ${endDate} включительно) в формате 'YYYY-MM-DD'.
+    3.  Значением для каждой даты должен быть объект вида \`{ "tasks": [] }\`.
+    4.  Наполни массив \`tasks\` для каждого дня 2-4 конкретными задачами, которые логически вытекают из целей этапа.
+    5.  Распредели задачи равномерно и логично по всему периоду.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}
 
-    Верни ТОЛЬКО JSON-массив без каких-либо дополнительных пояснений или markdown-форматирования.
+    Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования.
   `;
   
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
       systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a detailed daily plan for a single audit stage in JSON format. Strictly adhere to the user's instructions and the provided schema. Return only raw JSON text.",
       responseMimeType: 'application/json',
-      responseSchema: planAsArraySchema,
+      responseSchema: planSchema,
     },
   });
 
   try {
+    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
-    const parsedArray = JSON.parse(jsonText);
+    const parsedPlan = JSON.parse(jsonText);
 
-    const planObject: Plan = {};
-    if (Array.isArray(parsedArray)) {
-        parsedArray.forEach((day: { date: string, tasks: any[] }) => {
-            if(day.date && day.tasks) {
-                day.tasks.forEach((task: any) => {
-                    task.id = crypto.randomUUID();
-                    task.completed = false; // Ensure default state
-                });
-                planObject[day.date] = { tasks: day.tasks };
-            }
-        });
-    }
+    // Ensure all tasks have a valid client-generated UUID
+    Object.values(parsedPlan).forEach((day: any) => {
+        if (day.tasks && Array.isArray(day.tasks)) {
+            day.tasks.forEach((task: any) => {
+                task.id = crypto.randomUUID();
+                task.completed = false; // Ensure default state
+            });
+        }
+    });
 
-    return planObject;
+    return parsedPlan as Plan;
   } catch (e) {
     console.error("Failed to parse Gemini plan response:", e);
+    // Fix: Access the response text directly from the response object
     console.error("Raw response:", response.text);
     throw new Error("Не удалось сгенерировать план этапа. Ответ от AI имел неверный формат.");
   }

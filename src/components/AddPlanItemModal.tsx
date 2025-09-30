@@ -7,7 +7,7 @@ import { Spinner } from './ui/Spinner';
 interface AddPlanItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdatePlan: (plan: Plan) => void;
+  onUpdatePlan: (plan: any) => void;
   week: Week;
   date: string;
 }
