@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { User } from '@supabase/supabase-js';
 import { Event, Project, PlanItem } from '../types';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import AudioRecorder from './AudioRecorder';
-import { FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
+import { FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft, FaHandshake } from 'react-icons/fa';
 
 interface AddEventModalProps {
     isOpen: boolean;
@@ -40,7 +41,7 @@ const sanitizeFileName = (fileName: string) => {
 
 const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, context, onNewEvent, project, task, isGuest }) => {
     const [step, setStep] = useState<'select' | 'form'>('select');
-    const [eventType, setEventType] = useState<EventStepType | null>(null);
+    const [eventType, setEventType] = useState<EventStepType | null>(isGuest ? 'meeting' : null);
     const [loading, setLoading] = useState(false);
 
     // Form states
@@ -49,6 +50,16 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
     const [participants, setParticipants] = useState('');
     const [files, setFiles] = useState<FileList | null>(null);
     const [audioBlob, setAudioBlob] = useState<{ blob: Blob, duration: number } | null>(null);
+    
+    // Fix: Imported 'useEffect' from React to resolve the 'Cannot find name' error.
+    useEffect(() => {
+      if (isOpen && isGuest) {
+        setStep('form');
+        setEventType('meeting');
+      } else if (!isOpen) {
+        handleClose();
+      }
+    }, [isOpen, isGuest]);
 
     const handleSelectType = (type: EventStepType) => {
         setEventType(type);
@@ -64,7 +75,10 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
     const handleClose = () => {
         resetForm();
         setStep('select');
-        setEventType(null);
+        setEventType(isGuest ? 'meeting' : null);
+        if (isGuest) {
+          setStep('form');
+        }
         onClose();
     }
     
@@ -104,7 +118,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
             let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
             let isGuestSubmission = !user;
 
-            if (!user && !authorIdentifier) {
+            if (isGuestSubmission && !authorIdentifier) {
                 const guestName = prompt('Пожалуйста, представьтесь:', 'Гость');
                 if (!guestName || guestName.trim() === '') {
                     setLoading(false);
@@ -114,27 +128,30 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 localStorage.setItem('guestName', guestName);
             }
 
-            const eventData: any = {
+            const eventData: Partial<Event> = {
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user ? user.id : null,
                 author_email: authorIdentifier,
                 type: eventType,
                 content,
                 data: {}
             };
 
+            if (user) {
+              eventData.user_id = user.id;
+            }
+
             if (eventType === 'meeting') {
-                eventData.data.meeting_time = new Date(meetingTime).toISOString();
-                eventData.data.participants = participants.split('\n').filter(p => p.trim() !== '');
+                eventData.data!.meeting_time = new Date(meetingTime).toISOString();
+                eventData.data!.participants = participants.split('\n').filter(p => p.trim() !== '');
             } else if (eventType === 'documentation_review') {
                 const uploadedFiles = await uploadFiles(files);
-                eventData.data.file_urls = uploadedFiles;
+                eventData.data!.file_urls = uploadedFiles;
             } else if (eventType === 'interview') {
                 if (!audioBlob) throw new Error("Нет аудиозаписи для сохранения.");
                 const uploadedAudio = await uploadFiles(audioBlob.blob);
-                eventData.data.file_urls = uploadedAudio;
+                eventData.data!.file_urls = uploadedAudio;
                 eventData.content = content || `Аудиозапись интервью (${audioBlob.duration} сек.)`;
             }
             
@@ -148,7 +165,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                     sendGuestEventNotification(project, task, newEvent);
                 }
             }
-            handleClose();
+            onClose(); // Use onClose which resets state properly
         } catch (error: any) {
             alert("Ошибка: " + error.message);
         } finally {
@@ -205,10 +222,17 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
         }
     }
 
-    const availableEventTypes = isGuest ? eventTypeConfig.filter(et => et.guest_allowed) : eventTypeConfig;
-    
+    const availableEventTypes = eventTypeConfig
+      .filter(et => !isGuest || et.guest_allowed)
+      .map(et => {
+        if (isGuest && et.type === 'meeting') {
+          return { ...et, name: 'Личная встреча', icon: <FaHandshake size={24} className="mb-2 text-purple-600" /> };
+        }
+        return et;
+      });
+
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={isGuest ? "Запрос на встречу" : "Добавить событие"}>
+        <Modal isOpen={isOpen} onClose={onClose} title={isGuest ? "Запрос на встречу" : "Добавить событие"}>
             {step === 'select' && !isGuest ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {availableEventTypes.map(({ type, name, icon }) => (
@@ -222,7 +246,9 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {renderForm()}
                     <div className="pt-2 flex justify-between items-center">
-                         <button type="button" onClick={handleBack} disabled={isGuest} className={`flex items-center btn-secondary ${isGuest ? 'hidden' : ''}`}><FaArrowLeft className="mr-2"/> Назад</button>
+                         {!isGuest ? (
+                            <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
+                         ) : <div></div>}
                          <button type="submit" disabled={loading || (eventType === 'interview' && !audioBlob)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
                             {loading ? <Spinner size="sm" /> : 'Добавить'}
                         </button>

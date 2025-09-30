@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { Event, Project, PlanItem } from '../types';
-import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaFileAlt, FaCamera } from 'react-icons/fa';
+import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaFileAlt, FaCamera, FaHandshake } from 'react-icons/fa';
 import Modal from './ui/Modal';
 import AudioRecorder from './AudioRecorder';
 
@@ -79,7 +80,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
             let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
             let isGuestSubmission = !user;
 
-            if (!user && !authorIdentifier) {
+            if (isGuestSubmission && !authorIdentifier) {
                 const guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в комментариях):', 'Гость');
                 if (!guestName || guestName.trim() === '') {
                     setLoading(false);
@@ -91,17 +92,21 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
 
 
             const uploadedFiles = await uploadFiles(filesToAttach);
-            const eventData = {
+            
+            const eventData: Partial<Event> = {
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user ? user.id : null,
                 author_email: authorIdentifier,
                 type: 'comment' as const,
                 content: content.trim(),
                 parent_event_id: quotedEvent ? quotedEvent.id : null,
                 data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : null,
             };
+
+            if (user) {
+                eventData.user_id = user.id;
+            }
     
             const { data, error } = await supabase.from('events').insert(eventData).select().single();
     
@@ -222,10 +227,10 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                 type="button"
                                 onClick={onAddStructuredEvent}
                                 className="p-2 text-gray-500 hover:text-purple-600 rounded-full hover:bg-gray-100"
-                                title="Запросить встречу"
+                                title="Запросить личную встречу"
                                 disabled={loading}
                             >
-                                <FaVideo size={18} />
+                                <FaHandshake size={18} />
                             </button>
                         )}
                     </div>
