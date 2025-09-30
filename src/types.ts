@@ -49,7 +49,7 @@ export interface Week {
   start_date: string;
   end_date: string;
   created_at: string;
-  rejection_comment?: string | null;
+  rejection_comment: string | null;
 }
 
 export interface Event {

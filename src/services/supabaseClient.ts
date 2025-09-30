@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Project, PlanItem, Event, ContactPerson, ContactMethod } from '../types';
+import { Project, PlanItem, Event, ContactPerson } from '../types';
 
 // These are your public Supabase keys.
 // Security is handled by Supabase Row Level Security (RLS) policies.

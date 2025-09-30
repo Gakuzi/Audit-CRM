@@ -7,7 +7,7 @@ import { analyzeAudioRecording, analyzeDiagram, analyzeImageFromUrl } from '../s
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-import { FaTimes, FaEdit, FaSave, FaBrain } from 'react-icons/fa';
+import { FaTimes, FaEdit, FaSave } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';

@@ -26,15 +26,17 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
         setReport('');
         try {
             // 1. Fetch events for the week
-            const { data: events, error: eventsError } = await supabase
+            const { data, error: eventsError } = await supabase
                 .from('events')
                 .select('*')
                 .eq('week_id', week.id);
 
             if (eventsError) throw eventsError;
 
+            const events: Event[] = data || [];
+
             // 2. Generate report
-            const generatedReport = await generateComprehensiveReport(week, project, events || []);
+            const generatedReport = await generateComprehensiveReport(week, project, events);
             setReport(generatedReport);
 
         } catch (err: any) {
