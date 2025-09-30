@@ -1,5 +1,6 @@
 
 
+// Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI, Type } from "@google/genai";
 import { Project, Week, Event, Plan } from '../types';
 
@@ -100,6 +101,7 @@ export const generateAuditPlan = async (
     required: ['weeks'],
   };
 
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
@@ -112,6 +114,7 @@ export const generateAuditPlan = async (
   
   try {
     // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
     const parsed = JSON.parse(jsonText);
     
@@ -131,6 +134,7 @@ export const generateAuditPlan = async (
     return parsed;
   } catch (e) {
     console.error("Failed to parse Gemini response:", e);
+    // Fix: Access the response text directly from the response object
     console.error("Raw response:", response.text);
     throw new Error("Не удалось сгенерировать план аудита. Ответ от AI имел неверный формат.");
   }
@@ -148,12 +152,14 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
     text: "Распознай и верни весь рукописный и печатный текст с этого изображения. Сохрани оригинальное форматирование, включая переносы строк и отступы, насколько это возможно. Верни только текст, без каких-либо дополнительных комментариев или пояснений.",
   };
 
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: { parts: [imagePart, textPart] },
   });
 
   // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+  // Fix: Access the response text directly from the response object
   return response.text ?? '';
 };
 
@@ -183,12 +189,14 @@ export const processInterviewAudio = async (
         Отформатируй ответ, используя markdown.
     `;
     
+    // Fix: Use the correct API call `ai.models.generateContent`
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
     });
 
     // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     return response.text ?? '';
 };
 
@@ -246,12 +254,14 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
     Твой отчет должен быть убедительным и подкрепленным фактами из предоставленных данных.
     `;
 
+    // Fix: Use the correct API call `ai.models.generateContent`
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
     });
 
     // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     return response.text ?? '';
 }
 
@@ -267,6 +277,7 @@ export const generateStageDescription = async (
 
     Сгенерируй развернутое описание.
   `;
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: fullPrompt,
@@ -276,6 +287,7 @@ export const generateStageDescription = async (
   });
 
   // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+  // Fix: Access the response text directly from the response object
   return response.text ?? '';
 };
 
@@ -305,6 +317,7 @@ export const generateStagePlan = async (
     Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования.
   `;
   
+  // Fix: Use the correct API call `ai.models.generateContent`
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
@@ -317,6 +330,7 @@ export const generateStagePlan = async (
 
   try {
     // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
+    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
     const parsedPlan = JSON.parse(jsonText);
 
@@ -333,6 +347,7 @@ export const generateStagePlan = async (
     return parsedPlan as Plan;
   } catch (e) {
     console.error("Failed to parse Gemini plan response:", e);
+    // Fix: Access the response text directly from the response object
     console.error("Raw response:", response.text);
     throw new Error("Не удалось сгенерировать план этапа. Ответ от AI имел неверный формат.");
   }

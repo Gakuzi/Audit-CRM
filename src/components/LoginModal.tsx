@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
@@ -18,12 +19,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initialMode = 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (isOpen) {
-        setMode(initialMode);
-    }
-  }, [isOpen, initialMode]);
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,14 +55,36 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initialMode = 
       setPassword('');
       setError('');
       setMessage('');
-      setMode('signIn'); // Reset to default tab
+      setMode(initialMode); // Reset to default tab
       onClose();
   }
 
-  const title = mode === 'signIn' ? 'Вход в систему' : 'Регистрация';
-
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={title}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={mode === 'signIn' ? 'Вход в систему' : 'Регистрация'}>
+        <div className="mb-4 border-b border-gray-200">
+            <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                <button
+                    onClick={() => setMode('signIn')}
+                    className={`${
+                        mode === 'signIn'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm`}
+                >
+                    Вход
+                </button>
+                <button
+                    onClick={() => setMode('signUp')}
+                    className={`${
+                        mode === 'signUp'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm`}
+                >
+                    Регистрация
+                </button>
+            </nav>
+        </div>
       <div className="space-y-4">
         {message && <p className="text-green-600 bg-green-100 p-3 rounded-md text-sm">{message}</p>}
         {error && <p className="text-red-600 bg-red-100 p-3 rounded-md text-sm">{error}</p>}
@@ -108,22 +125,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initialMode = 
               {loading ? <Spinner size="sm" color="border-white" /> : (mode === 'signIn' ? 'Войти' : 'Зарегистрироваться')}
             </button>
           </div>
-           {mode === 'signIn' && (
-                <p className="text-center text-sm text-gray-600">
-                    Нет аккаунта?{' '}
-                    <button type="button" onClick={() => setMode('signUp')} className="font-medium text-blue-600 hover:text-blue-500">
-                        Зарегистрируйтесь
-                    </button>
-                </p>
-            )}
-            {mode === 'signUp' && (
-                 <p className="text-center text-sm text-gray-600">
-                    Уже есть аккаунт?{' '}
-                    <button type="button" onClick={() => setMode('signIn')} className="font-medium text-blue-600 hover:text-blue-500">
-                        Войти
-                    </button>
-                </p>
-            )}
         </form>
       </div>
     </Modal>

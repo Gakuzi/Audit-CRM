@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from './ui/Modal';
 import { generateStageDescription } from '../services/geminiService';

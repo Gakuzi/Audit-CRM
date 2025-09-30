@@ -1,19 +1,26 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event } from '../types';
+// Fix: Import Project and PlanItem types
+import { Event, Project, PlanItem } from '../types';
 import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaFileAlt, FaCamera } from 'react-icons/fa';
 import Modal from './ui/Modal';
 import AudioRecorder from './AudioRecorder';
 
 interface AddEventFormProps {
-  user: User;
+  // Fix: Allow user to be null for guest access
+  user: User | null;
   context: { weekId: string; taskId: string; projectId: string; };
   quotedEvent: Event | null;
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
   onAddStructuredEvent?: () => void;
+  // Fix: Add missing props to handle all event contexts
+  project: Project;
+  task: PlanItem;
+  isGuest: boolean;
 }
 
 const sanitizeFileName = (fileName: string) => {
@@ -49,7 +56,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
         
         const uploadPromises = files.map(async file => {
             const sanitizedFileName = sanitizeFileName(file.name);
-            const filePath = `${user.id}/${context.taskId}/${Date.now()}-${sanitizedFileName}`;
+            const filePath = `${user ? user.id : 'guests'}/${context.taskId}/${Date.now()}-${sanitizedFileName}`;
             const { error: uploadError } = await supabase.storage.from('audit-files').upload(filePath, file);
             if (uploadError) throw uploadError;
             
@@ -78,8 +85,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user.id,
-                author_email: user.email,
+                user_id: user ? user.id : null,
+                author_email: user ? user.email : 'Гость',
                 type: 'comment' as const,
                 content: content.trim(),
                 parent_event_id: quotedEvent ? quotedEvent.id : null,

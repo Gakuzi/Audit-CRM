@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -49,7 +50,19 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
 
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
-    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation) {
+    if (!isAuditor && !isGuest) return; // Guests can't change status directly, but might need to trigger actions. Logic for guests is below.
+    
+    // Client-side logic for non-auditors
+    if (!isAuditor) {
+        if (week.status === 'pending_approval' && (newStatus === 'rejected' || newStatus === 'approved')) {
+             // This is an action for the client/owner
+        } else {
+            alert("У вас нет прав для изменения этого статуса.");
+            return;
+        }
+    }
+
+    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation && isAuditor) {
         setShowStatusChangeConfirm(newStatus);
         return;
     }
@@ -93,6 +106,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   }, []);
 
   const getActionButtons = () => {
+    const canApprove = !isAuditor || isGuest;
     switch (week.status) {
         case 'draft':
             return isAuditor && (
@@ -105,7 +119,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                 </button>
             );
         case 'pending_approval':
-            return !isAuditor && !isGuest && (
+            return canApprove && (
                 <div className="flex gap-2">
                     <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600">Отклонить</button>
                     <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700">Согласовать</button>

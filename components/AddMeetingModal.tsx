@@ -1,8 +1,11 @@
+
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { supabase } from '../services/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Spinner } from './ui/Spinner';
+// Fix: Import Project and PlanItem types
+import { Project, PlanItem } from '../types';
 
 
 interface AddMeetingModalProps {
@@ -11,6 +14,9 @@ interface AddMeetingModalProps {
   // Fix: Added projectId to the context to ensure it can be saved with the event.
   context: { weekId: string; taskId: string; taskContent: string; projectId: string; };
   user: User | null;
+  // Fix: Add project and task to props interface
+  project: Project;
+  task: PlanItem;
 }
 
 const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user }) => {
