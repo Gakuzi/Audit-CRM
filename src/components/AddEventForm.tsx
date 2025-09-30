@@ -166,42 +166,47 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                 </div>
                 <div className="mt-2 pt-2 border-t flex justify-between items-center">
                     <div className="flex items-center space-x-1">
-                        <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
-                            title="Прикрепить файл"
-                            disabled={loading}
-                        >
-                            <FaPaperclip size={18} />
-                        </button>
-                         <button
-                            type="button"
-                            onClick={() => imageInputRef.current?.click()}
-                            className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
-                            title="Сделать фото"
-                            disabled={loading}
-                        >
-                            <FaCamera size={18} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => videoInputRef.current?.click()}
-                            className="p-2 text-gray-500 hover:text-orange-600 rounded-full hover:bg-gray-100"
-                            title="Записать видео"
-                            disabled={loading}
-                        >
-                            <FaVideo size={18} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setIsAudioModalOpen(true)}
-                            className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-gray-100"
-                            title="Записать аудио"
-                            disabled={loading}
-                        >
-                            <FaMicrophone size={18} />
-                        </button>
+                        {!isGuest && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
+                                    title="Прикрепить файл"
+                                    disabled={loading}
+                                >
+                                    <FaPaperclip size={18} />
+                                </button>
+                                 <button
+                                    type="button"
+                                    onClick={() => imageInputRef.current?.click()}
+                                    className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+                                    title="Сделать фото"
+                                    disabled={loading}
+                                >
+                                    <FaCamera size={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => videoInputRef.current?.click()}
+                                    className="p-2 text-gray-500 hover:text-orange-600 rounded-full hover:bg-gray-100"
+                                    title="Записать видео"
+                                    disabled={loading}
+                                >
+                                    <FaVideo size={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAudioModalOpen(true)}
+                                    className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-gray-100"
+                                    title="Записать аудио"
+                                    disabled={loading}
+                                >
+                                    <FaMicrophone size={18} />
+                                </button>
+                            </>
+                        )}
+                        
                         {onAddStructuredEvent && !isGuest && (
                             <button
                                 type="button"
@@ -236,8 +241,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                 </div>
             </form>
             <Modal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} title="Записать аудио">
-                <AudioRecorder onSave={(blob, _duration) => {
-                    const audioFile = new File([blob], `audio-recording-${Date.now()}.webm`, { type: blob.type });
+                <AudioRecorder onSave={(_blob, _duration) => {
+                    const audioFile = new File([_blob], `audio-recording-${Date.now()}.webm`, { type: _blob.type });
                     setFilesToAttach(prev => [...prev, audioFile]);
                     setIsAudioModalOpen(false);
                 }} />
