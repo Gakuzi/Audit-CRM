@@ -21,7 +21,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     const [projectId, setProjectId] = useState<string | null>(null);
     const [project, setProject] = useState<Project | null>(null);
     const [task, setTask] = useState<PlanItem | null>(null);
-    // Fix: Add state to manage expanded event items.
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
     const fetchEventsAndProject = useCallback(async () => {
@@ -89,7 +88,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
 
     const handleReply = (_event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
-        // The full-featured reply is in TaskDetailView.
     };
 
     const handleQuoteClick = (_eventId: string) => {
@@ -112,7 +110,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {/* FIX: Pass required isExpanded and onToggleExpand props to EventItem. */}
                             {events.map(event => (
                                 <EventItem
                                     key={event.id}
@@ -147,7 +144,8 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                         onNewEvent={() => {}} 
                         project={project} 
                         task={task} 
-                        isGuest={isGuest} 
+                        isGuest={isGuest}
+                        onAddSubTaskRequest={() => setIsMeetingModalOpen(true)}
                     /> 
                     : <p className="text-sm text-center text-gray-500">{(user || isGuest) ? "Загрузка данных..." : "Войдите, чтобы оставлять комментарии."}</p>
                 }

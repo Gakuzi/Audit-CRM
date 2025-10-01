@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event, Project, PlanItem } from '../types';
-import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaCamera, FaCalendarPlus, FaPlusSquare } from 'react-icons/fa';
-import Modal from './ui/Modal';
-import AudioRecorder from './AudioRecorder';
+import { Event, Project, PlanItem, PlanItemType } from '../types';
+import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaCamera, FaPlus } from 'react-icons/fa';
+import AudioRecorderModal from './AudioRecorderModal';
 
 interface AddEventFormProps {
   user: User | null;
@@ -13,10 +12,10 @@ interface AddEventFormProps {
   quotedEvent: Event | null;
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
-  onAddStructuredEvent?: () => void;
   project: Project;
   task: PlanItem;
   isGuest: boolean;
+  onAddSubTaskRequest: (type: PlanItemType) => void;
 }
 
 const sanitizeFileName = (fileName: string) => {
@@ -30,7 +29,7 @@ const sanitizeFileName = (fileName: string) => {
     return cleanedName + extension;
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent, onClearQuote, onNewEvent, onAddStructuredEvent, project, task, isGuest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent, onClearQuote, onNewEvent, project, task, isGuest, onAddSubTaskRequest }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -42,7 +41,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
     const videoInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if(quotedEvent) {
+        if (quotedEvent) {
             textareaRef.current?.focus();
         }
     }, [quotedEvent]);
@@ -66,7 +65,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
     const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
             setFilesToAttach(prev => [...prev, ...Array.from(event.target.files!)]);
-            event.target.value = ''; // Reset input
+            event.target.value = '';
         }
     };
 
@@ -74,53 +73,41 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
         e.preventDefault();
         if (!content.trim() && filesToAttach.length === 0) return;
 
+        let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
+        if (isGuest && !authorIdentifier) {
+            const guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в истории):', 'Гость');
+            if (!guestName || guestName.trim() === '') return;
+            authorIdentifier = guestName;
+            localStorage.setItem('guestName', guestName);
+        }
+
         setLoading(true);
         try {
-            let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
-            let isGuestSubmission = !user;
-
-            if (isGuestSubmission && !authorIdentifier) {
-                const guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в комментариях):', 'Гость');
-                if (!guestName || guestName.trim() === '') {
-                    setLoading(false);
-                    return; // User cancelled or entered empty name
-                }
-                authorIdentifier = guestName;
-                localStorage.setItem('guestName', guestName);
-            }
-
-
             const uploadedFiles = await uploadFiles(filesToAttach);
-            
             const eventData = {
                 project_id: context.projectId,
                 week_id: context.weekId,
                 task_id: context.taskId,
-                user_id: user ? user.id : project.user_id, // Fallback to auditor's ID for guests
+                user_id: user ? user.id : null,
                 author_email: authorIdentifier,
                 type: 'comment' as const,
                 content: content.trim(),
                 parent_event_id: quotedEvent ? quotedEvent.id : null,
-                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : null,
+                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : {},
             };
     
-            const { data, error } = await supabase.from('events').insert(eventData).select().single();
+            const { data, error } = await supabase.from('events').insert(eventData).select('*, parent:events!parent_event_id(content, author_email)').single();
     
             if (error) {
                 throw error;
             } else if (data) {
-                const newEvent = data as Event;
-                onNewEvent(newEvent);
+                onNewEvent(data as Event);
                 setContent('');
                 setFilesToAttach([]);
                 onClearQuote();
-                
-                if (isGuestSubmission) {
-                    sendGuestEventNotification(project, task, newEvent, window.location.origin);
-                }
             }
         } catch(err: any) {
-            alert('Ошибка добавления комментария: ' + err.message);
+            alert('Ошибка: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -129,6 +116,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
     const handleRemoveFile = (indexToRemove: number) => {
         setFilesToAttach(currentFiles => currentFiles.filter((_, index) => index !== indexToRemove));
     };
+    
+    const isAuditor = !!user && user.id === project.user_id;
 
     return (
         <div className="bg-white p-3 rounded-lg border">
@@ -138,7 +127,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
 
              {quotedEvent && (
                 <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative">
-                    <p className="font-semibold text-gray-700">Ответ на сообщение от {quotedEvent.author_email}:</p>
+                    <p className="font-semibold text-gray-700">Ответ на: {quotedEvent.author_email}</p>
                     <p className="text-gray-600 truncate">{quotedEvent.content}</p>
                     <button onClick={onClearQuote} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800">
                         <FaTimes size={12}/>
@@ -167,75 +156,30 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                 </div>
                 <div className="mt-2 pt-2 border-t flex justify-between items-center">
                     <div className="flex items-center space-x-1">
-                        {!isGuest && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="p-2 text-blue-600 hover:text-blue-700 rounded-full hover:bg-blue-50"
-                                    title="Прикрепить файл"
-                                    disabled={loading}
-                                >
-                                    <FaPaperclip size={18} />
-                                </button>
-                                 <button
-                                    type="button"
-                                    onClick={() => imageInputRef.current?.click()}
-                                    className="p-2 text-teal-600 hover:text-teal-700 rounded-full hover:bg-teal-50"
-                                    title="Сделать фото"
-                                    disabled={loading}
-                                >
-                                    <FaCamera size={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => videoInputRef.current?.click()}
-                                    className="p-2 text-orange-500 hover:text-orange-600 rounded-full hover:bg-orange-50"
-                                    title="Записать видео"
-                                    disabled={loading}
-                                >
-                                    <FaVideo size={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAudioModalOpen(true)}
-                                    className="p-2 text-red-500 hover:text-red-600 rounded-full hover:bg-red-50"
-                                    title="Записать аудио"
-                                    disabled={loading}
-                                >
-                                    <FaMicrophone size={18} />
-                                </button>
-                            </>
-                        )}
-                         {onAddStructuredEvent && (
-                            <button
-                                type="button"
-                                onClick={onAddStructuredEvent}
-                                className="p-2 text-purple-600 hover:text-purple-700 rounded-full hover:bg-purple-50"
-                                title={isGuest ? "Запросить личную встречу" : "Добавить подзадачу"}
-                                disabled={loading}
-                            >
-                                {isGuest ? <FaCalendarPlus size={18} /> : <FaPlusSquare size={18} />}
-                            </button>
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="action-btn" title="Прикрепить файл" disabled={loading}><FaPaperclip /></button>
+                        <button type="button" onClick={() => imageInputRef.current?.click()} className="action-btn" title="Сделать фото" disabled={loading}><FaCamera /></button>
+                        <button type="button" onClick={() => videoInputRef.current?.click()} className="action-btn" title="Записать видео" disabled={loading}><FaVideo /></button>
+                        <button type="button" onClick={() => setIsAudioModalOpen(true)} className="action-btn" title="Записать аудио" disabled={loading}><FaMicrophone /></button>
+                        {isGuest ? (
+                            <button type="button" onClick={() => onAddSubTaskRequest('meeting')} className="action-btn" title="Запросить встречу" disabled={loading}><FaPlus /></button>
+                        ) : isAuditor && (
+                            <button type="button" onClick={() => onAddSubTaskRequest('task')} className="action-btn" title="Создать подзадачу" disabled={loading}><FaPlus /></button>
                         )}
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading || (!content.trim() && filesToAttach.length === 0)}
-                        className="w-32 py-2 px-4 btn-primary flex justify-center items-center"
-                    >
+                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
                         {loading ? <Spinner size="sm" /> : 'Отправить'}
                     </button>
                 </div>
             </form>
-            <Modal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} title="Записать аудио">
-                <AudioRecorder onSave={(_blob, _duration) => {
-                    const audioFile = new File([_blob], `audio-recording-${Date.now()}.webm`, { type: _blob.type });
+            <AudioRecorderModal
+                isOpen={isAudioModalOpen}
+                onClose={() => setIsAudioModalOpen(false)}
+                onSave={(blob) => {
+                    const audioFile = new File([blob], `audio-recording-${Date.now()}.webm`, { type: blob.type });
                     setFilesToAttach(prev => [...prev, audioFile]);
-                    setIsAudioModalOpen(false);
-                }} />
-            </Modal>
+                }}
+            />
         </div>
     );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
-import { supabase, sendGuestSubTaskNotification } from '../services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
@@ -208,9 +208,10 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   }
 
   const handleSubTaskAdded = (parentTask: PlanItem, newSubTask: PlanItem) => {
-    if (isGuest && newSubTask.type === 'meeting') {
-        sendGuestSubTaskNotification(project, parentTask, newSubTask, window.location.origin);
-    }
+    // This is handled in TaskDetailView now.
+    // if (isGuest && newSubTask.type === 'meeting') {
+    //     sendGuestSubTaskNotification(project, parentTask, newSubTask, window.location.origin);
+    // }
   };
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
