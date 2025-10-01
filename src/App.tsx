@@ -130,11 +130,6 @@ function App() {
     setLoginModalMode('signIn');
     setIsLoginModalOpen(true);
   };
-
-  const handleOpenRegister = () => {
-    setLoginModalMode('signUp');
-    setIsLoginModalOpen(true);
-  }
   
   const isAuditor = !!user && !!selectedProject && user.id === selectedProject.user_id;
 
@@ -160,6 +155,7 @@ function App() {
             initialTaskId={initialTaskId}
           />
         ) : (
+          // Fix: Pass the correct 'handleSelectProject' function to the 'onSelectProject' prop.
           <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={handleOpenLogin} />
         )}
       </main>
