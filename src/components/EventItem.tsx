@@ -20,28 +20,40 @@ mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
 const MermaidDiagram: React.FC<{ chart: string }> = ({ chart }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [svg, setSvg] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
 
     useEffect(() => {
         const renderMermaid = async () => {
-            if (ref.current) {
+            if (ref.current && chart) {
+                 // Clear previous state
+                setSvg(null);
+                setError(null);
                 try {
-                    const { svg } = await mermaid.render(`mermaid-${Math.random().toString(36).substring(7)}`, chart);
+                    const id = `mermaid-${crypto.randomUUID()}`;
+                    const { svg } = await mermaid.render(id, chart);
                     setSvg(svg);
-                } catch (error) {
-                    console.error('Mermaid rendering error:', error);
-                    setSvg('<p class="text-red-500 text-xs">Ошибка рендеринга диаграммы.</p>');
+                } catch (e: any) {
+                    console.error('Mermaid rendering error:', e);
+                    setError(e.message || 'Ошибка рендеринга диаграммы.');
                 }
             }
         };
         renderMermaid();
     }, [chart]);
+    
+    if (error) {
+        return <pre className="text-red-500 text-xs bg-red-50 p-2 rounded">Ошибка диаграммы: {error}</pre>;
+    }
 
-    return svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div ref={ref}>Загрузка диаграммы...</div>;
+    return svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div ref={ref} className="p-4 flex justify-center items-center"><Spinner size="sm" /></div>;
 };
 
 
-const getEventTypeIcon = (type: Event['type']) => {
-    switch (type) {
+const getEventTypeIcon = (event: Event) => {
+    if (event.author_email === 'AI Ассистент') {
+        return <FaBrain className="text-indigo-500" />;
+    }
+    switch (event.type) {
         case 'meeting':
             return <FaVideo className="text-purple-500" />;
         case 'documentation_review':
@@ -140,7 +152,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
     return (
         <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 rounded -mx-4 px-4">
             <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                {getEventTypeIcon(event.type)}
+                {getEventTypeIcon(event)}
             </div>
             <div className="flex-1">
                 <div className="flex justify-between items-center">
@@ -171,9 +183,11 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
                 {renderEventDetails()}
 
                 <div className="mt-2 flex items-center space-x-4">
-                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium">
-                        <FaReply className="mr-1.5" /> Ответить
-                    </button>
+                    {event.author_email !== 'AI Ассистент' && (
+                        <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium">
+                            <FaReply className="mr-1.5" /> Ответить
+                        </button>
+                    )}
                     {onDelete && (
                         <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium">
                             <FaTrash className="mr-1.5" /> Удалить

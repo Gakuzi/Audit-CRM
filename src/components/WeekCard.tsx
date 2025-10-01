@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaFileAlt, FaPaperPlane, FaArrowRight } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
@@ -57,7 +57,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
         case 'approved': return 'completed';
         default: return null;
       }
-    } else if (!isGuest) { // Client
+    } else { // Client or Guest
       if (week.status === 'pending_approval') return 'approved';
     }
     return null;
@@ -67,20 +67,25 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
     const nextStatus = getNextStatus();
     if (nextStatus) {
       handleStatusChange(nextStatus);
-    } else if (isGuest && week.status === 'pending_approval') {
-      onRegister();
     }
   };
   
   const { ref: swipeRef, style: swipeStyle } = useSwipe({ onSwipeRight: handleSwipeRight, revealWidth: 160 });
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
+    let guestName: string | null = null;
+    let rejectionReason: string | null = null;
+
     if (isGuest && (newStatus === 'approved' || newStatus === 'rejected')) {
-        onRegister();
-        return;
+        guestName = localStorage.getItem('guestName');
+        if (!guestName) {
+            guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в истории):', 'Гость');
+            if (!guestName || guestName.trim() === '') return;
+            localStorage.setItem('guestName', guestName);
+        }
     }
 
-    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation) {
+    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation && !isGuest) {
         setShowStatusChangeConfirm(newStatus);
         return;
     }
@@ -90,19 +95,58 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
     if (newStatus === 'rejected') {
         const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment);
         if (comment === null) return; // User cancelled prompt
+        rejectionReason = comment;
         updateData.rejection_comment = comment;
         setRejectionComment(comment);
     } else if (week.rejection_comment) {
-        // If there's a rejection comment, clear it on any status change OTHER than to 'rejected'
         updateData.rejection_comment = undefined;
     }
 
+    // First, log the event if it's a guest action
+    if (isGuest && guestName && (newStatus === 'approved' || newStatus === 'rejected')) {
+        const firstDate = Object.keys(week.plan).sort()[0];
+        const firstTaskId = week.plan[firstDate]?.tasks[0]?.id;
 
-    const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
+        if (!firstTaskId) {
+            alert("Невозможно изменить статус: в плане нет ни одной задачи для привязки события.");
+            return;
+        }
+
+        const statusText = newStatus === 'approved' ? 'Согласовано' : 'Отклонено';
+        let eventContent = `### Статус этапа изменен\n**Новый статус:** ${statusText}\n**Кем:** ${guestName}`;
+        if (rejectionReason) {
+            eventContent += `\n**Причина:** ${rejectionReason}`;
+        }
+        
+        const { error: eventError } = await supabase.from('events').insert({
+            project_id: week.project_id,
+            week_id: week.id,
+            task_id: firstTaskId,
+            user_id: week.user_id, // Attributed to auditor, but author_email shows guest
+            author_email: guestName,
+            type: 'comment',
+            content: eventContent
+        });
+        
+        if (eventError) {
+             alert('Ошибка записи события изменения статуса: ' + eventError.message);
+             return;
+        }
+    }
+
+    // Then, update the week status
+    const { data: updatedWeeks, error } = await supabase.from('weeks').update(updateData).eq('id', week.id).select().single();
     if (error) {
       alert('Ошибка изменения статуса: ' + error.message);
     } else {
-      onUpdateRequest();
+        if (isGuest && guestName && (newStatus === 'approved' || newStatus === 'rejected')) {
+            // Find the project to send notification
+            const { data: project } = await supabase.from('projects').select('*').eq('id', week.project_id).single();
+            if (project) {
+                sendGuestStatusChangeNotification(project, updatedWeeks as Week, newStatus, guestName, rejectionReason, window.location.origin);
+            }
+        }
+        onUpdateRequest();
     }
     setShowStatusChangeConfirm(null);
   };
@@ -136,13 +180,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
                 </button>
             );
         case 'pending_approval':
-            if (isGuest) {
-                return (
-                   <button onClick={onRegister} className="btn-primary">
-                       Войдите или зарегистрируйтесь, чтобы согласовать
-                   </button>
-               );
-           }
+            // Guest or Logged-in client can approve/reject
             return !isAuditor && (
                 <div className="flex gap-2">
                     <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600">Отклонить</button>

@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Event, PlanItem, Project } from '../types';
-// Fix: Use relative path for service import.
-import { analyzeAudioRecording, analyzeDiagram, analyzeImageFromUrl } from '../services/geminiService';
+import { analyzeAudioRecording, analyzeDiagram, analyzeImageFromUrl, continueConversation, summarizeAndContinue } from '../services/geminiService';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-import { FaTimes, FaEdit, FaSave } from 'react-icons/fa';
+// Fix: Import FaBrain icon.
+import { FaTimes, FaEdit, FaSave, FaComments, FaBrain } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
@@ -34,6 +34,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const mainRef = useRef<HTMLElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+    const [isAiThinking, setIsAiThinking] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
     const [editedTitle, setEditedTitle] = useState('');
@@ -68,17 +69,56 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         }
     }, [isOpen, fetchEvents, context]);
 
-    const handleNewEvent = (newEvent: Event) => {
-        setEvents(currentEvents => {
-            if (!currentEvents.some(e => e.id === newEvent.id)) {
-                 onEventCountChange(context.weekId, context.item.id, 1);
-                return [...currentEvents, newEvent];
+    const createAiReply = async (analysisText: string, parentEventId?: string) => {
+        if (!user) return null;
+        const { data, error } = await supabase.from('events').insert({
+            project_id: context.projectId,
+            week_id: context.weekId,
+            task_id: context.item.id,
+            user_id: user.id,
+            author_email: 'AI Ассистент',
+            type: 'comment',
+            content: analysisText,
+            parent_event_id: parentEventId
+        }).select('*, parent:events!parent_event_id(content, author_email)').single();
+
+        if (error) throw error;
+        return data as Event;
+    };
+    
+    const triggerAiContinuation = async (currentEvents: Event[]) => {
+        setIsAiThinking(true);
+        try {
+            const aiResponseText = await continueConversation(context.item, currentEvents);
+            const newAiEvent = await createAiReply(aiResponseText, currentEvents[currentEvents.length - 1].id);
+            if (newAiEvent) {
+                handleNewEvent(newAiEvent, false); // Add without re-triggering
             }
-            return currentEvents;
-        });
+        } catch (err: any) {
+            alert("Ошибка AI: " + err.message);
+        } finally {
+            setIsAiThinking(false);
+        }
+    };
+
+    const handleNewEvent = (newEvent: Event, triggerAiCheck = true) => {
+        const updatedEvents = [...events, newEvent];
+        setEvents(updatedEvents);
+        
+        if (!isAiThinking) { // Don't increment count for AI's own reply
+            onEventCountChange(context.weekId, context.item.id, 1);
+        }
+        
         setTimeout(() => {
             mainRef.current?.scrollTo({ top: mainRef.current.scrollHeight, behavior: 'smooth' });
         }, 100);
+
+        if (triggerAiCheck) {
+            const parentEvent = events.find(e => e.id === newEvent.parent_event_id);
+            if (parentEvent && parentEvent.author_email === 'AI Ассистент' && newEvent.author_email !== 'AI Ассистент') {
+                triggerAiContinuation(updatedEvents);
+            }
+        }
     };
 
     const handleDeleteEvent = async () => {
@@ -93,6 +133,22 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
              setEventToDelete(null);
         }
     };
+    
+    const handleAiDiscussionTrigger = async () => {
+        setIsAiThinking(true);
+        try {
+            const summaryText = await summarizeAndContinue(context.item, events);
+            const newAiEvent = await createAiReply(summaryText);
+            if (newAiEvent) {
+                handleNewEvent(newAiEvent, false);
+            }
+        } catch (err: any) {
+             alert("Ошибка AI: " + err.message);
+        } finally {
+            setIsAiThinking(false);
+        }
+    };
+
 
     const handleSave = () => {
         const updatedTask = {
@@ -103,26 +159,10 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         onUpdateTask(context.weekId, updatedTask);
         setIsEditing(false);
     };
-    
-    const createAiReply = async (analysisText: string, parentEventId: string) => {
-        if (!user) return;
-        const { data, error } = await supabase.from('events').insert({
-            project_id: context.projectId,
-            week_id: context.weekId,
-            task_id: context.item.id,
-            user_id: user.id,
-            author_email: 'AI Ассистент',
-            type: 'comment',
-            content: analysisText,
-            parent_event_id: parentEventId
-        }).select('*, parent:events!parent_event_id(content, author_email)').single();
-
-        if (error) throw error;
-        handleNewEvent(data as Event);
-    };
 
     const handleAnalyze = async (eventToAnalyze: Event) => {
         setAnalyzingEventId(eventToAnalyze.id);
+        setIsAiThinking(true);
         try {
             let analysisResult = '';
             const imageFile = eventToAnalyze.data?.file_urls?.find(f => f.type?.startsWith('image/'));
@@ -140,12 +180,14 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 throw new Error("Нет контента для анализа.");
             }
 
-            await createAiReply(analysisResult, eventToAnalyze.id);
+            const aiEvent = await createAiReply(analysisResult, eventToAnalyze.id);
+            if (aiEvent) handleNewEvent(aiEvent, false);
 
         } catch (err: any) {
             alert(`Ошибка анализа: ${err.message}`);
         } finally {
             setAnalyzingEventId(null);
+            setIsAiThinking(false);
         }
     };
 
@@ -153,10 +195,18 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         if (!context) return;
         const channel = supabase.channel(`public:events:task_id=eq.${context.item.id}`);
         channel.on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, 
-            () => fetchEvents(false)
+            (payload) => {
+                // This is a simplified listener. The main logic is handled via callbacks.
+                // It helps catch updates if multiple users are in the same view.
+                if (payload.eventType === 'INSERT') {
+                     setEvents(current => current.find(e => e.id === payload.new.id) ? current : [...current, payload.new as Event]);
+                } else if (payload.eventType === 'DELETE') {
+                     setEvents(current => current.filter(e => e.id !== payload.old.id));
+                }
+            }
         ).subscribe();
         return () => { supabase.removeChannel(channel) };
-    }, [context, fetchEvents]);
+    }, [context]);
     
     const handleQuoteClick = (eventId: string) => {
         const element = document.getElementById(`event-${eventId}`);
@@ -168,8 +218,9 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     };
     
     const renderTaskTools = () => {
-        if (!isAuditor) return null; // Tools are for auditors only
-        const props = { user: user!, context, events, onNewEvent: handleNewEvent };
+        if (!isAuditor || !user) return null;
+        // Fix: Pass handleNewEvent explicitly instead of using shorthand property.
+        const props = { user, context, events, onNewEvent: handleNewEvent };
         switch (context.item.type) {
             case 'interview': return <InterviewTools {...props} />;
             case 'meeting': return <MeetingTools {...props} />;
@@ -200,16 +251,23 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     </div>
                     <div className="flex items-center gap-2">
                         {isAuditor && (
-                            isEditing ? (
-                                <>
-                                    <button onClick={() => setIsEditing(false)} className="btn-secondary px-3 py-1.5 text-xs">Отмена</button>
-                                    <button onClick={handleSave} className="btn-primary px-3 py-1.5 text-xs flex items-center gap-1"><FaSave /> Сохранить</button>
-                                </>
-                            ) : (
-                                <button onClick={() => setIsEditing(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Редактировать задачу">
-                                    <FaEdit size={16} />
-                                </button>
-                            )
+                            <>
+                                {isEditing ? (
+                                    <>
+                                        <button onClick={() => setIsEditing(false)} className="btn-secondary px-3 py-1.5 text-xs">Отмена</button>
+                                        <button onClick={handleSave} className="btn-primary px-3 py-1.5 text-xs flex items-center gap-1"><FaSave /> Сохранить</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button onClick={handleAiDiscussionTrigger} className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100" title="Обсудить с AI">
+                                            <FaComments size={16} />
+                                        </button>
+                                        <button onClick={() => setIsEditing(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Редактировать задачу">
+                                            <FaEdit size={16} />
+                                        </button>
+                                    </>
+                                )}
+                            </>
                         )}
                         <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100">
                             <FaTimes size={20} />
@@ -236,7 +294,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                      )}
 
                      {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
-                        events.length > 0 ? (
+                        <>
                             <div className="divide-y divide-gray-200">
                                 {events.map(event => (
                                     <EventItem 
@@ -251,10 +309,21 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                     />
                                 ))}
                             </div>
-                        ) : (
-                            !isEditing && <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет. Начните обсуждение!</p>
-                        )
+                             {isAiThinking && (
+                                <div className="flex items-start space-x-3 py-4">
+                                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <FaBrain className="text-indigo-500"/>
+                                    </div>
+                                    <div className="flex-1 pt-2">
+                                        <Spinner size="sm" />
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
+                     {!loading && events.length === 0 && !isEditing && (
+                        <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет. Начните обсуждение!</p>
+                     )}
                 </main>
 
                 <footer className="p-4 bg-gray-50 border-t">

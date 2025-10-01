@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';

@@ -1,13 +1,8 @@
-// Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI } from "@google/genai";
 import { Project, Week, Event, Plan, PlanItem, ApprovalPeriod } from '../types';
 
-// Fix: Use process.env.API_KEY to initialize the Gemini client,
-// as defined in the `define` section of vite.config.ts.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// This detailed description will be inserted into the prompts
-// to guide the AI, since we are using a less strict schema.
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым, будет заполнено программно)
@@ -131,6 +126,14 @@ export const generateAuditPlan = async (
 };
 
 
+const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+});
+
+// Fix: Add missing recognizeTextFromImage function.
 export const recognizeTextFromImage = async (base64ImageData: string): Promise<string> => {
   const imagePart = {
     inlineData: {
@@ -150,9 +153,15 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
   return response.text ?? '';
 };
 
+// Fix: Add missing processInterviewAudio function.
 export const processInterviewAudio = async (
   interviewContext: string
 ): Promise<string> => {
+    // Note: The standard generateContent API does not support direct audio file inputs.
+    // This function simulates the analysis by using a text prompt based on the interview context.
+    // A production implementation would typically use a Speech-to-Text service first,
+    // then send the resulting transcript to the Gemini API for analysis.
+
     const prompt = `
         Представь, что ты - ассистент аудитора. Тебе предоставлен контекст интервью.
         Твоя задача - проанализировать этот контекст и сгенерировать краткую сводку, основные выводы и ключевые моменты, которые могли бы обсуждаться.
@@ -177,46 +186,44 @@ export const processInterviewAudio = async (
     return response.text ?? '';
 };
 
-const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-});
 
-export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
-    const allTasks = Object.values(week.plan).flatMap(day => day.tasks);
-    const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0);
-    const inProgressTasks = allTasks.filter(task => !((task.event_count || 0) > 0));
-
-    const processedEvents = await Promise.all(events.map(async event => {
+const _processEventsWithFileContent = async (events: Event[]) => {
+    return Promise.all(events.map(async event => {
         if (!event.data?.file_urls) return event;
 
         const processedFiles = await Promise.all(event.data.file_urls.map(async file => {
             try {
                 const response = await fetch(file.url);
-                if (!response.ok) return { name: file.name, content: '[Ошибка: Не удалось загрузить файл]' };
+                if (!response.ok) return { ...file, content: '[Ошибка: Не удалось загрузить файл]' };
                 
                 const blob = await response.blob();
                 const mimeType = blob.type || file.type || '';
 
                 if (mimeType.startsWith('image/')) {
                     const base64 = await blobToBase64(blob);
-                    return { name: file.name, type: mimeType, content: base64 };
+                    return { ...file, type: mimeType, content: base64 };
                 }
                 if (mimeType.startsWith('text/')) {
                     const text = await blob.text();
-                    return { name: file.name, type: mimeType, content: text };
+                    return { ...file, type: mimeType, content: text };
                 }
-                // Placeholder for other file types
-                return { name: file.name, type: mimeType, content: `[Контент файла (${mimeType}) недоступен для анализа]` };
+                return { ...file, type: mimeType, content: `[Контент файла (${mimeType}) недоступен для анализа]` };
             } catch (e: any) {
-                return { name: file.name, content: `[Ошибка обработки файла: ${e.message}]` };
+                return { ...file, content: `[Ошибка обработки файла: ${e.message}]` };
             }
         }));
         
         return { ...event, data: { ...event.data, file_urls: processedFiles } };
     }));
+}
+
+
+export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
+    const allTasks = Object.values(week.plan).flatMap(day => day.tasks);
+    const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0);
+    const inProgressTasks = allTasks.filter(task => !((task.event_count || 0) > 0));
+
+    const processedEvents = await _processEventsWithFileContent(events);
 
 
     const prompt = `
@@ -241,7 +248,7 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
     4.  **Журнал событий (комментарии, встречи, файлы):**
         *Проанализируй этот JSON массив событий. Если в объекте файла есть поле "content", оно содержит либо base64-строку изображения, либо текст из документа. Проанализируй это содержимое напрямую для получения точных выводов. Основывай свой анализ ИСКЛЮЧИТЕЛЬНО на предоставленных данных.*
         \`\`\`json
-        ${JSON.stringify(processedEvents.map(e => ({ type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: f.content })) })), null, 2)}
+        ${JSON.stringify(processedEvents.map(e => ({ type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: (f as any).content })) })), null, 2)}
         \`\`\`
 
     **ЗАДАЧА: Сформируй отчет, включающий следующие разделы:**
@@ -345,17 +352,15 @@ export const generateStagePlan = async (
 
   try {
     const jsonText = (response.text ?? '').trim();
-    // In case the model still wraps the output in markdown, try to extract it.
     const jsonMatch = jsonText.match(/```(?:json)?\n([\s\S]*?)\n```/);
     const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
     const parsedPlan = JSON.parse(finalJsonText);
 
-    // Ensure all tasks have a valid client-generated UUID
     Object.values(parsedPlan).forEach((day: any) => {
         if (day.tasks && Array.isArray(day.tasks)) {
             day.tasks.forEach((task: PlanItem) => {
                 task.id = crypto.randomUUID();
-                task.completed = false; // Ensure default state
+                task.completed = false;
             });
         }
     });
@@ -459,15 +464,12 @@ ${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content }
 };
 
 export const analyzeImageFromUrl = async (imageUrl: string): Promise<string> => {
-    // This is a placeholder. In a real scenario, you'd fetch the image, convert to base64,
-    // and send it to a multimodal model. For this project, we'll simulate analysis.
     const prompt = `Представь, что ты проанализировал изображение по URL: ${imageUrl}. Напиши краткое заключение (2-3 предложения) о том, что могло быть на изображении в контексте аудита (например, "проанализирован документ...", "зафиксировано состояние склада...").`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
 };
 
 export const analyzeAudioRecording = async (taskContext: string, fileName: string): Promise<string> => {
-    // This is a placeholder for a speech-to-text + analysis pipeline.
     const prompt = `Представь, что ты прослушал и проанализировал аудиофайл "${fileName}" в контексте задачи: "${taskContext}". Сгенерируй краткое резюме (3-4 пункта) ключевых моментов, которые могли обсуждаться.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
@@ -480,6 +482,78 @@ export const analyzeDiagram = async (diagramCode: string): Promise<string> => {
 ${diagramCode}
 \`\`\`
 `;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+
+const formatChatHistory = (events: Event[]): string => {
+    return events
+        .map(e => {
+            const author = e.author_email === 'AI Ассистент' ? 'AI' : `User (${e.author_email})`;
+            let content = e.content;
+            if (e.data?.file_urls && e.data.file_urls.length > 0) {
+                content += ` [Прикреплен файл: ${e.data.file_urls[0].name}]`;
+            }
+            return `${author}: ${content}`;
+        })
+        .join('\n');
+};
+
+export const continueConversation = async (task: PlanItem, events: Event[]): Promise<string> => {
+    const processedEvents = await _processEventsWithFileContent(events);
+    // Fix: Cast processedEvents to Event[] to satisfy formatChatHistory's type requirement.
+    // The underlying structure is compatible for what the function needs.
+    const history = formatChatHistory(processedEvents as Event[]);
+
+    const prompt = `
+        Ты — AI-ассистент в системе аудита. Ведется обсуждение задачи.
+        Твоя задача — осмысленно продолжить диалог, основываясь на всей истории переписки и контексте задачи.
+        Последнее сообщение в истории — от пользователя, который отвечает на твое предыдущее сообщение.
+        Ответь ему по существу, будь краток и полезен.
+
+        **Контекст задачи:**
+        - Название: ${task.title}
+        - Описание: ${task.description || 'Нет'}
+
+        **История диалога:**
+        ${history}
+
+        Твой ответ:
+    `;
+
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const summarizeAndContinue = async (task: PlanItem, events: Event[]): Promise<string> => {
+    const processedEvents = await _processEventsWithFileContent(events);
+    
+    // Fix: Cast processedEvents to Event[] to satisfy formatChatHistory's type requirement.
+    // The underlying structure is compatible for what the function needs.
+    const history = formatChatHistory(processedEvents as Event[]);
+    
+    const prompt = `
+        Ты — AI-ассистент в системе аудита. Аудитор попросил тебя проанализировать всю переписку по задаче.
+        Твоя задача — синтезировать всю информацию из диалога и приложенных файлов, подвести итог, выявить нерешенные вопросы и предложить следующий логический шаг.
+        Твой ответ должен быть структурированным и полезным для аудитора.
+
+        **Контекст задачи:**
+        - Название: ${task.title}
+        - Описание: ${task.description || 'Нет'}
+
+        **История диалога для анализа:**
+        ${history}
+
+        **Сформируй ответ, включающий:**
+        1.  **Краткое резюме:** В 1-2 предложениях опиши текущий статус задачи.
+        2.  **Ключевые выводы:** Список из 2-3 основных моментов, которые были выяснены.
+        3.  **Открытые вопросы:** Что до сих пор неясно или требует дополнительной информации?
+        4.  **Рекомендация:** Какой следующий шаг ты предлагаешь сделать?
+
+        Используй Markdown для форматирования.
+    `;
+
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
 };

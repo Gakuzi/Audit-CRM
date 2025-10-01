@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
