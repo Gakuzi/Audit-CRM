@@ -20,6 +20,7 @@ interface WeekCardProps {
   onDeleteRequest: () => void;
   onUpdateRequest: () => void;
   onGenerateReport: () => void;
+  onSentForApproval: (week: Week) => void;
 }
 
 const statusConfig: { [key in Week['status']]: { label: string; color: string; } } = {
@@ -30,7 +31,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -69,7 +70,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
     }
   };
   
-  const { ref: swipeRef, style: swipeStyle } = useSwipe({ onSwipeRight: handleSwipeRight, revealWidth: 160 });
+  const { ref: swipeRef, style: swipeStyle } = useSwipe({ onSwipeRightAction: handleSwipeRight, rightRevealWidth: isAuditor && week.status === 'draft' ? 160 : 0 });
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
     let guestName: string | null = null;
@@ -146,6 +147,9 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
             }
         }
         onUpdateRequest();
+        if (newStatus === 'pending_approval' && isAuditor) {
+            onSentForApproval(week);
+        }
     }
     setShowStatusChangeConfirm(null);
   };
@@ -211,18 +215,16 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   const nextStatus = getNextStatus();
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden touch-only">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div className="relative bg-gray-100 rounded-lg overflow-hidden">
          {/* Background Action for Swipe Right */}
-         {nextStatus && (
-            <div className="absolute inset-y-0 left-0 flex items-center bg-blue-500 text-white px-6">
-                <FaArrowRight size={24} />
-            </div>
-         )}
+         <div className="absolute inset-y-0 left-0 flex items-center bg-blue-500 text-white px-6 touch-only">
+            {nextStatus && <FaArrowRight size={24} />}
+         </div>
 
          {/* Background Actions for Swipe Left */}
          {isAuditor && week.status === 'draft' && (
-             <div className="absolute inset-y-0 right-0 flex items-center z-0">
+             <div className="absolute inset-y-0 right-0 flex items-center z-0 touch-only">
                 <button 
                     onClick={() => setIsEditModalOpen(true)}
                     className="h-full bg-blue-500 text-white px-6 flex flex-col items-center justify-center">

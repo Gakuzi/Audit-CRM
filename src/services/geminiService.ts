@@ -201,7 +201,8 @@ const _processEventsWithFileContent = async (events: Event[]) => {
 
                 if (mimeType.startsWith('image/')) {
                     const base64 = await blobToBase64(blob);
-                    return { ...file, type: mimeType, content: base64 };
+                    const dataUri = `data:${mimeType};base64,${base64}`;
+                    return { ...file, type: mimeType, content: dataUri };
                 }
                 if (mimeType.startsWith('text/')) {
                     const text = await blob.text();
@@ -246,7 +247,7 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
         *   **Задачи в работе (без активности):** ${inProgressTasks.length}
 
     4.  **Журнал событий (комментарии, встречи, файлы):**
-        *Проанализируй этот JSON массив событий. Если в объекте файла есть поле "content", оно содержит либо base64-строку изображения, либо текст из документа. Проанализируй это содержимое напрямую для получения точных выводов. Основывай свой анализ ИСКЛЮЧИТЕЛЬНО на предоставленных данных.*
+        *Проанализируй этот JSON массив событий. Если в объекте файла есть поле "content", оно содержит либо **Data URI изображения (data:image/...)**, либо текст из документа. Проанализируй это содержимое напрямую для получения точных выводов. Основывай свой анализ ИСКЛЮЧИТЕЛЬНО на предоставленных данных.*
         \`\`\`json
         ${JSON.stringify(processedEvents.map(e => ({ type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: (f as any).content })) })), null, 2)}
         \`\`\`

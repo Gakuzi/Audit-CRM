@@ -17,6 +17,7 @@ interface AddEventModalProps {
     project: Project;
     task: PlanItem;
     isGuest: boolean;
+    parentEvent: Event | null;
 }
 
 type EventStepType = 'meeting' | 'interview' | 'documentation_review';
@@ -39,7 +40,7 @@ const sanitizeFileName = (fileName: string) => {
     return cleanedName + extension;
 };
 
-const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, context, onNewEvent, project, task, isGuest }) => {
+const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, context, onNewEvent, project, task, isGuest, parentEvent }) => {
     const [step, setStep] = useState<'select' | 'form'>('select');
     const [eventType, setEventType] = useState<EventStepType | null>(isGuest ? 'meeting' : null);
     const [loading, setLoading] = useState(false);
@@ -55,10 +56,15 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
       if (isOpen && isGuest) {
         setStep('form');
         setEventType('meeting');
-      } else if (!isOpen) {
+      } else if (isOpen && !isGuest && !parentEvent) {
+        setStep('select');
+      } else if (isOpen) {
+        setStep('select');
+      }
+      else if (!isOpen) {
         handleClose();
       }
-    }, [isOpen, isGuest]);
+    }, [isOpen, isGuest, parentEvent]);
 
     const handleSelectType = (type: EventStepType) => {
         setEventType(type);
@@ -135,7 +141,8 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 author_email: authorIdentifier,
                 type: eventType,
                 content,
-                data: {}
+                data: {},
+                parent_event_id: parentEvent?.id,
             };
 
             if (eventType === 'meeting') {
@@ -229,7 +236,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
       });
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={isGuest ? "Запрос на встречу" : "Добавить событие"}>
+        <Modal isOpen={isOpen} onClose={onClose} title={parentEvent ? "Добавить вложенное событие" : (isGuest ? "Запрос на встречу" : "Добавить событие")}>
             {step === 'select' && !isGuest ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {availableEventTypes.map(({ type, name, icon }) => (
@@ -243,7 +250,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, co
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {renderForm()}
                     <div className="pt-2 flex justify-between items-center">
-                         {!isGuest ? (
+                         {!isGuest && !parentEvent ? (
                             <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
                          ) : <div></div>}
                          <button type="submit" disabled={loading || (eventType === 'interview' && !audioBlob)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">

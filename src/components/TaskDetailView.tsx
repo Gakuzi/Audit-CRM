@@ -7,7 +7,7 @@ import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
 // Fix: Import FaBrain icon.
-import { FaTimes, FaEdit, FaSave, FaComments, FaBrain } from 'react-icons/fa';
+import { FaTimes, FaEdit, FaSave, FaComments, FaBrain, FaFileAlt } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
@@ -40,8 +40,14 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const [editedTitle, setEditedTitle] = useState('');
     const [editedDescription, setEditedDescription] = useState('');
     const [analyzingEventId, setAnalyzingEventId] = useState<string | null>(null);
+    const [parentEventForNewEvent, setParentEventForNewEvent] = useState<Event | null>(null);
     
     const isAuditor = !isGuest && user?.id === project.user_id;
+
+    const handleOpenSubEventModal = (parentEvent: Event) => {
+        setParentEventForNewEvent(parentEvent);
+        setIsAddEventModalOpen(true);
+    };
 
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
@@ -306,6 +312,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                         onAnalyze={handleAnalyze}
                                         isAnalyzing={analyzingEventId === event.id}
                                         isAuditor={isAuditor}
+                                        onAddSubEvent={isAuditor ? handleOpenSubEventModal : undefined}
                                     />
                                 ))}
                             </div>
@@ -348,13 +355,17 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
              {(user || isGuest) && (
                 <AddEventModal
                     isOpen={isAddEventModalOpen}
-                    onClose={() => setIsAddEventModalOpen(false)}
+                    onClose={() => {
+                        setIsAddEventModalOpen(false);
+                        setParentEventForNewEvent(null);
+                    }}
                     user={user}
                     context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }}
                     onNewEvent={handleNewEvent}
                     project={project}
                     task={context.item}
                     isGuest={isGuest}
+                    parentEvent={parentEventForNewEvent}
                 />
             )}
             <ConfirmationModal

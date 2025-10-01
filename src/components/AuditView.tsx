@@ -11,6 +11,7 @@ import AddWeekModal from './AddWeekModal';
 import TaskDetailView from './TaskDetailView';
 import ConfirmationModal from './ConfirmationModal';
 import AiReportModal from './AiReportModal';
+import ApprovalShareModal from './ApprovalShareModal';
 
 interface AuditViewProps {
   project: Project;
@@ -31,6 +32,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   const [selectedWeekForReport, setSelectedWeekForReport] = useState<Week | null>(null);
   const [auditorForReport, setAuditorForReport] = useState<Profile | null>(null);
   const [companyForReport, setCompanyForReport] = useState<CompanyProfile | null>(null);
+  const [weekToShareForApproval, setWeekToShareForApproval] = useState<Week | null>(null);
 
 
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<{ item: PlanItem; weekId: string; projectId: string; } | null>(null);
@@ -48,7 +50,12 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       console.error('Error fetching weeks:', error);
     } else {
-      setWeeks(data || []);
+      // FIX: Ensure week.plan is never null to prevent render crashes.
+      const weeksWithPlan = (data || []).map(week => ({
+        ...week,
+        plan: week.plan || {}
+      }));
+      setWeeks(weeksWithPlan);
     }
     if (showLoading) setLoading(false);
   }, [project.id]);
@@ -230,6 +237,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
                 onDeleteRequest={() => setWeekToDelete(week)}
                 onUpdateRequest={() => fetchWeeks(false)}
                 onGenerateReport={() => handleOpenReport(week)}
+                onSentForApproval={setWeekToShareForApproval}
             />
           ))}
           {weeks.length === 0 && (
@@ -295,6 +303,15 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             auditor={auditorForReport}
             company={companyForReport}
             onUpdate={() => fetchWeeks(false)}
+           />
+       )}
+
+       {weekToShareForApproval && (
+          <ApprovalShareModal
+            isOpen={!!weekToShareForApproval}
+            onClose={() => setWeekToShareForApproval(null)}
+            week={weekToShareForApproval}
+            project={project}
            />
        )}
 
