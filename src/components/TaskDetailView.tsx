@@ -6,7 +6,6 @@ import { analyzeAudioRecording, analyzeDiagram, analyzeImageFromUrl, continueCon
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-// Fix: Import FaBrain icon.
 import { FaTimes, FaEdit, FaSave, FaComments, FaBrain } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
@@ -15,6 +14,7 @@ import InterviewTools from './InterviewTools';
 import MeetingTools from './MeetingTools';
 import DocReviewTools from './DocReviewTools';
 import ProcessAnalysisTools from './ProcessAnalysisTools';
+import SubTaskItem from './SubTaskItem';
 
 interface TaskDetailViewProps {
   isOpen: boolean;
@@ -25,9 +25,10 @@ interface TaskDetailViewProps {
   onUpdateTask: (weekId: string, updatedTask: PlanItem) => void;
   isGuest: boolean;
   project: Project;
+  onSubTaskAdded: (parentTask: PlanItem, newSubTask: PlanItem) => void;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, onUpdateTask, isGuest, project }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, onUpdateTask, isGuest, project, onSubTaskAdded }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
@@ -166,6 +167,15 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         setIsEditing(false);
     };
 
+    const handleAddSubTask = (subTask: PlanItem) => {
+        const updatedParentTask = {
+            ...context.item,
+            sub_tasks: [...(context.item.sub_tasks || []), subTask],
+        };
+        onUpdateTask(context.weekId, updatedParentTask);
+        onSubTaskAdded(context.item, subTask);
+    };
+
     const handleAnalyze = async (eventToAnalyze: Event) => {
         setAnalyzingEventId(eventToAnalyze.id);
         setIsAiThinking(true);
@@ -202,8 +212,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         const channel = supabase.channel(`public:events:task_id=eq.${context.item.id}`);
         channel.on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, 
             (payload) => {
-                // This is a simplified listener. The main logic is handled via callbacks.
-                // It helps catch updates if multiple users are in the same view.
                 if (payload.eventType === 'INSERT') {
                      setEvents(current => current.find(e => e.id === payload.new.id) ? current : [...current, payload.new as Event]);
                 } else if (payload.eventType === 'DELETE') {
@@ -225,7 +233,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     
     const renderTaskTools = () => {
         if (!isAuditor || !user) return null;
-        // Fix: Pass handleNewEvent explicitly instead of using shorthand property.
         const props = { user, context, events, onNewEvent: handleNewEvent };
         switch (context.item.type) {
             case 'interview': return <InterviewTools {...props} />;
@@ -298,6 +305,17 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             </div>
                         )
                      )}
+                     
+                     {context.item.sub_tasks && context.item.sub_tasks.length > 0 && (
+                        <div className="mb-6">
+                            <h4 className="text-sm font-bold text-gray-600 mb-2">Подзадачи</h4>
+                            <div className="space-y-2">
+                                {context.item.sub_tasks.map(sub => (
+                                    <SubTaskItem key={sub.id} item={sub} />
+                                ))}
+                            </div>
+                        </div>
+                     )}
 
                      {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
                         <>
@@ -341,7 +359,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             quotedEvent={quotedEvent}
                             onClearQuote={() => setQuotedEvent(null)}
                             onNewEvent={handleNewEvent}
-                            onAddStructuredEvent={!isGuest ? () => setIsAddEventModalOpen(true) : undefined}
+                            onAddStructuredEvent={() => setIsAddEventModalOpen(true)}
                             project={project}
                             task={context.item}
                             isGuest={isGuest}
@@ -360,12 +378,10 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         setParentEventForNewEvent(null);
                     }}
                     user={user}
-                    context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }}
-                    onNewEvent={handleNewEvent}
-                    project={project}
-                    task={context.item}
-                    isGuest={isGuest}
+                    onAddSubTask={handleAddSubTask}
+                    parentItem={context.item}
                     parentEvent={parentEventForNewEvent}
+                    isGuest={isGuest}
                 />
             )}
             <ConfirmationModal

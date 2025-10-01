@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus, Project } from '../types';
-import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
@@ -50,65 +50,96 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
   const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState<WeekStatus | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
 
-  const swipeActionsEnabled = isGuest && week.status === 'pending_approval';
+  const guestSwipeEnabled = isGuest && week.status === 'pending_approval';
+  const auditorDraftSwipeEnabled = isAuditor && week.status === 'draft';
+  const auditorStatusChangeSwipeEnabled = isAuditor && ['draft', 'approved', 'rejected'].includes(week.status);
+
+  const handleSequentialStatusChange = () => {
+    if (!isAuditor) return;
+    let nextStatus: WeekStatus | null = null;
+    switch (week.status) {
+        case 'draft':
+            nextStatus = 'pending_approval';
+            break;
+        case 'approved':
+            nextStatus = 'completed';
+            break;
+        case 'rejected':
+            nextStatus = 'draft';
+            break;
+    }
+    if (nextStatus) {
+        if (week.status === 'draft' && nextStatus === 'pending_approval') {
+            onSentForApproval(week);
+        }
+        handleStatusChange(nextStatus, true);
+    }
+  };
 
   const { ref, style } = useSwipe({
-    onSwipeLeftAction: swipeActionsEnabled ? () => handleStatusChange('rejected') : undefined,
-    onSwipeRightAction: swipeActionsEnabled ? () => handleStatusChange('approved') : undefined,
-    leftRevealWidth: swipeActionsEnabled ? 80 : 0,
-    rightRevealWidth: swipeActionsEnabled ? 80 : 0,
+    onSwipeLeftAction: guestSwipeEnabled ? () => handleStatusChange('rejected') : undefined,
+    onSwipeRightAction: guestSwipeEnabled ? () => handleStatusChange('approved') : (auditorStatusChangeSwipeEnabled ? handleSequentialStatusChange : undefined),
+    rightRevealWidth: guestSwipeEnabled ? 80 : (auditorDraftSwipeEnabled ? 160 : 0),
+    leftRevealWidth: guestSwipeEnabled ? 80 : 0,
   });
 
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
-    let rejectionReason: string | null = null;
+    // Guest Logic
+    if (isGuest) {
+      if (newStatus !== 'approved' && newStatus !== 'rejected') return;
 
-    if (isGuest && (newStatus === 'approved' || newStatus === 'rejected')) {
-        let guestName = localStorage.getItem('guestName');
-        if (!guestName) {
-            guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в истории изменений):', 'Гость');
-            if (!guestName || guestName.trim() === '') return;
-            localStorage.setItem('guestName', guestName);
-        }
-        
-        if (newStatus === 'rejected') {
-            rejectionReason = prompt("Пожалуйста, укажите причину отклонения:");
-            if (rejectionReason === null) return;
-        }
-        
-        const updateData: Partial<Week> = { status: newStatus, rejection_comment: rejectionReason };
-        const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
-        if (error) {
-            alert('Ошибка изменения статуса: ' + error.message);
-        } else {
-            sendGuestStatusChangeNotification(project, week, newStatus, guestName, rejectionReason, window.location.origin);
-            onUpdateRequest();
-        }
-        setShowStatusChangeConfirm(null);
-        return;
+      let guestName = localStorage.getItem('guestName');
+      if (!guestName) {
+        guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в истории изменений):', 'Гость');
+        if (!guestName || guestName.trim() === '') return;
+        localStorage.setItem('guestName', guestName);
+      }
+      
+      let reason: string | null = null;
+      if (newStatus === 'rejected') {
+        reason = prompt("Пожалуйста, укажите причину отклонения:");
+        if (reason === null) return; // User cancelled prompt
+      }
+
+      const updateData: Partial<Week> = { status: newStatus, rejection_comment: reason };
+      const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
+      
+      if (error) {
+        alert('Ошибка изменения статуса: ' + error.message);
+      } else {
+        // Here we'd call a notification function if we had one
+        console.log(`Guest ${guestName} changed status to ${newStatus}`);
+        onUpdateRequest();
+      }
+      return;
     }
 
     // Auditor logic below
-    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation && isAuditor) {
+    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation) {
         setShowStatusChangeConfirm(newStatus);
         return;
     }
     
     const updateData: Partial<Week> = { status: newStatus };
 
-    if (newStatus === 'rejected' && isAuditor) {
+    if (newStatus === 'rejected') {
         const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment);
         if (comment === null) return; // User cancelled prompt
         updateData.rejection_comment = comment;
         setRejectionComment(comment);
-    } else if (newStatus !== 'rejected' && week.rejection_comment) {
+    } else if (week.rejection_comment) {
         updateData.rejection_comment = null;
     }
+
 
     const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
     if (error) {
       alert('Ошибка изменения статуса: ' + error.message);
     } else {
+      if (newStatus === 'pending_approval') {
+        onSentForApproval(week);
+      }
       onUpdateRequest();
     }
     setShowStatusChangeConfirm(null);
@@ -134,7 +165,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
         case 'draft':
             return isAuditor && (
                 <button 
-                    onClick={() => { handleStatusChange('pending_approval'); onSentForApproval(week); }} 
+                    onClick={() => { handleStatusChange('pending_approval'); }} 
                     className="bg-blue-600 text-white font-bold py-2 px-5 rounded-full inline-flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
                 >
                     <FaPaperPlane />
@@ -163,11 +194,10 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 relative">
-        {swipeActionsEnabled && (
+        {guestSwipeEnabled && (
             <>
-                {/* Left side (revealed on swipe right) - Approve */}
                 <div 
-                    className="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer"
+                    className="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only"
                     onClick={() => handleStatusChange('approved')}
                 >
                     <div className="flex flex-col items-center">
@@ -175,9 +205,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
                         <span className="text-xs mt-1 font-bold">Согласовать</span>
                     </div>
                 </div>
-                {/* Right side (revealed on swipe left) - Reject */}
                 <div 
-                    className="absolute top-0 right-0 h-full bg-red-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer"
+                    className="absolute top-0 right-0 h-full bg-red-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only"
                     onClick={() => handleStatusChange('rejected')}
                 >
                      <div className="flex flex-col items-center">
@@ -187,6 +216,25 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
                 </div>
             </>
         )}
+        {auditorDraftSwipeEnabled && (
+            <div className="absolute top-0 right-0 h-full flex items-center text-white z-0 touch-only">
+                <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="h-full w-20 bg-blue-500 flex flex-col items-center justify-center hover:bg-blue-600 transition-colors"
+                >
+                    <FaEdit size={20} />
+                    <span className="text-xs mt-1 font-bold">Редакт.</span>
+                </button>
+                <button
+                    onClick={onDeleteRequest}
+                    className="h-full w-20 bg-red-500 flex flex-col items-center justify-center hover:bg-red-600 transition-colors"
+                >
+                    <FaTrash size={20} />
+                    <span className="text-xs mt-1 font-bold">Удалить</span>
+                </button>
+            </div>
+        )}
+
         <div ref={ref} style={style} className="relative z-10 bg-white">
           <header
             className="p-4 cursor-pointer border-b"

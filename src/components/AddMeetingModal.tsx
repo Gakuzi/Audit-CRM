@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Spinner } from './ui/Spinner';
 import { Project, PlanItem } from '../types';
@@ -15,52 +15,31 @@ interface AddMeetingModalProps {
   task: PlanItem;
 }
 
-const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user, project, task }) => {
+const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim()) return;
+        if (!content.trim() || !user) return;
         setLoading(true);
 
-        try {
-            let authorIdentifier = user ? user.email : localStorage.getItem('guestName');
-            let isGuestSubmission = !user;
-
-            if (!user && !authorIdentifier) {
-                const guestName = prompt('Пожалуйста, представьтесь:', 'Гость');
-                if (!guestName || guestName.trim() === '') {
-                    setLoading(false);
-                    return;
-                }
-                authorIdentifier = guestName;
-                localStorage.setItem('guestName', guestName);
-            }
-
-            const { data, error } = await supabase.from('events').insert({
-                project_id: context.projectId,
-                week_id: context.weekId,
-                task_id: context.taskId,
-                user_id: user ? user.id : project.user_id, // Fallback to auditor's ID for guests
-                author_email: authorIdentifier,
-                type: 'meeting',
-                content: content.trim(),
-            }).select().single();
-            
-            if (error) {
-                throw error;
-            } else {
-                 if (isGuestSubmission && data) {
-                    sendGuestEventNotification(project, task, data, window.location.origin);
-                }
-                handleClose();
-            }
-        } catch(err: any) {
-            alert('Не удалось назначить встречу: ' + err.message);
-        } finally {
-            setLoading(false);
+        const { error } = await supabase.from('events').insert({
+            project_id: context.projectId,
+            week_id: context.weekId,
+            task_id: context.taskId,
+            user_id: user.id,
+            author_email: user.email,
+            type: 'meeting',
+            content: content.trim(),
+        });
+        
+        if (error) {
+            alert('Не удалось назначить встречу: ' + error.message);
+        } else {
+            handleClose();
         }
+        setLoading(false);
     }
     
     const handleClose = () => {

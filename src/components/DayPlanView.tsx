@@ -73,7 +73,8 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
             {sortedDates.map(date => {
                 const dayPlan = week.plan[date];
                 const dayDate = new Date(date + 'T00:00:00');
-                const dayName = DAY_NAMES[dayDate.getDay()];
+                // FIX: Correctly map getDay() (Sun=0, Mon=1) to DAY_NAMES array (Mon=0, Tue=1)
+                const dayName = DAY_NAMES[(dayDate.getDay() + 6) % 7];
                 
                 return (
                     <div key={date} className="bg-gray-50 rounded-lg p-3">

@@ -88,7 +88,6 @@ ${rejectionReason ? `\n*Причина отклонения:*\n${rejectionReason
 
 export const sendGuestEventNotification = async (project: Project, task: PlanItem, event: Event, baseUrl: string) => {
   try {
-    // 1. Fetch company profile for priority contact
     const { data: companyProfile } = await supabase
         .from('company_profiles')
         .select('contacts')
@@ -97,8 +96,6 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
     
     const priorityContact = companyProfile?.contacts?.find((c: ContactPerson) => c.priority_contact_method);
 
-
-    // 2. Construct inline keyboard
     const inline_keyboard = [];
     
     const commentUrl = `${baseUrl}#/${project.id}?taskId=${task.id}`;
@@ -131,10 +128,8 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
       }
     }
 
-    // 3. Format the message
-    const eventTypeName = event.type === 'meeting' ? 'Запрос на встречу' : 'Комментарий';
     const message = `
-*${eventTypeName} в проекте "${project.name}"*
+*Новый комментарий в проекте "${project.name}"*
 
 *От:* ${event.author_email}
 *Задача:* ${task.title}
@@ -143,10 +138,35 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
 ${event.content}
     `;
 
-    // 4. Send notification
     await sendTelegramNotification(project, message, inline_keyboard);
 
   } catch (error) {
     console.error('Failed to send Telegram notification:', error);
   }
+};
+
+
+export const sendGuestSubTaskNotification = async (project: Project, parentTask: PlanItem, newSubTask: PlanItem, baseUrl: string) => {
+    try {
+        const subTaskTypeName = newSubTask.type === 'meeting' ? 'Запрос на встречу' : 'Новая подзадача';
+        const guestName = localStorage.getItem('guestName') || 'Гость';
+
+        const message = `
+*${subTaskTypeName} в проекте "${project.name}"*
+
+*От:* ${guestName}
+*В рамках задачи:* ${parentTask.title}
+*Название:* ${newSubTask.title}
+
+*Описание:*
+${newSubTask.description || 'Нет описания'}
+        `;
+        
+        const taskUrl = `${baseUrl}#/${project.id}?taskId=${parentTask.id}`;
+        const inline_keyboard = [[{ text: 'Перейти к задаче', url: taskUrl }]];
+
+        await sendTelegramNotification(project, message, inline_keyboard);
+    } catch (error) {
+        console.error('Failed to send guest sub-task notification:', error);
+    }
 };

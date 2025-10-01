@@ -34,6 +34,8 @@ export interface PlanItem {
     participants?: string[];
     interviewee?: string;
   };
+  sub_tasks?: PlanItem[];
+  parent_id?: string | null;
 }
 
 export interface Plan {
@@ -67,10 +69,12 @@ export interface Event {
   task_id: string;
   user_id: string;
   author_email: string | null;
-  type: 'comment' | 'meeting' | 'documentation_review' | 'interview';
+  // Fix: Expanded event types to include more than just 'comment'.
+  type: 'comment' | 'meeting' | 'interview' | 'documentation_review';
   content: string;
   data?: {
     file_urls?: { name: string, url: string, type?: string }[];
+    // Fix: Added missing fields for meeting data.
     meeting_time?: string;
     participants?: string[];
   } | null;

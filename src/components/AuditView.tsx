@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { supabase, sendGuestSubTaskNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
@@ -50,7 +50,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       console.error('Error fetching weeks:', error);
     } else {
-      // FIX: Ensure week.plan is never null to prevent render crashes.
       const weeksWithPlan = (data || []).map(week => ({
         ...week,
         plan: week.plan || {}
@@ -81,7 +80,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     }
   }, [initialTaskId, weeks, project.id]);
   
-  // This subscription is a fallback and ensures eventual consistency
   useEffect(() => {
     const subscription = supabase.channel(`public:weeks:project_id=eq.${project.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weeks', filter: `project_id=eq.${project.id}` }, 
@@ -99,7 +97,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     if (error) {
       alert('Ошибка обновления плана: ' + error.message);
     } else {
-      fetchWeeks(false); // Refetch to get latest data
+      fetchWeeks(false);
     }
   };
 
@@ -110,11 +108,22 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     const newPlan = JSON.parse(JSON.stringify(weekToUpdate.plan)); // Deep copy
     let taskFound = false;
 
+    // Helper function to recursively find and update a task
+    const findAndUpdate = (tasks: PlanItem[]): boolean => {
+        for (let i = 0; i < tasks.length; i++) {
+            if (tasks[i].id === updatedTask.id) {
+                tasks[i] = updatedTask;
+                return true;
+            }
+            if (tasks[i].sub_tasks && findAndUpdate(tasks[i].sub_tasks!)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     for (const date in newPlan) {
-        const day = newPlan[date];
-        const taskIndex = day.tasks.findIndex((t: PlanItem) => t.id === updatedTask.id);
-        if (taskIndex !== -1) {
-            day.tasks[taskIndex] = updatedTask;
+        if (newPlan[date].tasks && findAndUpdate(newPlan[date].tasks)) {
             taskFound = true;
             break;
         }
@@ -122,7 +131,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
 
     if (taskFound) {
         handleUpdatePlan(weekId, newPlan);
-        // also update the selected task in detail view to reflect changes immediately
         setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
     }
   };
@@ -146,13 +154,11 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
         }
 
         if (taskFound) {
-            // Optimistic update
             setWeeks(currentWeeks => currentWeeks.map(w => w.id === weekId ? { ...w, plan: newPlan } : w));
-            // Persist change
             const { error } = await supabase.from('weeks').update({ plan: newPlan }).eq('id', weekId);
             if(error) {
                 alert("Ошибка синхронизации: " + error.message);
-                fetchWeeks(false); // Revert if error
+                fetchWeeks(false);
             }
         }
     };
@@ -188,7 +194,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   }
 
   const handleOpenReport = async (week: Week) => {
-      // Fetch auditor and company profiles before opening the modal
       const { data: auditorData } = await supabase.from('profiles').select('*').eq('id', project.user_id).single();
       setAuditorForReport(auditorData);
 
@@ -198,6 +203,12 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
       setSelectedWeekForReport(week);
       setIsAiReportModalOpen(true);
   }
+
+  const handleSubTaskAdded = (parentTask: PlanItem, newSubTask: PlanItem) => {
+    if (isGuest && newSubTask.type === 'meeting') {
+        sendGuestSubTaskNotification(project, parentTask, newSubTask, window.location.origin);
+    }
+  };
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
 
@@ -282,6 +293,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             onUpdateTask={handleUpdateTask}
             isGuest={isGuest}
             project={project}
+            onSubTaskAdded={handleSubTaskAdded}
        />
 
        <ConfirmationModal 
