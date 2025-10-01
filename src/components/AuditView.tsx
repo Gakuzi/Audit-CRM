@@ -18,11 +18,10 @@ interface AuditViewProps {
   onBack: () => void;
   isAuditor: boolean;
   isGuest: boolean;
-  onRegister: () => void;
   initialTaskId: string | null;
 }
 
-const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor, isGuest, onRegister, initialTaskId }) => {
+const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor, isGuest, initialTaskId }) => {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -226,7 +225,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
                 week={week} 
                 isAuditor={isAuditor}
                 isGuest={isGuest}
-                onRegister={onRegister}
                 onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}
                 onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})}
                 onDeleteRequest={() => setWeekToDelete(week)}

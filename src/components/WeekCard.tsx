@@ -15,7 +15,6 @@ interface WeekCardProps {
   week: Week;
   isAuditor: boolean;
   isGuest: boolean;
-  onRegister: () => void;
   onUpdatePlan: (plan: Plan) => void;
   onTaskSelect: (item: PlanItem) => void;
   onDeleteRequest: () => void;
@@ -31,7 +30,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegister, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);

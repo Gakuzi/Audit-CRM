@@ -157,7 +157,6 @@ function App() {
             onBack={handleBackToDashboard}
             isAuditor={isAuditor}
             isGuest={isGuest}
-            onRegister={handleOpenRegister}
             initialTaskId={initialTaskId}
           />
         ) : (
