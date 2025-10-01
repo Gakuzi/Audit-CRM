@@ -73,7 +73,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
     const reportSummary = report.substring(0, 200) + '...';
     const shareText = `Отчет по этапу «${week.title}» в проекте «${project.name}»:\n\n${reportSummary}\n\nПодробнее по ссылке: ${window.location.href}`;
     const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(shareText)}`;
+    const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(`Здравствуйте!\n\nПрошу вас согласовать этап аудита «${week.title}» в проекте «${project.name}».`)}`;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`AI Отчет: ${week.title}`}>
