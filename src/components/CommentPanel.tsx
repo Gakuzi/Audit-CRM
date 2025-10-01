@@ -143,7 +143,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                         onClearQuote={() => {}} 
                         onNewEvent={() => {}} 
                         project={project} 
-                        task={task} 
                         isGuest={isGuest}
                         onAddSubTaskRequest={() => setIsMeetingModalOpen(true)}
                     /> 

@@ -13,8 +13,6 @@ interface AddEventFormProps {
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
   project: Project;
-  // Fix: Add missing 'task' prop to the interface.
-  task: PlanItem;
   isGuest: boolean;
   onAddSubTaskRequest: (type: PlanItemType) => void;
 }
@@ -30,7 +28,7 @@ const sanitizeFileName = (fileName: string) => {
     return cleanedName + extension;
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent, onClearQuote, onNewEvent, project, task, isGuest, onAddSubTaskRequest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent, onClearQuote, onNewEvent, project, isGuest, onAddSubTaskRequest }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -168,7 +166,11 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                         )}
                     </div>
 
-                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
+                    <button
+                        type="submit"
+                        disabled={loading || (!content.trim() && filesToAttach.length === 0)}
+                        className="w-32 py-2 px-4 btn-primary flex justify-center items-center"
+                    >
                         {loading ? <Spinner size="sm" /> : 'Отправить'}
                     </button>
                 </div>

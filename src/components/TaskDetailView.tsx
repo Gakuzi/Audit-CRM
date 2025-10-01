@@ -196,7 +196,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                 onClearQuote={() => setQuotedEvent(null)}
                                 onNewEvent={(e) => handleNewEvent(e, false)}
                                 project={project}
-                                task={context.item}
                                 isGuest={isGuest}
                                 onAddSubTaskRequest={(type) => { setPreselectedSubTaskType(type); setIsAddSubTaskModalOpen(true); }}
                             />
