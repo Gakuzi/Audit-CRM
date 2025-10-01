@@ -2,6 +2,7 @@ import React from 'react';
 import { Project } from '../types';
 import { FaTrash, FaCalendarAlt } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ProjectCardProps {
   project: Project;
@@ -27,8 +28,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, isPublicVi
     <div className={cardClasses} onClick={() => onSelect(project)}>
       <div className="p-6 flex-grow">
         <h3 className="text-lg font-bold text-gray-800 mb-2 truncate">{project.name}</h3>
-        <div className="text-gray-600 text-sm line-clamp-3 mb-4 prose prose-sm max-w-none">
-          <ReactMarkdown>{project.description || "Нет описания."}</ReactMarkdown>
+        <div className="text-gray-600 text-sm line-clamp-3 mb-4 prose prose-sm">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description || "Нет описания."}</ReactMarkdown>
         </div>
         <div className="flex items-center text-xs text-gray-500">
           <FaCalendarAlt className="mr-2" />

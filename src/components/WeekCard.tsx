@@ -9,6 +9,7 @@ import WeekStats from './WeekStats';
 import ConfirmationModal from './ConfirmationModal';
 import WeekHistoryFeed from './WeekHistoryFeed';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useSwipe } from '../hooks/useSwipe';
 
 interface WeekCardProps {
@@ -291,8 +292,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                 <div className="flex-1 pr-4 min-w-0">
                     <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
                      <div className="text-sm text-gray-500 mt-1">
-                        <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
-                            <ReactMarkdown>{week.description || "Нет описания."}</ReactMarkdown>
+                        <div className={`prose prose-sm ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
                         </div>
                         {descriptionNeedsTruncation && (
                              <button 

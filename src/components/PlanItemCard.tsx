@@ -2,6 +2,7 @@ import React from 'react';
 import { PlanItem } from '../types';
 import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface PlanItemCardProps {
   item: PlanItem;
@@ -75,11 +76,11 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
         <div className="flex-1 pr-6">
             <div className="text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2">
-                <ReactMarkdown>{item.title}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
             </div>
             {item.data?.agenda && 
                 <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
-                    <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{`**Повестка:** ${item.data.agenda}`}</ReactMarkdown>
                 </div>
             }
             

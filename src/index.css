@@ -14,6 +14,46 @@
     @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors;
 }
 
+/* Styles for Markdown rendering */
+.prose {
+    @apply text-gray-700 max-w-none;
+}
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+    @apply font-bold mt-6 mb-3 text-gray-800;
+}
+.prose h1 { @apply text-2xl border-b pb-2; }
+.prose h2 { @apply text-xl border-b pb-2; }
+.prose h3 { @apply text-lg; }
+.prose h4 { @apply text-base; }
+.prose p { @apply my-4 leading-relaxed; }
+.prose a { @apply text-blue-600 hover:underline; }
+.prose ul, .prose ol { @apply my-4 pl-6; }
+.prose ul { @apply list-disc; }
+.prose ol { @apply list-decimal; }
+.prose li { @apply my-2; }
+.prose li > p { @apply my-0; }
+.prose ul > li.task-list-item { @apply list-none pl-0 ml-0; }
+.prose ul > li.task-list-item label { @apply flex items-center gap-3; }
+.prose ul > li.task-list-item .task-list-item-checkbox { @apply w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-default; }
+.prose blockquote { @apply my-4 pl-4 border-l-4 border-gray-300 text-gray-600 italic; }
+.prose code { @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded-sm text-sm font-mono; }
+.prose pre { @apply bg-gray-800 text-white p-4 rounded-md overflow-x-auto my-4 text-sm; }
+.prose pre code { @apply bg-transparent text-inherit p-0; }
+.prose hr { @apply my-6 border-gray-200; }
+.prose table { @apply my-6 w-full border-collapse border border-gray-300; }
+.prose th, .prose td { @apply border border-gray-300 px-4 py-2; }
+.prose th { @apply bg-gray-100 font-semibold; }
+.prose strong { @apply font-bold; }
+.prose em { @apply italic; }
+
+/* Inverted prose styles for dark backgrounds */
+.prose-invert { @apply text-gray-200; }
+.prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4, .prose-invert strong { @apply text-white; }
+.prose-invert a { @apply text-blue-300; }
+.prose-invert blockquote { @apply border-gray-500 text-gray-300; }
+.prose-invert code { @apply text-white bg-gray-700; }
+
+
 /* Hide swipe actions on non-touch devices */
 @media (hover: hover) and (pointer: fine) {
     .touch-only {

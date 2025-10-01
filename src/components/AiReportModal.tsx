@@ -5,6 +5,7 @@ import { Week, Project, Event, Profile, CompanyProfile } from '../types';
 import { generateComprehensiveReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { FaSync, FaPrint, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
 
 interface AiReportModalProps {
@@ -93,8 +94,8 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
                         </div>
                     )}
                     {report && (
-                        <div className="prose prose-sm max-w-none">
-                            <ReactMarkdown>{report}</ReactMarkdown>
+                        <div className="prose prose-sm">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
                         </div>
                     )}
                 </div>
@@ -149,8 +150,8 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
                         </div>
                     </div>
 
-                    <div className="print-content">
-                        <ReactMarkdown>{report}</ReactMarkdown>
+                    <div className="print-content prose">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
                     </div>
                 </div>
             )}

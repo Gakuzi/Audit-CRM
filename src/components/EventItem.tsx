@@ -2,6 +2,7 @@ import React from 'react';
 import { Event } from '../types';
 import { FaRegComment, FaReply, FaTrash, FaBrain, FaShare } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Spinner } from './ui/Spinner';
 
 interface EventItemProps {
@@ -86,14 +87,14 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
                      >
                         <p className="font-semibold">{event.parent.author_email}</p>
                         <div className="prose prose-sm max-w-none line-clamp-2">
-                           <ReactMarkdown>{event.parent.content}</ReactMarkdown>
+                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{event.parent.content}</ReactMarkdown>
                         </div>
                      </div>
                 )}
 
                 {event.content && (
-                    <div className="mt-2 text-sm text-gray-800 prose prose-sm max-w-none">
-                       <ReactMarkdown>{event.content}</ReactMarkdown>
+                    <div className="mt-2 text-sm text-gray-800 prose prose-sm">
+                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{event.content}</ReactMarkdown>
                     </div>
                 )}
                 

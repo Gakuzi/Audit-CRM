@@ -10,6 +10,7 @@ import { FaTimes, FaEdit, FaSave, FaComments, FaBrain } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import InterviewTools from './InterviewTools';
 import MeetingTools from './MeetingTools';
 import DocReviewTools from './DocReviewTools';
@@ -259,7 +260,9 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                 className="text-xl font-bold text-gray-800 w-full input"
                             />
                         ) : (
-                            <h2 className="text-xl font-bold text-gray-800">{context.item.title}</h2>
+                             <div className="text-xl font-bold text-gray-800 prose">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{context.item.title}</ReactMarkdown>
+                             </div>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -300,8 +303,8 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                          />
                      ) : (
                         context.item.description && (
-                            <div className="prose prose-sm max-w-none mb-6 p-4 bg-gray-50 rounded-md border">
-                                <ReactMarkdown>{context.item.description}</ReactMarkdown>
+                            <div className="prose prose-sm mb-6 p-4 bg-gray-50 rounded-md border">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{context.item.description}</ReactMarkdown>
                             </div>
                         )
                      )}
