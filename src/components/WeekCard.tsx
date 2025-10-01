@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus, Project } from '../types';
+import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
@@ -13,7 +13,6 @@ import { useSwipe } from '../hooks/useSwipe';
 
 interface WeekCardProps {
   week: Week;
-  project: Project;
   isAuditor: boolean;
   isGuest: boolean;
   onUpdatePlan: (plan: Plan) => void;
@@ -32,7 +31,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
