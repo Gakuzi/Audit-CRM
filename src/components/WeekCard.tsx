@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan, FaUndo } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan, FaUndo, FaBrain } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
 import AddDayModal from './AddDayModal';
@@ -308,12 +308,21 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
               </div>
             )}
             <DayPlanView week={week} onUpdatePlan={onUpdatePlan} onTaskSelect={onTaskSelect} isAuditor={isAuditor} />
-            <div className="mt-6 pt-4 border-t flex justify-end items-center flex-wrap gap-2">
-              {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
-                <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
-                  <FaPlus className="mr-2"/> Добавить день
-                </button>
-              )}
+            <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
+              <div>
+                {isAuditor && week.status === 'completed' && (
+                    <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+                        <FaBrain/> Отчет с AI
+                    </button>
+                )}
+              </div>
+              <div>
+                {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
+                  <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
+                    <FaPlus className="mr-2"/> Добавить день
+                  </button>
+                )}
+              </div>
             </div>
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1"><WeekStats week={week} /></div>
