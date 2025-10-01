@@ -58,6 +58,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                     if (foundTask) break;
                 }
             }
+            // Fix: Use 'title' instead of 'content' for PlanItem creation to match the type definition.
             setTask(foundTask || {id: context.taskId, title: context.taskContent, completed: false, type: 'task'});
             
             if(fetchedProjectId) {
@@ -111,6 +112,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
+                            {/* Fix: Added missing props to EventItem to prevent runtime errors and ensure correct behavior. */}
                             {events.map(event => (
                                 <EventItem 
                                     key={event.id} 

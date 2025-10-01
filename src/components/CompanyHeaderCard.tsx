@@ -18,7 +18,7 @@ const CompanyHeaderCard: React.FC<CompanyHeaderCardProps> = ({ project, companyP
             <div className="relative">
                 <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center space-x-2 text-xl font-bold text-gray-800 cursor-pointer"
+                    className="flex items-center space-x-2 text-lg font-semibold text-gray-700 cursor-pointer hover:text-blue-600"
                 >
                     <FaBuilding className="text-blue-600" />
                     <span className="truncate max-w-xs">{displayName}</span>

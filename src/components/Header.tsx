@@ -13,17 +13,14 @@ interface HeaderProps {
     isGuest: boolean;
     onLogin: () => void;
     onProfile: () => void;
+    onBack: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAuditor, isGuest, onLogin, onProfile }) => {
+const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAuditor, isGuest, onLogin, onProfile, onBack }) => {
     
     const renderProjectContext = () => {
         if (!project) {
-            return (
-                 <h1 className="text-2xl font-bold text-gray-800">
-                    <span role="img" aria-label="clipboard">📋</span> AuditFlow
-                </h1>
-            );
+            return null;
         }
         if (isAuditor) {
             return <CompanyHeaderCard project={project} companyProfile={companyProfile} />;
@@ -34,7 +31,22 @@ const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAudito
     return (
         <header className="bg-white shadow-md">
             <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                {renderProjectContext()}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
+                        <img src="/logo.png" alt="АУДИТ & ПРОЕКТ logo" className="h-10 w-10" />
+                        <h1 className="text-xl font-bold text-gray-800 hidden md:block">
+                            АУДИТ & ПРОЕКТ
+                        </h1>
+                    </div>
+                    
+                    {project && (
+                        <>
+                            <div className="h-8 w-px bg-gray-200 hidden lg:block"></div>
+                            {renderProjectContext()}
+                        </>
+                    )}
+                </div>
+
                 <div>
                     {isGuest ? (
                         <span className="text-sm font-medium text-gray-600">Гостевой доступ</span>

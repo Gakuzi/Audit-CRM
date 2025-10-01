@@ -49,7 +49,7 @@ const AuditorHeaderCard: React.FC<AuditorHeaderCardProps> = ({ auditorId }) => {
     }, [auditorId]);
 
     if (loading) {
-        return <div className="text-xl font-bold text-gray-800 animate-pulse">Загрузка...</div>;
+        return <div className="text-lg font-semibold text-gray-800 animate-pulse">Загрузка...</div>;
     }
 
     const auditorName = profile?.full_name || 'Аудитор';
@@ -58,7 +58,7 @@ const AuditorHeaderCard: React.FC<AuditorHeaderCardProps> = ({ auditorId }) => {
         <div className="relative">
             <button 
                 onClick={() => setIsPopoverOpen(!isPopoverOpen)}
-                className="flex items-center space-x-2 text-xl font-bold text-gray-800 cursor-pointer"
+                className="flex items-center space-x-2 text-lg font-semibold text-gray-700 cursor-pointer hover:text-blue-600"
             >
                 <FaUserTie className="text-blue-600" />
                 <span>{auditorName}</span>
