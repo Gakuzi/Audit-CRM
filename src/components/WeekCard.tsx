@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan, FaUndo } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
 import AddDayModal from './AddDayModal';
@@ -31,6 +31,18 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
+const getSwipeBgColorClass = (status: WeekStatus): string => {
+    const colorMap = {
+        draft: 'bg-gray-500',
+        pending_approval: 'bg-yellow-500',
+        approved: 'bg-green-500',
+        rejected: 'bg-red-500',
+        completed: 'bg-blue-500',
+    };
+    return colorMap[status];
+};
+
+
 const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
   const isCurrentWeek = () => {
       const today = new Date();
@@ -50,35 +62,31 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   const statusRef = useRef<HTMLDivElement>(null);
 
   const guestSwipeEnabled = isGuest && week.status === 'pending_approval';
-  const auditorDraftSwipeEnabled = isAuditor && week.status === 'draft';
   const auditorStatusChangeSwipeEnabled = isAuditor && ['draft', 'approved', 'rejected'].includes(week.status);
 
+  const auditorNextActionMap: Partial<Record<WeekStatus, { nextStatus: WeekStatus; label: string; icon: React.ReactNode }>> = {
+    draft: { nextStatus: 'pending_approval', label: 'Отправить', icon: <FaPaperPlane size={24} /> },
+    approved: { nextStatus: 'completed', label: 'Завершить', icon: <FaCheckCircle size={24} /> },
+    rejected: { nextStatus: 'draft', label: 'В черновик', icon: <FaUndo size={24} /> },
+  };
+
+  const nextAuditorAction = auditorStatusChangeSwipeEnabled ? auditorNextActionMap[week.status] : null;
+
+
   const handleSequentialStatusChange = () => {
-    if (!isAuditor) return;
-    let nextStatus: WeekStatus | null = null;
-    switch (week.status) {
-        case 'draft':
-            nextStatus = 'pending_approval';
-            break;
-        case 'approved':
-            nextStatus = 'completed';
-            break;
-        case 'rejected':
-            nextStatus = 'draft';
-            break;
-    }
-    if (nextStatus) {
-        if (week.status === 'draft' && nextStatus === 'pending_approval') {
-            onSentForApproval(week);
-        }
-        handleStatusChange(nextStatus, true);
+    if (!isAuditor || !nextAuditorAction) return;
+    
+    if (week.status === 'draft' && nextAuditorAction.nextStatus === 'pending_approval') {
+        onSentForApproval(week);
+    } else {
+        handleStatusChange(nextAuditorAction.nextStatus, true);
     }
   };
 
   const { ref, style } = useSwipe({
     onSwipeLeftAction: guestSwipeEnabled ? () => handleStatusChange('rejected') : undefined,
     onSwipeRightAction: guestSwipeEnabled ? () => handleStatusChange('approved') : (auditorStatusChangeSwipeEnabled ? handleSequentialStatusChange : undefined),
-    rightRevealWidth: guestSwipeEnabled ? 80 : (auditorDraftSwipeEnabled ? 160 : 0),
+    rightRevealWidth: (guestSwipeEnabled || auditorStatusChangeSwipeEnabled) ? 80 : 0,
     leftRevealWidth: guestSwipeEnabled ? 80 : 0,
   });
 
@@ -215,22 +223,15 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                 </div>
             </>
         )}
-        {auditorDraftSwipeEnabled && (
-            <div className="absolute top-0 right-0 h-full flex items-center text-white z-0 touch-only">
-                <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="h-full w-20 bg-blue-500 flex flex-col items-center justify-center hover:bg-blue-600 transition-colors"
-                >
-                    <FaEdit size={20} />
-                    <span className="text-xs mt-1 font-bold">Редакт.</span>
-                </button>
-                <button
-                    onClick={onDeleteRequest}
-                    className="h-full w-20 bg-red-500 flex flex-col items-center justify-center hover:bg-red-600 transition-colors"
-                >
-                    <FaTrash size={20} />
-                    <span className="text-xs mt-1 font-bold">Удалить</span>
-                </button>
+        {auditorStatusChangeSwipeEnabled && nextAuditorAction && (
+            <div 
+                className={`absolute top-0 right-0 h-full ${getSwipeBgColorClass(nextAuditorAction.nextStatus)} flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only`}
+                onClick={handleSequentialStatusChange}
+            >
+                <div className="flex flex-col items-center">
+                    {nextAuditorAction.icon}
+                    <span className="text-xs mt-1 font-bold">{nextAuditorAction.label}</span>
+                </div>
             </div>
         )}
 
