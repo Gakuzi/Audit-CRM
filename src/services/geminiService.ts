@@ -177,10 +177,47 @@ export const processInterviewAudio = async (
     return response.text ?? '';
 };
 
+const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+});
+
 export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
     const allTasks = Object.values(week.plan).flatMap(day => day.tasks);
     const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0);
     const inProgressTasks = allTasks.filter(task => !((task.event_count || 0) > 0));
+
+    const processedEvents = await Promise.all(events.map(async event => {
+        if (!event.data?.file_urls) return event;
+
+        const processedFiles = await Promise.all(event.data.file_urls.map(async file => {
+            try {
+                const response = await fetch(file.url);
+                if (!response.ok) return { name: file.name, content: '[Ошибка: Не удалось загрузить файл]' };
+                
+                const blob = await response.blob();
+                const mimeType = blob.type || file.type || '';
+
+                if (mimeType.startsWith('image/')) {
+                    const base64 = await blobToBase64(blob);
+                    return { name: file.name, type: mimeType, content: base64 };
+                }
+                if (mimeType.startsWith('text/')) {
+                    const text = await blob.text();
+                    return { name: file.name, type: mimeType, content: text };
+                }
+                // Placeholder for other file types
+                return { name: file.name, type: mimeType, content: `[Контент файла (${mimeType}) недоступен для анализа]` };
+            } catch (e: any) {
+                return { name: file.name, content: `[Ошибка обработки файла: ${e.message}]` };
+            }
+        }));
+        
+        return { ...event, data: { ...event.data, file_urls: processedFiles } };
+    }));
+
 
     const prompt = `
     Ты — профессиональный бизнес-аудитор. Твоя задача — сгенерировать исчерпывающий отчет о ходе аудита за прошедший этап (неделю) для собственника бизнеса.
@@ -202,9 +239,9 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
         *   **Задачи в работе (без активности):** ${inProgressTasks.length}
 
     4.  **Журнал событий (комментарии, встречи, файлы):**
-        *Проанализируй этот JSON массив событий, чтобы понять динамику работы, ключевые обсуждения, прикрепленные документы и результаты встреч.*
+        *Проанализируй этот JSON массив событий. Если в объекте файла есть поле "content", оно содержит либо base64-строку изображения, либо текст из документа. Проанализируй это содержимое напрямую для получения точных выводов. Основывай свой анализ ИСКЛЮЧИТЕЛЬНО на предоставленных данных.*
         \`\`\`json
-        ${JSON.stringify(events.map(e => ({ type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => f.name) })), null, 2)}
+        ${JSON.stringify(processedEvents.map(e => ({ type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: f.content })) })), null, 2)}
         \`\`\`
 
     **ЗАДАЧА: Сформируй отчет, включающий следующие разделы:**
@@ -214,9 +251,9 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
 
     ### 2. Ключевые результаты и выполненные работы
     *   Перечисли наиболее значимые **выполненные** задачи.
-    *   Опиши главные результаты, полученные в ходе этапа. Что было выяснено, подтверждено или опровергнуто? Используй данные из журнала событий для конкретики.
+    *   Опиши главные результаты, полученные в ходе этапа. Что было выяснено, подтверждено или опровергнуто? **Используй данные из журнала событий и содержимое прикрепленных файлов для конкретики.**
     *   Если были встречи или интервью (события типа 'meeting' или 'interview'), кратко изложи их итоги на основе комментариев.
-    *   Если были прикреплены документы (события 'documentation_review' или файлы в комментариях), упомяни, какие документы были проанализированы и какие выводы из этого следуют.
+    *   Если были прикреплены документы (события 'documentation_review' или файлы в комментариях), упомяни, какие документы были проанализированы и какие выводы из этого следуют, основываясь на их содержимом.
 
     ### 3. Выявленные трудности, риски и открытые вопросы
     *   Проанализируй комментарии и обсуждения. Есть ли признаки проблем, разногласий, нехватки информации?

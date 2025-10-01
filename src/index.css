@@ -14,6 +14,13 @@
     @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors;
 }
 
+/* Hide swipe actions on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+    .touch-only {
+        display: none;
+    }
+}
+
 /* --- PRINT STYLES --- */
 @media print {
     /* Page setup and counters */

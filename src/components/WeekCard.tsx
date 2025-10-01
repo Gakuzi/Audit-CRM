@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaFileAlt, FaPaperPlane } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaFileAlt, FaPaperPlane, FaArrowRight } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
 import AddDayModal from './AddDayModal';
@@ -9,6 +9,7 @@ import WeekStats from './WeekStats';
 import ConfirmationModal from './ConfirmationModal';
 import WeekHistoryFeed from './WeekHistoryFeed';
 import ReactMarkdown from 'react-markdown';
+import { useSwipe } from '../hooks/useSwipe';
 
 interface WeekCardProps {
   week: Week;
@@ -47,9 +48,38 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState<WeekStatus | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
-
+  
+  const getNextStatus = (): WeekStatus | null => {
+    if (isAuditor) {
+      switch(week.status) {
+        case 'draft': return 'pending_approval';
+        case 'rejected': return 'draft';
+        case 'approved': return 'completed';
+        default: return null;
+      }
+    } else if (!isGuest) { // Client
+      if (week.status === 'pending_approval') return 'approved';
+    }
+    return null;
+  };
+  
+  const handleSwipeRight = () => {
+    const nextStatus = getNextStatus();
+    if (nextStatus) {
+      handleStatusChange(nextStatus);
+    } else if (isGuest && week.status === 'pending_approval') {
+      onRegister();
+    }
+  };
+  
+  const { ref: swipeRef, style: swipeStyle } = useSwipe({ onSwipeRight: handleSwipeRight, revealWidth: 160 });
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
+    if (isGuest && (newStatus === 'approved' || newStatus === 'rejected')) {
+        onRegister();
+        return;
+    }
+
     if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation) {
         setShowStatusChangeConfirm(newStatus);
         return;
@@ -141,124 +171,154 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onRegiste
   }
   
   const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
+  const nextStatus = getNextStatus();
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300">
-      <header
-        className="p-4 cursor-pointer border-b"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 pr-4">
-                <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
-                 <div className="text-sm text-gray-500 mt-1">
-                    <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
-                        <ReactMarkdown>{week.description || "Нет описания."}</ReactMarkdown>
+    <div className="bg-white rounded-lg shadow-md overflow-hidden touch-only">
+      <div className="relative bg-gray-100 rounded-lg overflow-hidden">
+         {/* Background Action for Swipe Right */}
+         {nextStatus && (
+            <div className="absolute inset-y-0 left-0 flex items-center bg-blue-500 text-white px-6">
+                <FaArrowRight size={24} />
+            </div>
+         )}
+
+         {/* Background Actions for Swipe Left */}
+         {isAuditor && week.status === 'draft' && (
+             <div className="absolute inset-y-0 right-0 flex items-center z-0">
+                <button 
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="h-full bg-blue-500 text-white px-6 flex flex-col items-center justify-center">
+                    <FaEdit size={20}/>
+                    <span className="text-xs mt-1">Править</span>
+                </button>
+                 <button 
+                    onClick={onDeleteRequest}
+                    className="h-full bg-red-500 text-white px-6 flex flex-col items-center justify-center">
+                    <FaTrash size={20}/>
+                     <span className="text-xs mt-1">Удалить</span>
+                </button>
+            </div>
+         )}
+          
+        <div ref={swipeRef} style={swipeStyle} className="relative bg-white z-10 touch-pan-y">
+          <header
+            className="p-4 cursor-pointer border-b"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex-1 pr-4">
+                    <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
+                     <div className="text-sm text-gray-500 mt-1">
+                        <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
+                            <ReactMarkdown>{week.description || "Нет описания."}</ReactMarkdown>
+                        </div>
+                        {descriptionNeedsTruncation && (
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
+                                className="text-xs text-blue-600 hover:underline mt-1 font-semibold"
+                            >
+                                {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                            </button>
+                        )}
                     </div>
-                    {descriptionNeedsTruncation && (
-                         <button 
-                            onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
-                            className="text-xs text-blue-600 hover:underline mt-1 font-semibold"
-                        >
-                            {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                </div>
+                <div className="flex items-center gap-4">
+                     {isAuditor && week.status === 'draft' && (
+                         <div className="hidden md:flex">
+                            <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
+                            <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
+                         </div>
+                     )}
+                    <button className="p-2">
+                        {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                    </button>
+                </div>
+            </div>
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-2 flex-wrap gap-2">
+               <div className="flex items-center gap-2">
+                    <FaCalendarAlt/>
+                    <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
+               </div>
+               
+                <div className="relative" ref={statusRef}>
+                     <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
+                        }}
+                        className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
+                        title={isAuditor ? "Изменить статус" : ""}
+                     >
+                        {statusConfig[week.status].label}
+                    </button>
+                    {isAuditor && isStatusDropdownOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
+                            {Object.keys(statusConfig).map(statusKey => (
+                                 <a
+                                    key={statusKey}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStatusChange(statusKey as WeekStatus);
+                                        setIsStatusDropdownOpen(false);
+                                    }}
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                >
+                                    {statusConfig[statusKey as WeekStatus].label}
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+            </div>
+            <div>
+                 <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                </div>
+            </div>
+          </header>
+
+          {isExpanded && (
+            <div className="p-4 bg-gray-50/50">
+                {week.rejection_comment && week.status === 'rejected' && (
+                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
+                        <p className="font-bold">Причина отклонения:</p>
+                        <p>{week.rejection_comment}</p>
+                    </div>
+                )}
+                
+                <DayPlanView 
+                    week={week}
+                    onUpdatePlan={onUpdatePlan}
+                    onTaskSelect={onTaskSelect}
+                    isAuditor={isAuditor}
+                />
+                
+                <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                        {getActionButtons()}
+                    </div>
+                    {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
+                         <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
+                            <FaPlus className="mr-2"/> Добавить день
                         </button>
                     )}
                 </div>
-            </div>
-            <div className="flex items-center gap-4">
-                 {isAuditor && week.status === 'draft' && (
-                     <>
-                        <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
-                        <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
-                     </>
-                 )}
-                <button className="p-2">
-                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                </button>
-            </div>
-        </div>
-        <div className="flex items-center justify-between text-sm text-gray-600 mb-2 flex-wrap gap-2">
-           <div className="flex items-center gap-2">
-                <FaCalendarAlt/>
-                <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
-           </div>
-           
-            <div className="relative" ref={statusRef}>
-                 <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
-                    }}
-                    className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
-                    title={isAuditor ? "Изменить статус" : ""}
-                 >
-                    {statusConfig[week.status].label}
-                </button>
-                {isAuditor && isStatusDropdownOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
-                        {Object.keys(statusConfig).map(statusKey => (
-                             <a
-                                key={statusKey}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStatusChange(statusKey as WeekStatus);
-                                    setIsStatusDropdownOpen(false);
-                                }}
-                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                            >
-                                {statusConfig[statusKey as WeekStatus].label}
-                            </a>
-                        ))}
+
+                <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1">
+                        <WeekStats week={week} />
                     </div>
-                )}
-            </div>
+                    <div className="lg:col-span-2">
+                       <WeekHistoryFeed weekId={week.id} onTaskSelect={onTaskSelect} allTasks={allTasks} />
+                    </div>
+                </div>
 
+            </div>
+          )}
         </div>
-        <div>
-             <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-            </div>
-        </div>
-      </header>
-
-      {isExpanded && (
-        <div className="p-4 bg-gray-50/50">
-            {week.rejection_comment && week.status === 'rejected' && (
-                <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
-                    <p className="font-bold">Причина отклонения:</p>
-                    <p>{week.rejection_comment}</p>
-                </div>
-            )}
-            
-            <DayPlanView 
-                week={week}
-                onUpdatePlan={onUpdatePlan}
-                onTaskSelect={onTaskSelect}
-                isAuditor={isAuditor}
-            />
-            
-            <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                    {getActionButtons()}
-                </div>
-                {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
-                     <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
-                        <FaPlus className="mr-2"/> Добавить день
-                    </button>
-                )}
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
-                    <WeekStats week={week} />
-                </div>
-                <div className="lg:col-span-2">
-                   <WeekHistoryFeed weekId={week.id} onTaskSelect={onTaskSelect} allTasks={allTasks} />
-                </div>
-            </div>
-
-        </div>
-      )}
+      </div>
       
       <ConfirmationModal
         isOpen={!!showStatusChangeConfirm}
