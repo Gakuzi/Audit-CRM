@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus } from '../types';
+import { Week, Plan, PlanItem, WeekStatus, Project } from '../types';
 import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
-import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaFileAlt, FaPaperPlane, FaArrowRight } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
 import AddDayModal from './AddDayModal';
@@ -13,6 +13,7 @@ import { useSwipe } from '../hooks/useSwipe';
 
 interface WeekCardProps {
   week: Week;
+  project: Project;
   isAuditor: boolean;
   isGuest: boolean;
   onUpdatePlan: (plan: Plan) => void;
@@ -25,13 +26,13 @@ interface WeekCardProps {
 
 const statusConfig: { [key in Week['status']]: { label: string; color: string; } } = {
     draft: { label: 'Черновик', color: 'bg-gray-200 text-gray-800' },
-    pending_approval: { label: 'Ожидает согласования', color: 'bg-yellow-200 text-yellow-800' },
+    pending_approval: { label: 'На согласовании', color: 'bg-yellow-200 text-yellow-800' },
     approved: { label: 'Согласовано', color: 'bg-green-200 text-green-800' },
     rejected: { label: 'Отклонено', color: 'bg-red-200 text-red-800' },
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -48,118 +49,74 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState<WeekStatus | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
-  
-  const getNextStatus = (): WeekStatus | null => {
-    if (isAuditor) {
-      switch(week.status) {
-        case 'draft': return 'pending_approval';
-        case 'rejected': return 'draft';
-        case 'approved': return 'completed';
-        default: return null;
-      }
-    } else { // Client or Guest
-      if (week.status === 'pending_approval') return 'approved';
-    }
-    return null;
-  };
-  
-  const handleSwipeRight = () => {
-    const nextStatus = getNextStatus();
-    if (nextStatus) {
-      handleStatusChange(nextStatus);
-    }
-  };
-  
-  const { ref: swipeRef, style: swipeStyle } = useSwipe({ onSwipeRightAction: handleSwipeRight, rightRevealWidth: isAuditor && week.status === 'draft' ? 160 : 0 });
+
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
-    let guestName: string | null = null;
     let rejectionReason: string | null = null;
 
     if (isGuest && (newStatus === 'approved' || newStatus === 'rejected')) {
-        guestName = localStorage.getItem('guestName');
+        let guestName = localStorage.getItem('guestName');
         if (!guestName) {
-            guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в истории):', 'Гость');
+            guestName = prompt('Пожалуйста, представьтесь (ваше имя будет видно в истории изменений):', 'Гость');
             if (!guestName || guestName.trim() === '') return;
             localStorage.setItem('guestName', guestName);
         }
+        
+        if (newStatus === 'rejected') {
+            rejectionReason = prompt("Пожалуйста, укажите причину отклонения:");
+            if (rejectionReason === null) return;
+        }
+        
+        const updateData: Partial<Week> = { status: newStatus, rejection_comment: rejectionReason };
+        const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
+        if (error) {
+            alert('Ошибка изменения статуса: ' + error.message);
+        } else {
+            sendGuestStatusChangeNotification(project, week, newStatus, guestName, rejectionReason, window.location.origin);
+            onUpdateRequest();
+        }
+        setShowStatusChangeConfirm(null);
+        return;
     }
 
-    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation && !isGuest) {
+    // Auditor logic below
+    if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation && isAuditor) {
         setShowStatusChangeConfirm(newStatus);
         return;
     }
     
     const updateData: Partial<Week> = { status: newStatus };
 
-    if (newStatus === 'rejected') {
+    if (newStatus === 'rejected' && isAuditor) {
         const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment);
         if (comment === null) return; // User cancelled prompt
-        rejectionReason = comment;
         updateData.rejection_comment = comment;
         setRejectionComment(comment);
-    } else if (week.rejection_comment) {
-        updateData.rejection_comment = undefined;
+    } else if (newStatus !== 'rejected' && week.rejection_comment) {
+        updateData.rejection_comment = null;
     }
 
-    // First, log the event if it's a guest action
-    if (isGuest && guestName && (newStatus === 'approved' || newStatus === 'rejected')) {
-        const firstDate = Object.keys(week.plan).sort()[0];
-        const firstTaskId = week.plan[firstDate]?.tasks[0]?.id;
-
-        if (!firstTaskId) {
-            alert("Невозможно изменить статус: в плане нет ни одной задачи для привязки события.");
-            return;
-        }
-
-        const statusText = newStatus === 'approved' ? 'Согласовано' : 'Отклонено';
-        let eventContent = `### Статус этапа изменен\n**Новый статус:** ${statusText}\n**Кем:** ${guestName}`;
-        if (rejectionReason) {
-            eventContent += `\n**Причина:** ${rejectionReason}`;
-        }
-        
-        const { error: eventError } = await supabase.from('events').insert({
-            project_id: week.project_id,
-            week_id: week.id,
-            task_id: firstTaskId,
-            user_id: week.user_id, // Attributed to auditor, but author_email shows guest
-            author_email: guestName,
-            type: 'comment',
-            content: eventContent
-        });
-        
-        if (eventError) {
-             alert('Ошибка записи события изменения статуса: ' + eventError.message);
-             return;
-        }
-    }
-
-    // Then, update the week status
-    const { data: updatedWeeks, error } = await supabase.from('weeks').update(updateData).eq('id', week.id).select().single();
+    const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
     if (error) {
       alert('Ошибка изменения статуса: ' + error.message);
     } else {
-        if (isGuest && guestName && (newStatus === 'approved' || newStatus === 'rejected')) {
-            // Find the project to send notification
-            const { data: project } = await supabase.from('projects').select('*').eq('id', week.project_id).single();
-            if (project) {
-                sendGuestStatusChangeNotification(project, updatedWeeks as Week, newStatus, guestName, rejectionReason, window.location.origin);
-            }
-        }
-        onUpdateRequest();
-        if (newStatus === 'pending_approval' && isAuditor) {
-            onSentForApproval(week);
-        }
+      onUpdateRequest();
     }
     setShowStatusChangeConfirm(null);
   };
+
+  const { ref, style } = useSwipe({
+    onSwipeLeftAction: isGuest && week.status === 'pending_approval' ? () => handleStatusChange('rejected') : undefined,
+    onSwipeRightAction: isGuest && week.status === 'pending_approval' ? () => handleStatusChange('approved') : undefined,
+    leftRevealWidth: isGuest && week.status === 'pending_approval' ? 80 : 0,
+    rightRevealWidth: isGuest && week.status === 'pending_approval' ? 80 : 0,
+  });
   
   const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
   const totalTasks = allTasks.length;
   const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0).length;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
@@ -175,7 +132,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
         case 'draft':
             return isAuditor && (
                 <button 
-                    onClick={() => handleStatusChange('pending_approval')} 
+                    onClick={() => { handleStatusChange('pending_approval'); onSentForApproval(week); }} 
                     className="bg-blue-600 text-white font-bold py-2 px-5 rounded-full inline-flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
                 >
                     <FaPaperPlane />
@@ -183,11 +140,10 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                 </button>
             );
         case 'pending_approval':
-            // Guest or Logged-in client can approve/reject
-            return !isAuditor && (
+            return isGuest && (
                 <div className="flex gap-2">
-                    <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600">Отклонить</button>
-                    <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700">Согласовать</button>
+                    <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600 flex items-center gap-2"><FaBan /> Отклонить</button>
+                    <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700 flex items-center gap-2"><FaCheck /> Согласовать</button>
                 </div>
             );
         case 'approved':
@@ -195,52 +151,17 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
         case 'rejected':
              return isAuditor && <button onClick={() => handleStatusChange('draft')} className="btn-secondary">Вернуть в черновик</button>;
         case 'completed':
-             return isAuditor && (
-                week.report_content ? (
-                    <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-                        <FaFileAlt/> Показать отчет
-                    </button>
-                ) : (
-                    <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-                        <FaBrain/> Отчет с AI
-                    </button>
-                )
-             );
+             return isAuditor && <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"><FaBrain/> Отчет с AI</button>;
         default:
             return null;
     }
   }
   
   const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
-  const nextStatus = getNextStatus();
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-         {/* Background Action for Swipe Right */}
-         <div className="absolute inset-y-0 left-0 flex items-center bg-blue-500 text-white px-6 touch-only">
-            {nextStatus && <FaArrowRight size={24} />}
-         </div>
-
-         {/* Background Actions for Swipe Left */}
-         {isAuditor && week.status === 'draft' && (
-             <div className="absolute inset-y-0 right-0 flex items-center z-0 touch-only">
-                <button 
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="h-full bg-blue-500 text-white px-6 flex flex-col items-center justify-center">
-                    <FaEdit size={20}/>
-                    <span className="text-xs mt-1">Править</span>
-                </button>
-                 <button 
-                    onClick={onDeleteRequest}
-                    className="h-full bg-red-500 text-white px-6 flex flex-col items-center justify-center">
-                    <FaTrash size={20}/>
-                     <span className="text-xs mt-1">Удалить</span>
-                </button>
-            </div>
-         )}
-          
-        <div ref={swipeRef} style={swipeStyle} className="relative bg-white z-10 touch-pan-y">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 relative">
+        <div ref={ref} style={style} className="relative z-10 bg-white">
           <header
             className="p-4 cursor-pointer border-b"
             onClick={() => setIsExpanded(!isExpanded)}
@@ -264,10 +185,10 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                 </div>
                 <div className="flex items-center gap-4">
                      {isAuditor && week.status === 'draft' && (
-                         <div className="hidden md:flex">
+                         <>
                             <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
                             <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
-                         </div>
+                         </>
                      )}
                     <button className="p-2">
                         {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
@@ -357,7 +278,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
             </div>
           )}
         </div>
-      </div>
       
       <ConfirmationModal
         isOpen={!!showStatusChangeConfirm}

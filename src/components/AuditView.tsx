@@ -230,6 +230,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
              <WeekCard 
                 key={week.id} 
                 week={week} 
+                project={project}
                 isAuditor={isAuditor}
                 isGuest={isGuest}
                 onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}

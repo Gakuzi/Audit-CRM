@@ -1,61 +1,22 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Event } from '../types';
-import { FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaReply, FaUserFriends, FaClock, FaTrash, FaBrain } from 'react-icons/fa';
+import { FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaReply, FaUserFriends, FaClock, FaTrash, FaBrain, FaShare } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import mermaid from 'mermaid';
 import { Spinner } from './ui/Spinner';
-import { useSwipe } from '../hooks/useSwipe';
 
 interface EventItemProps {
   event: Event;
   onReply: (event: Event) => void;
   onQuoteClick: (eventId: string) => void;
   onDelete?: () => void;
-  onAnalyze?: (event: Event) => void;
-  isAnalyzing?: boolean;
-  isAuditor?: boolean;
+  onAnalyze: (event: Event) => void;
+  isAnalyzing: boolean;
+  isAuditor: boolean;
   onAddSubEvent?: (event: Event) => void;
 }
 
-mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
-
-const MermaidDiagram: React.FC<{ chart: string }> = ({ chart }) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const [svg, setSvg] = React.useState<string | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
-
-    useEffect(() => {
-        const renderMermaid = async () => {
-            if (ref.current && chart) {
-                 // Clear previous state
-                setSvg(null);
-                setError(null);
-                try {
-                    const id = `mermaid-${crypto.randomUUID()}`;
-                    const { svg } = await mermaid.render(id, chart);
-                    setSvg(svg);
-                } catch (e: any) {
-                    console.error('Mermaid rendering error:', e);
-                    setError(e.message || 'Ошибка рендеринга диаграммы.');
-                }
-            }
-        };
-        renderMermaid();
-    }, [chart]);
-    
-    if (error) {
-        return <pre className="text-red-500 text-xs bg-red-50 p-2 rounded">Ошибка диаграммы: {error}</pre>;
-    }
-
-    return svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div ref={ref} className="p-4 flex justify-center items-center"><Spinner size="sm" /></div>;
-};
-
-
-const getEventTypeIcon = (event: Event) => {
-    if (event.author_email === 'AI Ассистент') {
-        return <FaBrain className="text-indigo-500" />;
-    }
-    switch (event.type) {
+const getEventTypeIcon = (type: Event['type']) => {
+    switch (type) {
         case 'meeting':
             return <FaVideo className="text-purple-500" />;
         case 'documentation_review':
@@ -113,16 +74,6 @@ const renderAttachments = (files: { name: string, url: string, type?: string }[]
 
 const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onDelete, onAnalyze, isAnalyzing, isAuditor, onAddSubEvent }) => {
     
-    const isMermaid = event.content?.trim().startsWith('mindmap') || event.content?.trim().startsWith('graph');
-    const hasAnalyzableContent = (event.data?.file_urls && event.data.file_urls.length > 0) || isMermaid;
-    const canReply = event.author_email !== 'AI Ассистент';
-    const canAnalyze = isAuditor && onAnalyze && hasAnalyzableContent;
-
-    const { ref: swipeRef, style: swipeStyle } = useSwipe({
-        rightRevealWidth: canReply ? 80 : 0,
-        leftRevealWidth: canAnalyze ? 80 : 0,
-    });
-
     const renderEventDetails = () => {
         const eventData = event.data;
         if (!eventData) return null;
@@ -157,95 +108,65 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
 
         return null;
     }
+    
+    const canBeAnalyzed = isAuditor && (
+        (event.data?.file_urls?.some(f => f.type?.startsWith('image/') || f.type?.startsWith('audio/'))) ||
+        event.content?.trim().startsWith('mindmap') ||
+        event.content?.trim().startsWith('graph')
+    );
 
     return (
-        <div id={`event-${event.id}`} className="relative bg-white -mx-4 overflow-hidden">
-            {/* Background Actions */}
-            {canAnalyze && (
-                <div className="absolute inset-y-0 left-0 flex items-center z-0 touch-only">
-                    <button
-                        onClick={() => onAnalyze && onAnalyze(event)}
-                        className="h-full bg-indigo-500 text-white w-20 flex flex-col items-center justify-center"
-                    >
-                        {isAnalyzing ? <Spinner size="sm" color="border-white" /> : <FaBrain size={18}/>}
-                        <span className="text-xs mt-1">Анализ</span>
-                    </button>
+        <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 rounded -mx-4 px-4">
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                {event.author_email === 'AI Ассистент' ? <FaBrain className="text-indigo-500" /> : getEventTypeIcon(event.type)}
+            </div>
+            <div className="flex-1">
+                <div className="flex justify-between items-center">
+                    <p className="text-sm font-medium text-gray-900">{event.author_email || 'System'}</p>
+                    <p className="text-xs text-gray-500">
+                        {new Date(event.created_at).toLocaleString('ru-RU')}
+                    </p>
                 </div>
-            )}
-            {canReply && (
-                <div className="absolute inset-y-0 right-0 flex items-center z-0 touch-only">
-                    <button
-                        onClick={() => onReply(event)}
-                        className="h-full bg-blue-500 text-white w-20 flex flex-col items-center justify-center"
-                    >
-                        <FaReply size={18}/>
-                        <span className="text-xs mt-1">Ответ</span>
+                
+                {event.parent && event.parent_event_id && (
+                     <div 
+                        onClick={() => onQuoteClick(event.parent_event_id!)}
+                        className="mt-2 p-2 border-l-4 border-gray-300 bg-gray-100 text-sm text-gray-600 hover:bg-gray-200 cursor-pointer rounded"
+                     >
+                        <p className="font-semibold">{event.parent.author_email}</p>
+                        <div className="prose prose-sm max-w-none line-clamp-2">
+                           <ReactMarkdown>{event.parent.content}</ReactMarkdown>
+                        </div>
+                     </div>
+                )}
+
+                {event.content && (
+                    <div className="mt-2 text-sm text-gray-800 prose prose-sm max-w-none">
+                       <ReactMarkdown>{event.content}</ReactMarkdown>
+                    </div>
+                )}
+                
+                {renderEventDetails()}
+
+                <div className="mt-2 flex items-center space-x-4">
+                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium">
+                        <FaReply className="mr-1.5" /> Ответить
                     </button>
-                </div>
-            )}
-
-            {/* Main Content */}
-            <div ref={swipeRef} style={swipeStyle} className="relative bg-white z-10 touch-pan-y">
-                <div className="flex items-start space-x-3 py-4 px-4">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        {getEventTypeIcon(event)}
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex justify-between items-center">
-                            <p className="text-sm font-medium text-gray-900">{event.author_email || 'System'}</p>
-                            <p className="text-xs text-gray-500">
-                                {new Date(event.created_at).toLocaleString('ru-RU')}
-                            </p>
-                        </div>
-                        
-                        {event.parent && event.parent_event_id && (
-                             <div 
-                                onClick={() => onQuoteClick(event.parent_event_id!)}
-                                className="mt-2 p-2 border-l-4 border-gray-300 bg-gray-100 text-sm text-gray-600 hover:bg-gray-200 cursor-pointer rounded"
-                             >
-                                <p className="font-semibold">{event.parent.author_email}</p>
-                                <div className="prose prose-sm max-w-none line-clamp-2">
-                                   <ReactMarkdown>{event.parent.content}</ReactMarkdown>
-                                </div>
-                             </div>
-                        )}
-
-                        {event.content && (
-                            <div className="mt-2 text-sm text-gray-800 prose prose-sm max-w-none">
-                                {isMermaid ? <MermaidDiagram chart={event.content} /> : <ReactMarkdown>{event.content}</ReactMarkdown>}
-                            </div>
-                        )}
-                        
-                        {renderEventDetails()}
-
-                        <div className="mt-2 flex items-center space-x-4">
-                            {canReply && (
-                                <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium">
-                                    <FaReply className="mr-1.5" /> Ответить
-                                </button>
-                            )}
-                            {onAddSubEvent && (
-                                <button onClick={() => onAddSubEvent(event)} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium">
-                                    <FaFileAlt className="mr-1.5" /> Вложить событие
-                                </button>
-                            )}
-                            {onDelete && (
-                                <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium">
-                                    <FaTrash className="mr-1.5" /> Удалить
-                                </button>
-                            )}
-                            {canAnalyze && (
-                                <button 
-                                    onClick={() => onAnalyze(event)}
-                                    disabled={isAnalyzing}
-                                    className="flex items-center text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50"
-                                >
-                                    {isAnalyzing ? <Spinner size="sm" /> : <FaBrain className="mr-1.5" />}
-                                    {isAnalyzing ? 'Анализ...' : 'Анализ с AI'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                     {onAddSubEvent && (
+                        <button onClick={() => onAddSubEvent(event)} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium">
+                            <FaShare className="mr-1.5" /> Добавить событие
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium">
+                            <FaTrash className="mr-1.5" /> Удалить
+                        </button>
+                    )}
+                    {canBeAnalyzed && (
+                         <button onClick={() => onAnalyze(event)} disabled={isAnalyzing} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium">
+                            {isAnalyzing ? <><Spinner size="sm" /> Анализ...</> : <><FaBrain className="mr-1.5" /> Анализ с AI</>}
+                         </button>
+                    )}
                 </div>
             </div>
         </div>
