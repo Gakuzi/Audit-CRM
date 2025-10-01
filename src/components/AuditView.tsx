@@ -131,7 +131,10 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
 
     if (taskFound) {
         handleUpdatePlan(weekId, newPlan);
-        setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
+        // Optimistically update the detailed view context
+        if (selectedTaskForDetail && selectedTaskForDetail.item.id === updatedTask.id) {
+            setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
+        }
     }
   };
   

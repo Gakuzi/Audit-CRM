@@ -33,6 +33,8 @@ export interface PlanItem {
     agenda?: string;
     participants?: string[];
     interviewee?: string;
+    duration?: string;
+    date?: string;
   };
   sub_tasks?: PlanItem[];
   parent_id?: string | null;

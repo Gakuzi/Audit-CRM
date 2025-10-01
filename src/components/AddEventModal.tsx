@@ -33,6 +33,22 @@ const AddEventModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, user, 
     // Form states
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [date, setDate] = useState('');
+    const [time, setTime] = useState('');
+    const [location, setLocation] = useState('');
+    const [duration, setDuration] = useState('');
+
+    const resetFormState = () => {
+        setStep('select');
+        setItemType(null);
+        setTitle('');
+        setDescription('');
+        setDate('');
+        setTime('');
+        setLocation('');
+        setDuration('');
+        setLoading(false);
+    }
 
     useEffect(() => {
         if (isOpen) {
@@ -46,12 +62,7 @@ const AddEventModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, user, 
                 setDescription(`На основе комментария от ${parentEvent.author_email}:\n> ${parentEvent.content}`);
             }
         } else {
-            // Reset state on close
-            setStep('select');
-            setItemType(null);
-            setTitle('');
-            setDescription('');
-            setLoading(false);
+            resetFormState();
         }
     }, [isOpen, isGuest, preselectedType, parentEvent]);
 
@@ -61,10 +72,8 @@ const AddEventModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, user, 
     }
     
     const handleBack = () => {
+        resetFormState();
         setStep('select');
-        setItemType(null);
-        setTitle('');
-        setDescription('');
     }
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -91,6 +100,18 @@ const AddEventModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, user, 
             type: itemType,
             parent_id: parentItem.id,
         };
+
+        if (isGuest && itemType === 'meeting') {
+            newSubTask.data = {
+                date,
+                time,
+                location,
+                duration,
+                agenda: title,
+            };
+            newSubTask.title = `Запрос на встречу: ${title}`;
+            newSubTask.description = description;
+        }
         
         onAddSubTask(newSubTask);
         setLoading(false);
@@ -110,14 +131,51 @@ const AddEventModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, user, 
                 <h3 className="text-lg font-bold flex items-center gap-3">
                     {currentType.icon} <span>{currentType.name}</span>
                 </h3>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">{isGuest ? "Тема встречи" : "Название"}</label>
-                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full mt-1 input" required autoFocus />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">{isGuest ? "Цель встречи / вопросы" : "Подробное описание (опционально)"}</label>
-                    <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full mt-1 input" rows={4} />
-                </div>
+
+                {isGuest ? (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Повестка / тема встречи</label>
+                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full mt-1 input" required autoFocus />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Дата</label>
+                                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full mt-1 input" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Время</label>
+                                <input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full mt-1 input" required />
+                            </div>
+                        </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Место</label>
+                                <input type="text" placeholder="Напр., онлайн" value={location} onChange={e => setLocation(e.target.value)} className="w-full mt-1 input" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Длительность</label>
+                                <input type="text" placeholder="Напр., 1 час" value={duration} onChange={e => setDuration(e.target.value)} className="w-full mt-1 input" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Доп. информация / вопросы</label>
+                            <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full mt-1 input" rows={3} />
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Название</label>
+                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full mt-1 input" required autoFocus />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Подробное описание (опционально)</label>
+                            <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full mt-1 input" rows={4} />
+                        </div>
+                    </>
+                )}
+                
                 <div className="pt-2 flex justify-between items-center">
                     {!isGuest && !preselectedType && !parentEvent ? (
                         <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>

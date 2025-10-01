@@ -20,11 +20,9 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
     const [itemToEdit, setItemToEdit] = useState<PlanItem | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ date: string; item: PlanItem } | null>(null);
     
-    // Determine if the plan can be modified (add, edit, delete tasks)
     const canEditPlan = isAuditor && week.status === 'draft';
-    // Determine if new tasks can be added (e.g., in draft, pending, or approved states)
     const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
-
+    const canToggleComplete = isAuditor && (week.status === 'approved' || week.status === 'completed');
 
     const handleAddTaskClick = (date: string) => {
         setSelectedDate(date);
@@ -65,6 +63,28 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
         onUpdatePlan(newPlan);
         setItemToDelete(null);
     }
+    
+    const handleToggleComplete = (taskId: string) => {
+        if (!canToggleComplete) return;
+
+        const newPlan = JSON.parse(JSON.stringify(week.plan)); // Deep copy
+        let taskFound = false;
+
+        for (const date in newPlan) {
+            const day = newPlan[date];
+            const task = day.tasks.find((t: PlanItem) => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                taskFound = true;
+                break;
+            }
+        }
+
+        if (taskFound) {
+            onUpdatePlan(newPlan);
+        }
+    };
+
 
     const sortedDates = Object.keys(week.plan).sort();
 
@@ -94,6 +114,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                     onSelect={() => onTaskSelect(item)}
                                     onEdit={canEditPlan ? () => setItemToEdit(item) : undefined}
                                     onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined}
+                                    onToggleComplete={canToggleComplete ? () => handleToggleComplete(item.id) : undefined}
                                 />
                             ))}
                             {canAddTask && (

@@ -58,11 +58,18 @@ const AuditorHeaderCard: React.FC<AuditorHeaderCardProps> = ({ auditorId }) => {
         <div className="relative">
             <button 
                 onClick={() => setIsPopoverOpen(!isPopoverOpen)}
-                className="flex items-center space-x-2 text-lg font-semibold text-gray-700 cursor-pointer hover:text-blue-600"
+                className="flex items-center gap-3 text-left p-2 rounded-lg transition-colors hover:bg-gray-100"
+                aria-haspopup="true"
+                aria-expanded={isPopoverOpen}
             >
-                <FaUserTie className="text-blue-600" />
-                <span>{auditorName}</span>
-                <FaChevronDown className={`transition-transform duration-200 ${isPopoverOpen ? 'rotate-180' : ''}`} size={16} />
+                <FaUserTie className="text-blue-600 text-3xl flex-shrink-0" />
+                <div>
+                    <span className="text-xs font-medium text-gray-500 block">Ваш аудитор</span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-base font-bold text-gray-800">{auditorName}</span>
+                        <FaChevronDown className={`transition-transform duration-200 text-gray-400 ${isPopoverOpen ? 'rotate-180' : ''}`} size={14} />
+                    </div>
+                </div>
             </button>
             
             {isPopoverOpen && (

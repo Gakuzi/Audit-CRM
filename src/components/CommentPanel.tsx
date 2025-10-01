@@ -21,6 +21,8 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     const [projectId, setProjectId] = useState<string | null>(null);
     const [project, setProject] = useState<Project | null>(null);
     const [task, setTask] = useState<PlanItem | null>(null);
+    // Fix: Add state to manage expanded event items.
+    const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
     const fetchEventsAndProject = useCallback(async () => {
         setLoading(true);
@@ -95,7 +97,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     };
 
     const isGuest = !user;
-    const isAuditor = !!(user && project && user.id === project.user_id);
 
     return (
         <aside className="bg-white rounded-lg shadow-md p-4 sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
@@ -111,15 +112,15 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
+                            {/* FIX: Pass required isExpanded and onToggleExpand props to EventItem. */}
                             {events.map(event => (
-                                <EventItem 
-                                    key={event.id} 
-                                    event={event} 
-                                    onReply={handleReply} 
+                                <EventItem
+                                    key={event.id}
+                                    event={event}
+                                    onReply={handleReply}
                                     onQuoteClick={handleQuoteClick}
-                                    onAnalyze={() => {}}
-                                    isAnalyzing={false}
-                                    isAuditor={isAuditor}
+                                    isExpanded={event.id === expandedEventId}
+                                    onToggleExpand={() => setExpandedEventId(prevId => prevId === event.id ? null : event.id)}
                                 />
                             ))}
                         </div>

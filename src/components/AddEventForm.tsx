@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { Event, Project, PlanItem } from '../types';
-import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaCamera, FaHandshake, FaPlusSquare } from 'react-icons/fa';
+import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaCamera, FaCalendarPlus, FaPlusSquare } from 'react-icons/fa';
 import Modal from './ui/Modal';
 import AudioRecorder from './AudioRecorder';
 
@@ -172,7 +172,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
+                                    className="p-2 text-blue-600 hover:text-blue-700 rounded-full hover:bg-blue-50"
                                     title="Прикрепить файл"
                                     disabled={loading}
                                 >
@@ -181,7 +181,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                  <button
                                     type="button"
                                     onClick={() => imageInputRef.current?.click()}
-                                    className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+                                    className="p-2 text-teal-600 hover:text-teal-700 rounded-full hover:bg-teal-50"
                                     title="Сделать фото"
                                     disabled={loading}
                                 >
@@ -190,7 +190,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                 <button
                                     type="button"
                                     onClick={() => videoInputRef.current?.click()}
-                                    className="p-2 text-gray-500 hover:text-orange-600 rounded-full hover:bg-gray-100"
+                                    className="p-2 text-orange-500 hover:text-orange-600 rounded-full hover:bg-orange-50"
                                     title="Записать видео"
                                     disabled={loading}
                                 >
@@ -199,7 +199,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                                 <button
                                     type="button"
                                     onClick={() => setIsAudioModalOpen(true)}
-                                    className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-gray-100"
+                                    className="p-2 text-red-500 hover:text-red-600 rounded-full hover:bg-red-50"
                                     title="Записать аудио"
                                     disabled={loading}
                                 >
@@ -211,11 +211,11 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
                             <button
                                 type="button"
                                 onClick={onAddStructuredEvent}
-                                className="p-2 text-gray-500 hover:text-purple-600 rounded-full hover:bg-gray-100"
+                                className="p-2 text-purple-600 hover:text-purple-700 rounded-full hover:bg-purple-50"
                                 title={isGuest ? "Запросить личную встречу" : "Добавить подзадачу"}
                                 disabled={loading}
                             >
-                                {isGuest ? <FaHandshake size={18} /> : <FaPlusSquare size={18} />}
+                                {isGuest ? <FaCalendarPlus size={18} /> : <FaPlusSquare size={18} />}
                             </button>
                         )}
                     </div>

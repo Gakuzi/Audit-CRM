@@ -7,11 +7,15 @@ interface WeekStatsProps {
 }
 
 const WeekStats: React.FC<WeekStatsProps> = ({ week }) => {
-    // Fix: Use Object.keys with map to ensure proper type inference for day plans.
-    const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
+    const allTasks = Object.values(week.plan).flatMap(date => date.tasks);
     const totalTasks = allTasks.length;
-    const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0).length;
+    const completedTasks = allTasks.filter(task => task.completed).length;
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    // Calculate color based on progress: yellow (hsl(48,...)) to green (hsl(120,...))
+    const hue = 48 + (progress / 100) * (120 - 48);
+    const progressColor = `hsl(${hue}, 85%, 45%)`;
+
 
     return (
         <div className="bg-gray-50 rounded-lg p-4">
@@ -22,7 +26,7 @@ const WeekStats: React.FC<WeekStatsProps> = ({ week }) => {
                     <span className="font-bold">{totalTasks}</span>
                 </div>
                  <div className="flex justify-between items-center text-sm">
-                    <span className="flex items-center"><FaCheckCircle className="mr-2 text-green-500" /> Выполнено (есть активность)</span>
+                    <span className="flex items-center"><FaCheckCircle className="mr-2 text-green-500" /> Выполнено</span>
                     <span className="font-bold">{completedTasks}</span>
                 </div>
                  <div className="flex justify-between items-center text-sm">
@@ -30,7 +34,10 @@ const WeekStats: React.FC<WeekStatsProps> = ({ week }) => {
                     <span className="font-bold">{totalTasks - completedTasks}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                    <div 
+                        className="bg-blue-600 h-2.5 rounded-full transition-all" 
+                        style={{ width: `${progress}%`, backgroundColor: progressColor }}
+                    ></div>
                 </div>
                  <p className="text-right text-sm font-bold text-gray-700">{progress}% Завершено</p>
             </div>

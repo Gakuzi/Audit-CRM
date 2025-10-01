@@ -170,8 +170,13 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   
   const allTasks = Object.values(week.plan).flatMap(date => date.tasks);
   const totalTasks = allTasks.length;
-  const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0).length;
+  const completedTasks = allTasks.filter(task => task.completed).length;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  
+  // Calculate color based on progress: yellow (hsl(48,...)) to green (hsl(120,...))
+  const hue = 48 + (progress / 100) * (120 - 48);
+  const progressColor = `hsl(${hue}, 85%, 45%)`;
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -184,78 +189,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   }, []);
 
   const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
-
-  const HeaderContent = ({ variant }: { variant: 'dark' | 'light' }) => {
-    const isLight = variant === 'light';
-    const titleColor = isLight ? 'text-white' : 'text-gray-800';
-    const descColor = isLight ? 'text-gray-200' : 'text-gray-500';
-    const dateColor = isLight ? 'text-gray-100' : 'text-gray-600';
-    const buttonColor = isLight ? 'text-white' : 'text-gray-500';
-    const statusButtonClass = isLight
-      ? 'bg-white/20 text-white backdrop-blur-sm border border-white/30'
-      : statusConfig[week.status].color;
-
-    return (
-      <div className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex-1 pr-4 min-w-0">
-            <h2 className={`text-xl font-bold truncate ${titleColor}`}>{week.title}</h2>
-            <div className={`text-sm mt-1 ${descColor}`}>
-              <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''} ${isLight ? 'prose-invert' : ''}`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
-              </div>
-              {descriptionNeedsTruncation && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
-                  className={`text-xs ${isLight ? 'text-white/80 hover:text-white' : 'text-blue-600 hover:underline'} mt-1 font-semibold`}
-                >
-                  {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className={`flex items-center gap-4 ${buttonColor}`}>
-            {canEditOrDelete && (
-              <>
-                <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 hover:text-blue-400"><FaEdit /></button>
-                <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 hover:text-red-400"><FaTrash /></button>
-              </>
-            )}
-            <button className="p-2">
-              {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-            </button>
-          </div>
-        </div>
-        <div className={`flex items-center justify-between text-sm flex-wrap gap-2 ${dateColor}`}>
-          <div className="flex items-center gap-2">
-            <FaCalendarAlt />
-            <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
-          </div>
-          <div className="relative" ref={statusRef}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
-              }}
-              className={`px-3 py-1 font-semibold rounded-full ${statusButtonClass} ${isAuditor ? 'cursor-pointer' : ''}`}
-              title={isAuditor ? "Изменить статус" : ""}
-            >
-              {statusConfig[week.status].label}
-            </button>
-            {isAuditor && isStatusDropdownOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
-                {Object.keys(statusConfig).map(statusKey => (
-                  <a key={statusKey} onClick={(e) => { e.stopPropagation(); handleStatusChange(statusKey as WeekStatus); setIsStatusDropdownOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                    {statusConfig[statusKey as WeekStatus].label}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 relative">
@@ -286,21 +219,97 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
       )}
 
       <div ref={ref} style={style} className="relative z-10 bg-white">
-        <header ref={headerRef} className="relative cursor-pointer bg-gray-200 overflow-hidden" onClick={() => setIsExpanded(!isExpanded)}>
-          <HeaderContent variant="dark" />
-          <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden" style={{ width: `${progress}%`, transition: 'width 500ms ease' }}>
-            {headerWidth > 0 && <div style={{ width: headerWidth }}><HeaderContent variant="light" /></div>}
-          </div>
+        <header ref={headerRef} className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+            <div className="p-4">
+                <div className="flex justify-between items-start mb-3">
+                <div className="flex-1 pr-4 min-w-0">
+                    <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
+                    <div className="text-sm mt-1 text-gray-500">
+                    <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
+                    </div>
+                    {descriptionNeedsTruncation && (
+                        <button 
+                        onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
+                        className="text-xs text-blue-600 hover:underline mt-1 font-semibold"
+                        >
+                        {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                        </button>
+                    )}
+                    </div>
+                </div>
+                <div className="flex items-center gap-4 text-gray-500">
+                    {canEditOrDelete && (
+                    <>
+                        <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 hover:text-blue-600"><FaEdit /></button>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 hover:text-red-600"><FaTrash /></button>
+                    </>
+                    )}
+                    <button className="p-2">
+                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                    </button>
+                </div>
+                </div>
+                <div className="flex items-center justify-between text-sm flex-wrap gap-2 text-gray-600">
+                <div className="flex items-center gap-2">
+                    <FaCalendarAlt />
+                    <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
+                </div>
+                <div className="relative" ref={statusRef}>
+                    <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
+                    }}
+                    className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer' : ''}`}
+                    title={isAuditor ? "Изменить статус" : ""}
+                    >
+                    {statusConfig[week.status].label}
+                    </button>
+                    {isAuditor && isStatusDropdownOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
+                        {Object.keys(statusConfig).map(statusKey => (
+                        <a key={statusKey} onClick={(e) => { e.stopPropagation(); handleStatusChange(statusKey as WeekStatus); setIsStatusDropdownOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                            {statusConfig[statusKey as WeekStatus].label}
+                        </a>
+                        ))}
+                    </div>
+                    )}
+                </div>
+                </div>
+            </div>
+            <div className="relative pb-1">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                        className="h-2.5 rounded-full transition-all duration-500" 
+                        style={{ width: `${progress}%`, backgroundColor: progressColor }}
+                    ></div>
+                </div>
+                 {progress > 5 && (
+                    <div 
+                        className="absolute bottom-0 flex flex-col items-center"
+                        style={{ 
+                            left: `min(calc(${progress}% - 8px), calc(100% - 24px))`,
+                            transition: 'left 500ms ease-in-out' 
+                        }}
+                    >
+                        <div className="bg-gray-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-md whitespace-nowrap">
+                            {progress}%
+                        </div>
+                        <div className="w-0.5 h-3 bg-gray-700 -mt-0.5" style={{clipPath: 'polygon(0 0, 100% 0, 50% 100%)'}}></div>
+                    </div>
+                )}
+            </div>
         </header>
 
         {swipeIsAvailable && !isExpanded && (
-            <div className="md:hidden text-center text-xs text-gray-400 py-1 border-b bg-gray-50">
+            <div className="md:hidden text-center text-xs text-gray-400 py-1 border-t bg-gray-50">
                 ⟷ Смахните для действий
             </div>
         )}
         
         {isExpanded && (
-          <div className="p-4 bg-gray-50/50">
+          <div className="p-4 bg-gray-50/50 border-t">
             {week.rejection_comment && week.status === 'rejected' && (
               <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
                 <p className="font-bold">Причина отклонения:</p>

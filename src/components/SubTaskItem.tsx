@@ -31,6 +31,14 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({ item }) => {
                     <ReactMarkdown>{item.description}</ReactMarkdown>
                 </div>
             )}
+            {item.type === 'meeting' && item.data && (
+                <div className="mt-2 text-xs text-gray-700 grid grid-cols-2 gap-x-4 gap-y-1">
+                    {item.data.date && <div><strong>Дата:</strong> {new Date(item.data.date + 'T00:00:00').toLocaleDateString('ru-RU')}</div>}
+                    {item.data.time && <div><strong>Время:</strong> {item.data.time}</div>}
+                    {item.data.location && <div className="col-span-2"><strong>Место:</strong> {item.data.location}</div>}
+                    {item.data.duration && <div><strong>Длительность:</strong> {item.data.duration}</div>}
+                </div>
+            )}
         </div>
       </div>
     </div>

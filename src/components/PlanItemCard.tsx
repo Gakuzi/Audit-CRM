@@ -1,6 +1,6 @@
 import React from 'react';
 import { PlanItem } from '../types';
-import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap } from 'react-icons/fa';
+import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap, FaRegCircle, FaCheckCircle } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -9,9 +9,10 @@ interface PlanItemCardProps {
   onSelect: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleComplete?: () => void;
 }
 
-const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete }) => {
+const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete, onToggleComplete }) => {
   
   const getIcon = () => {
     switch(item.type) {
@@ -73,9 +74,14 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
         )}
 
       <div className="flex justify-between items-start gap-2">
+        {onToggleComplete && (
+            <button onClick={(e) => handleActionClick(e, onToggleComplete)} className="mt-1 text-xl text-gray-300 hover:text-green-500">
+                {item.completed ? <FaCheckCircle className="text-green-500"/> : <FaRegCircle />}
+            </button>
+        )}
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-        <div className="flex-1 pr-6">
-            <div className="text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2">
+        <div className={`flex-1 pr-6 transition-opacity ${item.completed ? 'opacity-60' : ''}`}>
+            <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through' : ''}`}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
             </div>
             {item.data?.agenda && 
