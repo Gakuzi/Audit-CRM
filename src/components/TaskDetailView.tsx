@@ -7,7 +7,6 @@ import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
 import { FaTimes } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
-import InterviewActionBar from './InterviewActionBar';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
 import EditEventModal from './EditEventModal';

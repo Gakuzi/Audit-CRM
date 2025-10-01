@@ -45,22 +45,6 @@ const getSwipeBgColorClass = (status: WeekStatus): string => {
 
 
 const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
-  const headerRef = useRef<HTMLElement>(null);
-  const [headerWidth, setHeaderWidth] = useState(0);
-
-  useEffect(() => {
-    const currentHeader = headerRef.current;
-    if (currentHeader) {
-      const resizeObserver = new ResizeObserver(entries => {
-        for (let entry of entries) {
-          setHeaderWidth(entry.contentRect.width);
-        }
-      });
-      resizeObserver.observe(currentHeader);
-      return () => resizeObserver.disconnect();
-    }
-  }, []);
-
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -148,7 +132,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
 
     if (newStatus === 'rejected') {
         const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment);
-        if (comment === null) return;
+        if (comment === null) return; // User cancelled prompt
         updateData.rejection_comment = comment;
         setRejectionComment(comment);
     } else if (week.rejection_comment) {
@@ -219,7 +203,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
       )}
 
       <div ref={ref} style={style} className="relative z-10 bg-white">
-        <header ref={headerRef} className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <header className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
             <div className="p-4">
                 <div className="flex justify-between items-start mb-3">
                 <div className="flex-1 pr-4 min-w-0">
