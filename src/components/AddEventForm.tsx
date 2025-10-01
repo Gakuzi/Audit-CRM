@@ -13,6 +13,7 @@ interface AddEventFormProps {
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
   project: Project;
+  // Fix: Add missing 'task' prop to the interface.
   task: PlanItem;
   isGuest: boolean;
   onAddSubTaskRequest: (type: PlanItemType) => void;

@@ -191,7 +191,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         {(isAuditor || isGuest) ? (
                             <AddEventForm 
                                 user={user} 
-                                context={context} 
+                                context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }} 
                                 quotedEvent={quotedEvent}
                                 onClearQuote={() => setQuotedEvent(null)}
                                 onNewEvent={(e) => handleNewEvent(e, false)}

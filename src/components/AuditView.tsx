@@ -207,7 +207,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
       setIsAiReportModalOpen(true);
   }
 
-  const handleSubTaskAdded = (parentTask: PlanItem, newSubTask: PlanItem) => {
+  const handleSubTaskAdded = () => {
     // This is handled in TaskDetailView now.
     // if (isGuest && newSubTask.type === 'meeting') {
     //     sendGuestSubTaskNotification(project, parentTask, newSubTask, window.location.origin);
