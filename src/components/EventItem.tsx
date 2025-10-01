@@ -1,6 +1,6 @@
 import React from 'react';
 import { Event } from '../types';
-import { FaRegComment, FaReply, FaTrash, FaBrain, FaShare } from 'react-icons/fa';
+import { FaRegComment, FaReply, FaTrash, FaBrain, FaShare, FaVideo, FaMicrophone, FaFileAlt } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Spinner } from './ui/Spinner';
@@ -61,6 +61,33 @@ const renderAttachments = (files: { name: string, url: string, type?: string }[]
 
 const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onDelete, onAnalyze, isAnalyzing, isAuditor, onAddSubEvent }) => {
     
+    const isAi = event.author_email === 'AI Ассистент';
+
+    const eventConfig = (() => {
+        if (isAi) {
+            return { Icon: FaBrain, color: 'indigo' };
+        }
+        switch (event.type) {
+            case 'meeting': return { Icon: FaVideo, color: 'purple' };
+            case 'interview': return { Icon: FaMicrophone, color: 'red' };
+            case 'documentation_review': return { Icon: FaFileAlt, color: 'blue' };
+            case 'comment': default: return { Icon: FaRegComment, color: 'gray' };
+        }
+    })();
+
+    const { Icon, color } = eventConfig;
+
+    const colorMap: { [key: string]: { icon: string; border: string; author: string; } } = {
+        indigo: { icon: 'text-indigo-500', border: 'border-indigo-500', author: 'text-indigo-600 font-semibold' },
+        purple: { icon: 'text-purple-500', border: 'border-purple-500', author: 'text-gray-900' },
+        red:    { icon: 'text-red-500', border: 'border-red-500', author: 'text-gray-900' },
+        blue:   { icon: 'text-blue-500', border: 'border-blue-500', author: 'text-gray-900' },
+        gray:   { icon: 'text-gray-400', border: 'border-gray-300', author: 'text-gray-900' }
+    };
+
+    const colorClasses = colorMap[color];
+
+
     const canBeAnalyzed = isAuditor && (
         (event.data?.file_urls?.some(f => f.type?.startsWith('image/') || f.type?.startsWith('audio/'))) ||
         event.content?.trim().startsWith('mindmap') ||
@@ -68,13 +95,13 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
     );
 
     return (
-        <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 rounded -mx-4 px-4">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                {event.author_email === 'AI Ассистент' ? <FaBrain className="text-indigo-500" /> : <FaRegComment className="text-gray-500" />}
+        <div id={`event-${event.id}`} className={`transition-colors hover:bg-gray-50/70 border-l-4 py-4 pl-3 pr-4 flex items-start space-x-4 ${colorClasses.border}`}>
+            <div className={`flex-shrink-0 pt-1 text-xl ${colorClasses.icon}`}>
+                <Icon size={20}/>
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium text-gray-900">{event.author_email || 'System'}</p>
+                    <p className={`text-sm font-medium ${colorClasses.author}`}>{event.author_email || 'System'}</p>
                     <p className="text-xs text-gray-500">
                         {new Date(event.created_at).toLocaleString('ru-RU')}
                     </p>
@@ -100,22 +127,22 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
                 
                 {event.data?.file_urls && renderAttachments(event.data.file_urls)}
 
-                <div className="mt-2 flex items-center space-x-4">
-                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium">
+                <div className="mt-3 flex items-center space-x-2">
+                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium p-1.5 rounded hover:bg-gray-100">
                         <FaReply className="mr-1.5" /> Ответить
                     </button>
                      {onAddSubEvent && (
-                        <button onClick={() => onAddSubEvent(event)} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium">
+                        <button onClick={() => onAddSubEvent(event)} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium p-1.5 rounded hover:bg-gray-100">
                             <FaShare className="mr-1.5" /> Создать подзадачу
                         </button>
                     )}
                     {onDelete && (
-                        <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium">
+                        <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium p-1.5 rounded hover:bg-gray-100">
                             <FaTrash className="mr-1.5" /> Удалить
                         </button>
                     )}
                     {canBeAnalyzed && (
-                         <button onClick={() => onAnalyze(event)} disabled={isAnalyzing} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium">
+                         <button onClick={() => onAnalyze(event)} disabled={isAnalyzing} className="flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium p-1.5 rounded hover:bg-gray-100">
                             {isAnalyzing ? <><Spinner size="sm" /> Анализ...</> : <><FaBrain className="mr-1.5" /> Анализ с AI</>}
                          </button>
                     )}

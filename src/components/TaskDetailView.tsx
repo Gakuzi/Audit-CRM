@@ -293,7 +293,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 
                 {renderTaskTools()}
 
-                <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
+                <main ref={mainRef} className="flex-1 overflow-y-auto p-4 bg-gray-50">
                      {isEditing && isAuditor ? (
                          <textarea
                             value={editedDescription}
@@ -303,7 +303,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                          />
                      ) : (
                         context.item.description && (
-                            <div className="prose prose-sm mb-6 p-4 bg-gray-50 rounded-md border">
+                            <div className="prose prose-sm mb-6 p-4 bg-white rounded-md border">
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{context.item.description}</ReactMarkdown>
                             </div>
                         )
@@ -321,24 +321,23 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                      )}
 
                      {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
-                        <>
-                            <div className="divide-y divide-gray-200">
-                                {events.map(event => (
-                                    <EventItem 
-                                        key={event.id} 
-                                        event={event} 
-                                        onReply={setQuotedEvent}
-                                        onQuoteClick={handleQuoteClick}
-                                        onDelete={user?.id === event.user_id ? () => setEventToDelete(event) : undefined}
-                                        onAnalyze={handleAnalyze}
-                                        isAnalyzing={analyzingEventId === event.id}
-                                        isAuditor={isAuditor}
-                                        onAddSubEvent={isAuditor ? handleOpenSubEventModal : undefined}
-                                    />
-                                ))}
-                            </div>
+                        <div className="bg-white rounded-lg shadow-sm border">
+                            {events.map((event, index) => (
+                                <div key={event.id} className={index !== events.length -1 ? 'border-b' : ''}>
+                                <EventItem 
+                                    event={event} 
+                                    onReply={setQuotedEvent}
+                                    onQuoteClick={handleQuoteClick}
+                                    onDelete={user?.id === event.user_id ? () => setEventToDelete(event) : undefined}
+                                    onAnalyze={handleAnalyze}
+                                    isAnalyzing={analyzingEventId === event.id}
+                                    isAuditor={isAuditor}
+                                    onAddSubEvent={isAuditor ? handleOpenSubEventModal : undefined}
+                                />
+                                </div>
+                            ))}
                              {isAiThinking && (
-                                <div className="flex items-start space-x-3 py-4">
+                                <div className="flex items-start space-x-3 py-4 px-4 border-t">
                                     <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                                         <FaBrain className="text-indigo-500"/>
                                     </div>
@@ -347,14 +346,14 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                     </div>
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
                      {!loading && events.length === 0 && !isEditing && (
                         <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет. Начните обсуждение!</p>
                      )}
                 </main>
 
-                <footer className="p-4 bg-gray-50 border-t">
+                <footer className="p-4 bg-gray-100 border-t">
                     {(user || isGuest) && project ? (
                          <AddEventForm 
                             user={user} 

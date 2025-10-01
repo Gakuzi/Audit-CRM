@@ -45,6 +45,22 @@ const getSwipeBgColorClass = (status: WeekStatus): string => {
 
 
 const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerWidth, setHeaderWidth] = useState(0);
+
+  useEffect(() => {
+    const currentHeader = headerRef.current;
+    if (currentHeader) {
+      const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          setHeaderWidth(entry.contentRect.width);
+        }
+      });
+      resizeObserver.observe(currentHeader);
+      return () => resizeObserver.disconnect();
+    }
+  }, []);
+
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -97,7 +113,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
 
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
-    // Guest Logic
     if (isGuest) {
       if (newStatus !== 'approved' && newStatus !== 'rejected') return;
 
@@ -111,23 +126,19 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
       let reason: string | null = null;
       if (newStatus === 'rejected') {
         reason = prompt("Пожалуйста, укажите причину отклонения:");
-        if (reason === null) return; // User cancelled prompt
+        if (reason === null) return;
       }
 
-      const updateData: Partial<Week> = { status: newStatus, rejection_comment: reason };
-      const { error } = await supabase.from('weeks').update(updateData).eq('id', week.id);
+      const { error } = await supabase.from('weeks').update({ status: newStatus, rejection_comment: reason }).eq('id', week.id);
       
       if (error) {
         alert('Ошибка изменения статуса: ' + error.message);
       } else {
-        // Here we'd call a notification function if we had one
-        console.log(`Guest ${guestName} changed status to ${newStatus}`);
         onUpdateRequest();
       }
       return;
     }
 
-    // Auditor logic below
     if (week.status === 'approved' && newStatus !== week.status && !bypassConfirmation) {
         setShowStatusChangeConfirm(newStatus);
         return;
@@ -137,7 +148,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
 
     if (newStatus === 'rejected') {
         const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment);
-        if (comment === null) return; // User cancelled prompt
+        if (comment === null) return;
         updateData.rejection_comment = comment;
         setRejectionComment(comment);
     } else if (week.rejection_comment) {
@@ -157,7 +168,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
     setShowStatusChangeConfirm(null);
   };
   
-  const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
+  const allTasks = Object.values(week.plan).flatMap(date => date.tasks);
   const totalTasks = allTasks.length;
   const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0).length;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -172,242 +183,145 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const renderHeaderActions = () => {
-    const stopProp = (e: React.MouseEvent) => e.stopPropagation();
-    
-    const buttonBaseClass = "px-3 py-1 font-semibold rounded-full text-xs inline-flex items-center gap-1.5 transition-colors whitespace-nowrap";
-
-    if (isAuditor) {
-        switch (week.status) {
-            case 'draft':
-                return (
-                    <button 
-                        onClick={(e) => { stopProp(e); handleStatusChange('pending_approval'); }} 
-                        className={`${buttonBaseClass} bg-blue-100 text-blue-800 hover:bg-blue-200`}
-                    >
-                        <FaPaperPlane />
-                        Отправить
-                    </button>
-                );
-            case 'approved':
-                 return (
-                    <button onClick={(e) => { stopProp(e); handleStatusChange('completed'); }} className={`${buttonBaseClass} bg-green-100 text-green-800 hover:bg-green-200`}>
-                        <FaCheckCircle/> Завершить
-                    </button>
-                 );
-            case 'rejected':
-                 return (
-                    <button onClick={(e) => { stopProp(e); handleStatusChange('draft'); }} className={`${buttonBaseClass} bg-gray-100 text-gray-800 hover:bg-gray-200`}>
-                        <FaUndo /> В черновик
-                    </button>
-                 );
-            case 'completed':
-                 return (
-                    <button onClick={(e) => { stopProp(e); onGenerateReport(); }} className={`${buttonBaseClass} bg-indigo-100 text-indigo-800 hover:bg-indigo-200`}>
-                        <FaBrain/> Отчет
-                    </button>
-                 );
-            default: return null;
-        }
-    }
-
-    if (isGuest && week.status === 'pending_approval') {
-        return (
-            <>
-                <button onClick={(e) => { stopProp(e); handleStatusChange('rejected'); }} className={`${buttonBaseClass} bg-red-100 text-red-800 hover:bg-red-200`}>
-                    <FaBan /> Отклонить
-                </button>
-                <button onClick={(e) => { stopProp(e); handleStatusChange('approved'); }} className={`${buttonBaseClass} bg-green-100 text-green-800 hover:bg-green-200`}>
-                    <FaCheck /> Согласовать
-                </button>
-            </>
-        );
-    }
-    
-    return null;
-  }
-  
   const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
+
+  const HeaderContent = ({ variant }: { variant: 'dark' | 'light' }) => {
+    const isLight = variant === 'light';
+    const titleColor = isLight ? 'text-white' : 'text-gray-800';
+    const descColor = isLight ? 'text-gray-200' : 'text-gray-500';
+    const dateColor = isLight ? 'text-gray-100' : 'text-gray-600';
+    const buttonColor = isLight ? 'text-white' : 'text-gray-500';
+    const statusButtonClass = isLight
+      ? 'bg-white/20 text-white backdrop-blur-sm border border-white/30'
+      : statusConfig[week.status].color;
+
+    return (
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1 pr-4 min-w-0">
+            <h2 className={`text-xl font-bold truncate ${titleColor}`}>{week.title}</h2>
+            <div className={`text-sm mt-1 ${descColor}`}>
+              <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''} ${isLight ? 'prose-invert' : ''}`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
+              </div>
+              {descriptionNeedsTruncation && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
+                  className={`text-xs ${isLight ? 'text-white/80 hover:text-white' : 'text-blue-600 hover:underline'} mt-1 font-semibold`}
+                >
+                  {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className={`flex items-center gap-4 ${buttonColor}`}>
+            {canEditOrDelete && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 hover:text-blue-400"><FaEdit /></button>
+                <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 hover:text-red-400"><FaTrash /></button>
+              </>
+            )}
+            <button className="p-2">
+              {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+            </button>
+          </div>
+        </div>
+        <div className={`flex items-center justify-between text-sm flex-wrap gap-2 ${dateColor}`}>
+          <div className="flex items-center gap-2">
+            <FaCalendarAlt />
+            <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
+          </div>
+          <div className="relative" ref={statusRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
+              }}
+              className={`px-3 py-1 font-semibold rounded-full ${statusButtonClass} ${isAuditor ? 'cursor-pointer' : ''}`}
+              title={isAuditor ? "Изменить статус" : ""}
+            >
+              {statusConfig[week.status].label}
+            </button>
+            {isAuditor && isStatusDropdownOpen && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
+                {Object.keys(statusConfig).map(statusKey => (
+                  <a key={statusKey} onClick={(e) => { e.stopPropagation(); handleStatusChange(statusKey as WeekStatus); setIsStatusDropdownOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    {statusConfig[statusKey as WeekStatus].label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 relative">
-        {guestSwipeEnabled && (
-            <>
-                <div 
-                    className="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only"
-                    onClick={() => handleStatusChange('approved')}
-                >
-                    <div className="flex flex-col items-center">
-                        <FaCheck size={24} />
-                        <span className="text-xs mt-1 font-bold">Согласовать</span>
-                    </div>
-                </div>
-                <div 
-                    className="absolute top-0 right-0 h-full bg-red-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only"
-                    onClick={() => handleStatusChange('rejected')}
-                >
-                     <div className="flex flex-col items-center">
-                        <FaBan size={24} />
-                        <span className="text-xs mt-1 font-bold">Отклонить</span>
-                    </div>
-                </div>
-            </>
-        )}
-        {auditorStatusChangeSwipeEnabled && nextAuditorAction && (
-             <div 
-                className={`absolute top-0 left-0 h-full ${getSwipeBgColorClass(nextAuditorAction.nextStatus)} flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only`}
-                onClick={handleSequentialStatusChange}
-            >
-                <div className="flex flex-col items-center text-center px-1">
-                    {nextAuditorAction.icon}
-                    <span className="text-xs mt-1 font-bold">{nextAuditorAction.label}</span>
-                </div>
+      {guestSwipeEnabled && (
+        <>
+            <div className="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only" onClick={() => handleStatusChange('approved')}>
+                <div className="flex flex-col items-center"><FaCheck size={24} /><span className="text-xs mt-1 font-bold">Согласовать</span></div>
             </div>
-        )}
-        {canEditOrDelete && (
-            <div className="absolute top-0 right-0 h-full flex z-0 touch-only">
-                <div 
-                    onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }}
-                    className="w-20 bg-blue-500 text-white flex flex-col items-center justify-center cursor-pointer hover:bg-blue-600"
-                >
-                    <FaEdit size={20} />
-                    <span className="text-xs mt-1 font-bold">Изменить</span>
-                </div>
-                <div
-                    onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }}
-                    className="w-20 bg-red-500 text-white flex flex-col items-center justify-center cursor-pointer hover:bg-red-600"
-                >
-                    <FaTrash size={20} />
-                    <span className="text-xs mt-1 font-bold">Удалить</span>
-                </div>
+            <div className="absolute top-0 right-0 h-full bg-red-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only" onClick={() => handleStatusChange('rejected')}>
+                 <div className="flex flex-col items-center"><FaBan size={24} /><span className="text-xs mt-1 font-bold">Отклонить</span></div>
             </div>
-        )}
-
-        <div ref={ref} style={style} className="relative z-10 bg-white">
-          <header
-            className="p-4 cursor-pointer border-b"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 pr-4 min-w-0">
-                    <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
-                     <div className="text-sm text-gray-500 mt-1">
-                        <div className={`prose prose-sm ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
-                        </div>
-                        {descriptionNeedsTruncation && (
-                             <button 
-                                onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
-                                className="text-xs text-blue-600 hover:underline mt-1 font-semibold"
-                            >
-                                {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
-                            </button>
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center gap-4">
-                     {isAuditor && week.status === 'draft' && (
-                         <>
-                            <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
-                            <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
-                         </>
-                     )}
-                    <button className="p-2">
-                        {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                    </button>
-                </div>
-            </div>
-            <div className="flex items-center justify-between text-sm text-gray-600 mb-2 flex-wrap gap-2">
-               <div className="flex items-center gap-2">
-                    <FaCalendarAlt/>
-                    <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
-               </div>
-               
-                <div className="flex items-center gap-2">
-                    <div className="hidden md:flex items-center gap-2">
-                        {renderHeaderActions()}
-                    </div>
-                    <div className="relative" ref={statusRef}>
-                         <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
-                            }}
-                            className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
-                            title={isAuditor ? "Изменить статус" : ""}
-                         >
-                            {statusConfig[week.status].label}
-                        </button>
-                        {isAuditor && isStatusDropdownOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
-                                {Object.keys(statusConfig).map(statusKey => (
-                                     <a
-                                        key={statusKey}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStatusChange(statusKey as WeekStatus);
-                                            setIsStatusDropdownOpen(false);
-                                        }}
-                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                    >
-                                        {statusConfig[statusKey as WeekStatus].label}
-                                    </a>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {swipeIsAvailable && (
-                <div className="md:hidden text-center text-xs text-gray-400 pb-2 border-b">
-                    ⟷ Смахните для действий
-                </div>
-            )}
-            
-            <div className="px-4 pb-4">
-                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                </div>
-            </div>
-          </header>
-
-          {isExpanded && (
-            <div className="p-4 bg-gray-50/50">
-                {week.rejection_comment && week.status === 'rejected' && (
-                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
-                        <p className="font-bold">Причина отклонения:</p>
-                        <p>{week.rejection_comment}</p>
-                    </div>
-                )}
-                
-                <DayPlanView 
-                    week={week}
-                    onUpdatePlan={onUpdatePlan}
-                    onTaskSelect={onTaskSelect}
-                    isAuditor={isAuditor}
-                />
-                
-                <div className="mt-6 pt-4 border-t flex justify-end items-center flex-wrap gap-2">
-                    {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
-                         <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
-                            <FaPlus className="mr-2"/> Добавить день
-                        </button>
-                    )}
-                </div>
-
-                <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1">
-                        <WeekStats week={week} />
-                    </div>
-                    <div className="lg:col-span-2">
-                       <WeekHistoryFeed weekId={week.id} onTaskSelect={onTaskSelect} allTasks={allTasks} />
-                    </div>
-                </div>
-
-            </div>
-          )}
+        </>
+      )}
+      {auditorStatusChangeSwipeEnabled && nextAuditorAction && (
+         <div className={`absolute top-0 left-0 h-full ${getSwipeBgColorClass(nextAuditorAction.nextStatus)} flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only`} onClick={handleSequentialStatusChange}>
+            <div className="flex flex-col items-center text-center px-1">{nextAuditorAction.icon}<span className="text-xs mt-1 font-bold">{nextAuditorAction.label}</span></div>
         </div>
+      )}
+      {canEditOrDelete && (
+        <div className="absolute top-0 right-0 h-full flex z-0 touch-only">
+            <div onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} className="w-20 bg-blue-500 text-white flex flex-col items-center justify-center cursor-pointer hover:bg-blue-600">
+                <FaEdit size={20} /><span className="text-xs mt-1 font-bold">Изменить</span>
+            </div>
+            <div onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} className="w-20 bg-red-500 text-white flex flex-col items-center justify-center cursor-pointer hover:bg-red-600">
+                <FaTrash size={20} /><span className="text-xs mt-1 font-bold">Удалить</span>
+            </div>
+        </div>
+      )}
+
+      <div ref={ref} style={style} className="relative z-10 bg-white">
+        <header ref={headerRef} className="relative cursor-pointer bg-gray-200 overflow-hidden" onClick={() => setIsExpanded(!isExpanded)}>
+          <HeaderContent variant="dark" />
+          <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden" style={{ width: `${progress}%`, transition: 'width 500ms ease' }}>
+            {headerWidth > 0 && <div style={{ width: headerWidth }}><HeaderContent variant="light" /></div>}
+          </div>
+        </header>
+
+        {swipeIsAvailable && !isExpanded && (
+            <div className="md:hidden text-center text-xs text-gray-400 py-1 border-b bg-gray-50">
+                ⟷ Смахните для действий
+            </div>
+        )}
+        
+        {isExpanded && (
+          <div className="p-4 bg-gray-50/50">
+            {week.rejection_comment && week.status === 'rejected' && (
+              <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
+                <p className="font-bold">Причина отклонения:</p>
+                <p>{week.rejection_comment}</p>
+              </div>
+            )}
+            <DayPlanView week={week} onUpdatePlan={onUpdatePlan} onTaskSelect={onTaskSelect} isAuditor={isAuditor} />
+            <div className="mt-6 pt-4 border-t flex justify-end items-center flex-wrap gap-2">
+              {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
+                <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
+                  <FaPlus className="mr-2"/> Добавить день
+                </button>
+              )}
+            </div>
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1"><WeekStats week={week} /></div>
+              <div className="lg:col-span-2"><WeekHistoryFeed weekId={week.id} onTaskSelect={onTaskSelect} allTasks={allTasks} /></div>
+            </div>
+          </div>
+        )}
+      </div>
       
       <ConfirmationModal
         isOpen={!!showStatusChangeConfirm}
@@ -418,22 +332,11 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
       />
 
       {isAuditor && (
-          <>
-            <EditWeekModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                week={week}
-                onUpdate={onUpdateRequest}
-            />
-            <AddDayModal
-                isOpen={isAddDayModalOpen}
-                onClose={() => setIsAddDayModalOpen(false)}
-                week={week}
-                onUpdatePlan={onUpdatePlan}
-            />
-          </>
+        <>
+          <EditWeekModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} week={week} onUpdate={onUpdateRequest} />
+          <AddDayModal isOpen={isAddDayModalOpen} onClose={() => setIsAddDayModalOpen(false)} week={week} onUpdatePlan={onUpdatePlan} />
+        </>
       )}
-
     </div>
   );
 };
