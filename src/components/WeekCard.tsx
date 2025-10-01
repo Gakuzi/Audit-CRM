@@ -50,6 +50,15 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
   const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState<WeekStatus | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
 
+  const swipeActionsEnabled = isGuest && week.status === 'pending_approval';
+
+  const { ref, style } = useSwipe({
+    onSwipeLeftAction: swipeActionsEnabled ? () => handleStatusChange('rejected') : undefined,
+    onSwipeRightAction: swipeActionsEnabled ? () => handleStatusChange('approved') : undefined,
+    leftRevealWidth: swipeActionsEnabled ? 80 : 0,
+    rightRevealWidth: swipeActionsEnabled ? 80 : 0,
+  });
+
 
   const handleStatusChange = async (newStatus: Week['status'], bypassConfirmation = false) => {
     let rejectionReason: string | null = null;
@@ -104,13 +113,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
     }
     setShowStatusChangeConfirm(null);
   };
-
-  const { ref, style } = useSwipe({
-    onSwipeLeftAction: isGuest && week.status === 'pending_approval' ? () => handleStatusChange('rejected') : undefined,
-    onSwipeRightAction: isGuest && week.status === 'pending_approval' ? () => handleStatusChange('approved') : undefined,
-    leftRevealWidth: isGuest && week.status === 'pending_approval' ? 80 : 0,
-    rightRevealWidth: isGuest && week.status === 'pending_approval' ? 80 : 0,
-  });
   
   const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
   const totalTasks = allTasks.length;
@@ -161,13 +163,37 @@ const WeekCard: React.FC<WeekCardProps> = ({ project, week, isAuditor, isGuest, 
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 relative">
+        {swipeActionsEnabled && (
+            <>
+                {/* Left side (revealed on swipe right) - Approve */}
+                <div 
+                    className="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer"
+                    onClick={() => handleStatusChange('approved')}
+                >
+                    <div className="flex flex-col items-center">
+                        <FaCheck size={24} />
+                        <span className="text-xs mt-1 font-bold">Согласовать</span>
+                    </div>
+                </div>
+                {/* Right side (revealed on swipe left) - Reject */}
+                <div 
+                    className="absolute top-0 right-0 h-full bg-red-500 flex items-center justify-center text-white z-0 w-20 cursor-pointer"
+                    onClick={() => handleStatusChange('rejected')}
+                >
+                     <div className="flex flex-col items-center">
+                        <FaBan size={24} />
+                        <span className="text-xs mt-1 font-bold">Отклонить</span>
+                    </div>
+                </div>
+            </>
+        )}
         <div ref={ref} style={style} className="relative z-10 bg-white">
           <header
             className="p-4 cursor-pointer border-b"
             onClick={() => setIsExpanded(!isExpanded)}
           >
             <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 pr-4">
+                <div className="flex-1 pr-4 min-w-0">
                     <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
                      <div className="text-sm text-gray-500 mt-1">
                         <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>

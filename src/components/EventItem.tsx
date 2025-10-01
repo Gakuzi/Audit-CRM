@@ -120,7 +120,7 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
             <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                 {event.author_email === 'AI Ассистент' ? <FaBrain className="text-indigo-500" /> : getEventTypeIcon(event.type)}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
                     <p className="text-sm font-medium text-gray-900">{event.author_email || 'System'}</p>
                     <p className="text-xs text-gray-500">
