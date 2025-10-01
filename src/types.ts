@@ -55,7 +55,7 @@ export interface Week {
   start_date: string;
   end_date: string;
   created_at: string;
-  rejection_comment?: string;
+  rejection_comment?: string | null;
   report_content?: string;
   report_generated_at?: string;
 }

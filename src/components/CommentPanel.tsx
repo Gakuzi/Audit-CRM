@@ -95,6 +95,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     };
 
     const isGuest = !user;
+    const isAuditor = !!(user && project && user.id === project.user_id);
 
     return (
         <aside className="bg-white rounded-lg shadow-md p-4 sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
@@ -110,7 +111,17 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {events.map(event => <EventItem key={event.id} event={event} onReply={handleReply} onQuoteClick={handleQuoteClick} />)}
+                            {events.map(event => (
+                                <EventItem 
+                                    key={event.id} 
+                                    event={event} 
+                                    onReply={handleReply} 
+                                    onQuoteClick={handleQuoteClick}
+                                    onAnalyze={() => {}}
+                                    isAnalyzing={false}
+                                    isAuditor={isAuditor}
+                                />
+                            ))}
                         </div>
                     ) : (
                         <p className="text-sm text-gray-500 text-center pt-8">Комментариев пока нет. Начните обсуждение!</p>

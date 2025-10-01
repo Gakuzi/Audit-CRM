@@ -7,7 +7,7 @@ import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
 // Fix: Import FaBrain icon.
-import { FaTimes, FaEdit, FaSave, FaComments, FaBrain, FaFileAlt } from 'react-icons/fa';
+import { FaTimes, FaEdit, FaSave, FaComments, FaBrain } from 'react-icons/fa';
 import AddEventModal from './AddEventModal';
 import ConfirmationModal from './ConfirmationModal';
 import ReactMarkdown from 'react-markdown';
