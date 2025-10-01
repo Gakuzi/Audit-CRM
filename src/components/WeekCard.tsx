@@ -46,7 +46,7 @@ const getSwipeBgColorClass = (status: WeekStatus): string => {
 const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
   const isCurrentWeek = () => {
       const today = new Date();
-      today.setHours(0,0,0,0);
+      today.setHours(0, 0, 0, 0);
       const startDate = new Date(week.start_date + 'T00:00:00');
       const endDate = new Date(week.end_date + 'T00:00:00');
       return today >= startDate && today <= endDate;
@@ -63,6 +63,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
 
   const guestSwipeEnabled = isGuest && week.status === 'pending_approval';
   const auditorStatusChangeSwipeEnabled = isAuditor && ['draft', 'approved', 'rejected'].includes(week.status);
+  const canEditOrDelete = isAuditor && week.status === 'draft';
+
 
   const auditorNextActionMap: Partial<Record<WeekStatus, { nextStatus: WeekStatus; label: string; icon: React.ReactNode }>> = {
     draft: { nextStatus: 'pending_approval', label: 'Отправить', icon: <FaPaperPlane size={24} /> },
@@ -71,6 +73,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   };
 
   const nextAuditorAction = auditorStatusChangeSwipeEnabled ? auditorNextActionMap[week.status] : null;
+
+  const swipeIsAvailable = guestSwipeEnabled || auditorStatusChangeSwipeEnabled || canEditOrDelete;
 
 
   const handleSequentialStatusChange = () => {
@@ -86,8 +90,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
   const { ref, style } = useSwipe({
     onSwipeLeftAction: guestSwipeEnabled ? () => handleStatusChange('rejected') : undefined,
     onSwipeRightAction: guestSwipeEnabled ? () => handleStatusChange('approved') : (auditorStatusChangeSwipeEnabled ? handleSequentialStatusChange : undefined),
-    rightRevealWidth: (guestSwipeEnabled || auditorStatusChangeSwipeEnabled) ? 80 : 0,
-    leftRevealWidth: guestSwipeEnabled ? 80 : 0,
+    leftRevealWidth: guestSwipeEnabled ? 80 : (auditorStatusChangeSwipeEnabled ? 80 : 0),
+    rightRevealWidth: guestSwipeEnabled ? 80 : (canEditOrDelete ? 160 : 0),
   });
 
 
@@ -167,34 +171,59 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getActionButtons = () => {
-    switch (week.status) {
-        case 'draft':
-            return isAuditor && (
-                <button 
-                    onClick={() => { handleStatusChange('pending_approval'); }} 
-                    className="bg-blue-600 text-white font-bold py-2 px-5 rounded-full inline-flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
-                >
-                    <FaPaperPlane />
-                    Отправить на согласование
-                </button>
-            );
-        case 'pending_approval':
-            return isGuest && (
-                <div className="flex gap-2">
-                    <button onClick={() => handleStatusChange('rejected')} className="btn-secondary bg-red-500 text-white hover:bg-red-600 flex items-center gap-2"><FaBan /> Отклонить</button>
-                    <button onClick={() => handleStatusChange('approved')} className="btn-primary bg-green-600 hover:bg-green-700 flex items-center gap-2"><FaCheck /> Согласовать</button>
-                </div>
-            );
-        case 'approved':
-             return isAuditor && <button onClick={() => handleStatusChange('completed')} className="btn-primary flex items-center gap-2"><FaCheckCircle/> Завершить этап</button>;
-        case 'rejected':
-             return isAuditor && <button onClick={() => handleStatusChange('draft')} className="btn-secondary">Вернуть в черновик</button>;
-        case 'completed':
-             return isAuditor && <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"><FaBrain/> Отчет с AI</button>;
-        default:
-            return null;
+  const renderHeaderActions = () => {
+    const stopProp = (e: React.MouseEvent) => e.stopPropagation();
+    
+    const buttonBaseClass = "px-3 py-1 font-semibold rounded-full text-xs inline-flex items-center gap-1.5 transition-colors whitespace-nowrap";
+
+    if (isAuditor) {
+        switch (week.status) {
+            case 'draft':
+                return (
+                    <button 
+                        onClick={(e) => { stopProp(e); handleStatusChange('pending_approval'); }} 
+                        className={`${buttonBaseClass} bg-blue-100 text-blue-800 hover:bg-blue-200`}
+                    >
+                        <FaPaperPlane />
+                        Отправить
+                    </button>
+                );
+            case 'approved':
+                 return (
+                    <button onClick={(e) => { stopProp(e); handleStatusChange('completed'); }} className={`${buttonBaseClass} bg-green-100 text-green-800 hover:bg-green-200`}>
+                        <FaCheckCircle/> Завершить
+                    </button>
+                 );
+            case 'rejected':
+                 return (
+                    <button onClick={(e) => { stopProp(e); handleStatusChange('draft'); }} className={`${buttonBaseClass} bg-gray-100 text-gray-800 hover:bg-gray-200`}>
+                        <FaUndo /> В черновик
+                    </button>
+                 );
+            case 'completed':
+                 return (
+                    <button onClick={(e) => { stopProp(e); onGenerateReport(); }} className={`${buttonBaseClass} bg-indigo-100 text-indigo-800 hover:bg-indigo-200`}>
+                        <FaBrain/> Отчет
+                    </button>
+                 );
+            default: return null;
+        }
     }
+
+    if (isGuest && week.status === 'pending_approval') {
+        return (
+            <>
+                <button onClick={(e) => { stopProp(e); handleStatusChange('rejected'); }} className={`${buttonBaseClass} bg-red-100 text-red-800 hover:bg-red-200`}>
+                    <FaBan /> Отклонить
+                </button>
+                <button onClick={(e) => { stopProp(e); handleStatusChange('approved'); }} className={`${buttonBaseClass} bg-green-100 text-green-800 hover:bg-green-200`}>
+                    <FaCheck /> Согласовать
+                </button>
+            </>
+        );
+    }
+    
+    return null;
   }
   
   const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
@@ -224,13 +253,31 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
             </>
         )}
         {auditorStatusChangeSwipeEnabled && nextAuditorAction && (
-            <div 
-                className={`absolute top-0 right-0 h-full ${getSwipeBgColorClass(nextAuditorAction.nextStatus)} flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only`}
+             <div 
+                className={`absolute top-0 left-0 h-full ${getSwipeBgColorClass(nextAuditorAction.nextStatus)} flex items-center justify-center text-white z-0 w-20 cursor-pointer touch-only`}
                 onClick={handleSequentialStatusChange}
             >
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center text-center px-1">
                     {nextAuditorAction.icon}
                     <span className="text-xs mt-1 font-bold">{nextAuditorAction.label}</span>
+                </div>
+            </div>
+        )}
+        {canEditOrDelete && (
+            <div className="absolute top-0 right-0 h-full flex z-0 touch-only">
+                <div 
+                    onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }}
+                    className="w-20 bg-blue-500 text-white flex flex-col items-center justify-center cursor-pointer hover:bg-blue-600"
+                >
+                    <FaEdit size={20} />
+                    <span className="text-xs mt-1 font-bold">Изменить</span>
+                </div>
+                <div
+                    onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }}
+                    className="w-20 bg-red-500 text-white flex flex-col items-center justify-center cursor-pointer hover:bg-red-600"
+                >
+                    <FaTrash size={20} />
+                    <span className="text-xs mt-1 font-bold">Удалить</span>
                 </div>
             </div>
         )}
@@ -275,38 +322,49 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                     <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
                </div>
                
-                <div className="relative" ref={statusRef}>
-                     <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
-                        }}
-                        className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
-                        title={isAuditor ? "Изменить статус" : ""}
-                     >
-                        {statusConfig[week.status].label}
-                    </button>
-                    {isAuditor && isStatusDropdownOpen && (
-                        <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
-                            {Object.keys(statusConfig).map(statusKey => (
-                                 <a
-                                    key={statusKey}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleStatusChange(statusKey as WeekStatus);
-                                        setIsStatusDropdownOpen(false);
-                                    }}
-                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                >
-                                    {statusConfig[statusKey as WeekStatus].label}
-                                </a>
-                            ))}
-                        </div>
-                    )}
+                <div className="flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2">
+                        {renderHeaderActions()}
+                    </div>
+                    <div className="relative" ref={statusRef}>
+                         <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
+                            }}
+                            className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
+                            title={isAuditor ? "Изменить статус" : ""}
+                         >
+                            {statusConfig[week.status].label}
+                        </button>
+                        {isAuditor && isStatusDropdownOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
+                                {Object.keys(statusConfig).map(statusKey => (
+                                     <a
+                                        key={statusKey}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusChange(statusKey as WeekStatus);
+                                            setIsStatusDropdownOpen(false);
+                                        }}
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                    >
+                                        {statusConfig[statusKey as WeekStatus].label}
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-
             </div>
-            <div>
+
+            {swipeIsAvailable && (
+                <div className="md:hidden text-center text-xs text-gray-400 pb-2 border-b">
+                    ⟷ Смахните для действий
+                </div>
+            )}
+            
+            <div className="px-4 pb-4">
                  <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
                 </div>
@@ -329,10 +387,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                     isAuditor={isAuditor}
                 />
                 
-                <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                        {getActionButtons()}
-                    </div>
+                <div className="mt-6 pt-4 border-t flex justify-end items-center flex-wrap gap-2">
                     {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
                          <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
                             <FaPlus className="mr-2"/> Добавить день

@@ -1,5 +1,4 @@
-// Fix: Replaced placeholder content with the actual component implementation.
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Event, PlanItem } from '../types';
 import { Spinner } from './ui/Spinner';
@@ -30,6 +29,7 @@ const getEventTypeIcon = (type: Event['type']) => {
 const WeekHistoryFeed: React.FC<WeekHistoryFeedProps> = ({ weekId, allTasks, onTaskSelect }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
+    const feedContainerRef = useRef<HTMLDivElement>(null);
 
     const fetchEvents = useCallback(async () => {
         setLoading(true);
@@ -51,6 +51,13 @@ const WeekHistoryFeed: React.FC<WeekHistoryFeedProps> = ({ weekId, allTasks, onT
         fetchEvents();
     }, [fetchEvents]);
     
+    useEffect(() => {
+        if (!loading && feedContainerRef.current) {
+            const container = feedContainerRef.current;
+            container.scrollTop = container.scrollHeight;
+        }
+    }, [events, loading]);
+    
     const findTaskTitle = (taskId: string) => {
         return allTasks.find(task => task.id === taskId)?.title;
     }
@@ -66,7 +73,7 @@ const WeekHistoryFeed: React.FC<WeekHistoryFeedProps> = ({ weekId, allTasks, onT
     return (
         <div className="bg-white rounded-lg p-4">
              <h4 className="font-semibold text-gray-700 mb-3">Общая история этапа</h4>
-             <div className="max-h-96 overflow-y-auto pr-2 space-y-4">
+             <div ref={feedContainerRef} className="max-h-96 overflow-y-auto pr-2 space-y-4">
                 {events.length > 0 ? (
                     events.map(event => (
                         <div key={event.id} className="flex items-start space-x-3 text-sm">
