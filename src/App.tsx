@@ -57,6 +57,12 @@ function App() {
 
   useEffect(() => {
     const handleHashChange = async () => {
+        // If it's an OAuth redirect, ignore it and let Supabase handle it.
+        // It will set the session and then remove the hash, triggering hashchange again.
+        if (window.location.hash.includes('access_token=') && window.location.hash.includes('provider_token=')) {
+            return; 
+        }
+
         const hash = window.location.hash.replace('#/', '');
         const [projectId, searchParams] = hash.split('?');
         const params = new URLSearchParams(searchParams || '');

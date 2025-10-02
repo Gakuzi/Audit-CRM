@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus, Project, Profile } from '../types';
 import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
-import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaArrowRight } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
 import AddDayModal from './AddDayModal';
@@ -9,6 +9,7 @@ import WeekStats from './WeekStats';
 import WeekHistoryFeed from './WeekHistoryFeed';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useSwipe } from '../hooks/useSwipe';
 
 interface WeekCardProps {
   week: Week;
@@ -50,7 +51,21 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
   const [rejectionComment, setRejectionComment] = useState(week.rejection_comment || '');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
+  
+  const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date]?.tasks || []);
 
+  const getNextStatus = (): WeekStatus | null => {
+    if (!isExpanded) return null; // Prevent action on collapsed card
+    const { status } = week;
+    if (isAuditor) {
+        if (status === 'draft') return 'pending_approval';
+        if (status === 'approved' && allTasks.every(t => t.completed)) return 'completed';
+        if (status === 'rejected') return 'draft';
+    } else if (isGuest) {
+        if (status === 'pending_approval') return 'approved';
+    }
+    return null;
+  };
 
   const handleStatusChange = async (newStatus: Week['status']) => {
     const updateData: Partial<Week> = { status: newStatus };
@@ -81,7 +96,21 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
     }
   };
 
-  const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date]?.tasks || []);
+  const handleSwipeRight = () => {
+    const nextStatus = getNextStatus();
+    if (nextStatus) {
+        handleStatusChange(nextStatus);
+    }
+  };
+
+  const canEditOrDelete = isAuditor && (week.status === 'draft' || week.status === 'rejected');
+  const nextStatusInfo = getNextStatus();
+
+  const { ref, style } = useSwipe({
+    onSwipeRightAction: handleSwipeRight,
+    rightRevealWidth: canEditOrDelete ? 128 : 0,
+    leftRevealWidth: nextStatusInfo ? 128 : 0,
+  });
 
    // Close dropdown when clicking outside
   useEffect(() => {
@@ -128,134 +157,150 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
   const descriptionNeedsTruncation = (week.description?.length || 0) > 150;
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300">
-      <header
-        className="p-4 cursor-pointer border-b"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 pr-4 min-w-0">
-                <h2 className="text-xl font-bold text-gray-800 break-words">{week.title}</h2>
-                 <div className="text-sm text-gray-500 mt-1">
-                    <div className={`prose prose-sm max-w-none break-words ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
-                    </div>
-                    {descriptionNeedsTruncation && (
-                         <button 
-                            onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
-                            className="text-xs text-blue-600 hover:underline mt-1 font-semibold"
-                        >
-                            {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
-                        </button>
-                    )}
+    <div className="swipe-container bg-white rounded-lg shadow-md overflow-hidden">
+        {canEditOrDelete && (
+            <div className="swipe-actions-right touch-only">
+                <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} className="swipe-action blue flex flex-col items-center justify-center gap-1 text-xs"><FaEdit size={20}/>Редактировать</button>
+                <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} className="swipe-action red flex flex-col items-center justify-center gap-1 text-xs"><FaTrash size={20}/>Удалить</button>
+            </div>
+        )}
+        {nextStatusInfo && (
+            <div className="swipe-actions-left touch-only">
+                <div className="swipe-action green w-32 flex flex-col items-center justify-center gap-1 text-xs">
+                    <FaArrowRight size={20} />
+                    <span>{statusConfig[nextStatusInfo].label}</span>
                 </div>
             </div>
-            <div className="flex items-center gap-4">
-                 {isAuditor && week.status === 'draft' && (
-                     <>
-                        <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
-                        <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
-                     </>
-                 )}
-                <button className="p-2">
-                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                </button>
-            </div>
-        </div>
-        <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
-           <div className="flex items-center gap-2">
-                <FaCalendarAlt/>
-                <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
-           </div>
-           
-            <div className="relative" ref={statusRef}>
-                 <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
-                    }}
-                    className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
-                    title={isAuditor ? "Изменить статус" : ""}
-                 >
-                    {statusConfig[week.status].label}
-                </button>
-                {isAuditor && isStatusDropdownOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
-                        {Object.keys(statusConfig).map(statusKey => (
-                             <a
-                                key={statusKey}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStatusChange(statusKey as WeekStatus);
-                                    setIsStatusDropdownOpen(false);
-                                }}
-                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                            >
-                                {statusConfig[statusKey as WeekStatus].label}
-                            </a>
-                        ))}
+        )}
+        <div ref={ref} style={style} className="swipe-content relative z-10 bg-white transition-all duration-300">
+            <header
+                className="p-4 cursor-pointer border-b"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 pr-4 min-w-0">
+                        <h2 className="text-xl font-bold text-gray-800 break-words">{week.title}</h2>
+                        <div className="text-sm text-gray-500 mt-1">
+                            <div className={`prose prose-sm max-w-none break-words ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
+                            </div>
+                            {descriptionNeedsTruncation && (
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); setIsDescriptionExpanded(!isDescriptionExpanded); }} 
+                                    className="text-xs text-blue-600 hover:underline mt-1 font-semibold"
+                                >
+                                    {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                                </button>
+                            )}
+                        </div>
                     </div>
-                )}
-            </div>
-        </div>
-      </header>
+                    <div className="flex items-center gap-4">
+                        {isAuditor && (week.status === 'draft' || week.status === 'rejected') && (
+                            <div className="hidden md:flex items-center">
+                                <button onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }} title="Редактировать этап" className="p-2 text-gray-500 hover:text-blue-600"><FaEdit /></button>
+                                <button onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }} title="Удалить этап" className="p-2 text-gray-500 hover:text-red-600"><FaTrash /></button>
+                            </div>
+                        )}
+                        <button className="p-2">
+                            {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                        </button>
+                    </div>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                        <FaCalendarAlt/>
+                        <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
+                </div>
+                
+                    <div className="relative" ref={statusRef}>
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (isAuditor) setIsStatusDropdownOpen(prev => !prev);
+                            }}
+                            className={`px-3 py-1 font-semibold rounded-full ${statusConfig[week.status].color} ${isAuditor ? 'cursor-pointer hover:ring-2 ring-offset-1' : ''}`}
+                            title={isAuditor ? "Изменить статус" : ""}
+                        >
+                            {statusConfig[week.status].label}
+                        </button>
+                        {isAuditor && isStatusDropdownOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-20">
+                                {Object.keys(statusConfig).map(statusKey => (
+                                    <a
+                                        key={statusKey}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusChange(statusKey as WeekStatus);
+                                            setIsStatusDropdownOpen(false);
+                                        }}
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                    >
+                                        {statusConfig[statusKey as WeekStatus].label}
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
 
-      {isExpanded && (
-        <div className="p-4 bg-gray-50/50">
-            <WeekStats week={week} />
-            {week.rejection_comment && week.status === 'rejected' && (
-                <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
-                    <p className="font-bold">Причина отклонения:</p>
-                    <p>{week.rejection_comment}</p>
+            {isExpanded && (
+                <div className="p-4 bg-gray-50/50">
+                    <WeekStats week={week} />
+                    {week.rejection_comment && week.status === 'rejected' && (
+                        <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
+                            <p className="font-bold">Причина отклонения:</p>
+                            <p>{week.rejection_comment}</p>
+                        </div>
+                    )}
+                    
+                    <div className="mt-4">
+                    <DayPlanView 
+                        week={week}
+                        onUpdatePlan={onUpdatePlan}
+                        onTaskSelect={onTaskSelect}
+                        isAuditor={isAuditor}
+                        onUpdateTask={(updatedTask) => onUpdateTask(week.id, updatedTask)}
+                        profile={profile}
+                        providerToken={providerToken}
+                    />
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                            {getActionButtons()}
+                        </div>
+                        {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
+                            <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
+                                <FaPlus className="mr-2"/> Добавить день
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="mt-6">
+                        <WeekHistoryFeed weekId={week.id} onTaskSelect={onTaskSelect} allTasks={allTasks} />
+                    </div>
+
                 </div>
             )}
-            
-            <div className="mt-4">
-              <DayPlanView 
-                  week={week}
-                  onUpdatePlan={onUpdatePlan}
-                  onTaskSelect={onTaskSelect}
-                  isAuditor={isAuditor}
-                  onUpdateTask={(updatedTask) => onUpdateTask(week.id, updatedTask)}
-                  profile={profile}
-                  providerToken={providerToken}
-              />
-            </div>
-            
-            <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                    {getActionButtons()}
-                </div>
-                {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
-                     <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">
-                        <FaPlus className="mr-2"/> Добавить день
-                    </button>
-                )}
-            </div>
-
-             <div className="mt-6">
-                <WeekHistoryFeed weekId={week.id} onTaskSelect={onTaskSelect} allTasks={allTasks} />
-            </div>
-
         </div>
-      )}
       
-      {isAuditor && (
-          <>
-            <EditWeekModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                week={week}
-                onUpdate={onUpdateRequest}
-            />
-            <AddDayModal
-                isOpen={isAddDayModalOpen}
-                onClose={() => setIsAddDayModalOpen(false)}
-                week={week}
-                onUpdatePlan={onUpdatePlan}
-            />
-          </>
-      )}
+        {isAuditor && (
+            <>
+                <EditWeekModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    week={week}
+                    onUpdate={onUpdateRequest}
+                />
+                <AddDayModal
+                    isOpen={isAddDayModalOpen}
+                    onClose={() => setIsAddDayModalOpen(false)}
+                    week={week}
+                    onUpdatePlan={onUpdatePlan}
+                />
+            </>
+        )}
 
     </div>
   );

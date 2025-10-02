@@ -57,9 +57,9 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
     <div className="swipe-container">
        {onToggleComplete && (
            <div className="swipe-actions-left touch-only">
-               <button onClick={(e) => handleActionClick(e, onToggleComplete)} className="swipe-action green">
-                   {item.completed ? <FaUndo /> : <FaCheck />}
-               </button>
+               <div className="swipe-action green">
+                   {item.completed ? <FaUndo size={20} /> : <FaCheck size={20} />}
+               </div>
            </div>
        )}
        {hasActions && (
@@ -75,9 +75,22 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
                 <button onClick={(e) => handleActionClick(e, onDelete)} className="p-1.5 text-gray-500 hover:text-red-600"><FaTrash size={12} /></button>
               </div>
           )}
-          <div className="flex justify-between items-start gap-2">
+          <div className="flex items-start gap-3">
+            {onToggleComplete && (
+              <div 
+                className="flex items-center pt-1 flex-shrink-0" 
+                onClick={e => e.stopPropagation()}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={item.completed} 
+                  onChange={onToggleComplete}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+              </div>
+            )}
             <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-            <div className="flex-1 min-w-0 pr-6">
+            <div className="flex-1 min-w-0 pr-2">
                 <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-600' : ''}`}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
                 </div>
