@@ -1,3 +1,4 @@
+// src/types.ts
 
 export type ApprovalPeriodType = 'daily' | 'weekly';
 

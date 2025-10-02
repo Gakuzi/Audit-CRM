@@ -97,7 +97,16 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex flex-col slide-in-right">
             <div className="flex justify-end p-2 md:p-4"><button onClick={onClose} className="p-2 text-white bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full"><FaTimes size={20} /></button></div>
             <div className="flex-1 flex flex-col lg:flex-row bg-white m-2 md:m-4 mt-0 rounded-lg shadow-xl overflow-hidden min-h-0">
-                <TaskSidebar task={context.item} events={events} project={project} isAuditor={isAuditor} isGuest={isGuest} onAddSubTask={() => { setPreselectedSubTaskType(undefined); setIsAddSubTaskModalOpen(true); }} onNewAiEvent={(e) => handleNewEvent(e as Event, true)} isDescriptionExpanded={isDescriptionExpanded} onToggleDescription={() => setIsDescriptionExpanded(prev => !prev)} />
+                <TaskSidebar 
+                    task={context.item} 
+                    events={events} 
+                    isAuditor={isAuditor} 
+                    isGuest={isGuest} 
+                    onAddSubTask={() => { setPreselectedSubTaskType(undefined); setIsAddSubTaskModalOpen(true); }} 
+                    onNewAiEvent={(e) => handleNewEvent(e as Event, true)} 
+                    isDescriptionExpanded={isDescriptionExpanded} 
+                    onToggleDescription={() => setIsDescriptionExpanded(prev => !prev)} 
+                />
                 <div className="flex-1 flex flex-col min-w-0 min-h-0">
                     <main ref={eventFeedRef} className="flex-1 overflow-y-auto p-4">
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (

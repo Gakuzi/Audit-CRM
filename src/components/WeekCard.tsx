@@ -82,18 +82,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
   };
 
   const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date]?.tasks || []);
-  
-  const handleUpdateTask = (updatedTask: PlanItem) => {
-    const newPlan = JSON.parse(JSON.stringify(week.plan));
-    for (const date in newPlan) {
-        const taskIndex = newPlan[date].tasks.findIndex((t: PlanItem) => t.id === updatedTask.id);
-        if (taskIndex > -1) {
-            newPlan[date].tasks[taskIndex] = updatedTask;
-            onUpdatePlan(newPlan);
-            return;
-        }
-    }
-  };
 
    // Close dropdown when clicking outside
   useEffect(() => {

@@ -4,7 +4,7 @@ import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase, sendGuestSubTaskNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaArrowLeft, FaCog, FaPlus } from 'react-icons/fa';
+import { FaCog, FaPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
 import AddWeekModal from './AddWeekModal';
