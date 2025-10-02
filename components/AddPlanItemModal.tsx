@@ -26,7 +26,8 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   const [loading, setLoading] = useState(false);
 
   // Form states
-  const [content, setContent] = useState('');
+  // Fix: Renamed state from 'content' to 'title' to match PlanItem type
+  const [title, setTitle] = useState('');
   // Meeting
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingLocation, setMeetingLocation] = useState('');
@@ -55,7 +56,8 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   
   const resetForm = () => {
       setItemType(null);
-      setContent('');
+      // Fix: Reset 'title' state
+      setTitle('');
       setMeetingTime('');
       setMeetingLocation('');
       setMeetingAgenda('');
@@ -67,10 +69,11 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim() && itemType) {
+    if (title.trim() && itemType) {
       const newItem: PlanItem = {
         id: crypto.randomUUID(),
-        content: content.trim(),
+        // Fix: Use 'title' property instead of 'content' to match PlanItem type
+        title: title.trim(),
         completed: false,
         type: itemType,
         event_count: 0,
@@ -119,8 +122,8 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
                   id="itemContent"
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
                   rows={2}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="Опишите событие или задачу..."
                   required
                   autoFocus

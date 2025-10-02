@@ -7,11 +7,12 @@ import remarkGfm from 'remark-gfm';
 interface ProjectCardProps {
   project: Project;
   onSelect: (project: Project) => void;
-  isPublicView: boolean;
   onDelete?: () => void;
+  isPublicView: boolean;
+  onLoginRequest: () => void;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, isPublicView, onDelete }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, onDelete, isPublicView, onLoginRequest }) => {
   
   const formatDate = (dateString?: string) => {
       if (!dateString) return 'Не указана';
@@ -21,14 +22,20 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, isPublicVi
           year: 'numeric'
       });
   }
-
-  const cardClasses = `bg-white rounded-lg shadow-md flex flex-col ${isPublicView ? 'cursor-pointer hover:shadow-xl' : 'hover:shadow-xl'}`;
+  
+  const handleClick = () => {
+      if (isPublicView) {
+          onLoginRequest();
+      } else {
+          onSelect(project);
+      }
+  }
 
   return (
-    <div className={cardClasses} onClick={() => onSelect(project)}>
-      <div className="p-6 flex-grow">
+    <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col">
+      <div className="p-6 flex-grow cursor-pointer" onClick={handleClick}>
         <h3 className="text-lg font-bold text-gray-800 mb-2 truncate">{project.name}</h3>
-        <div className="text-gray-600 text-sm line-clamp-3 mb-4 prose prose-sm">
+        <div className="text-gray-600 text-sm line-clamp-3 mb-4 prose prose-sm max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description || "Нет описания."}</ReactMarkdown>
         </div>
         <div className="flex items-center text-xs text-gray-500">

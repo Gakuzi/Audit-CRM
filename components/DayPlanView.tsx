@@ -1,6 +1,5 @@
 
 
-
 import React, { useState } from 'react';
 import { Week, Plan, PlanItem } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';

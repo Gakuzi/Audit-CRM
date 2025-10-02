@@ -1,9 +1,11 @@
+// src/types.ts
+
 export type ApprovalPeriodType = 'daily' | 'weekly';
 
 export interface ApprovalPeriod {
-  type: ApprovalPeriodType;
-  interval: number;
-  dayOfWeek?: number; // For weekly: 0 = Sunday, 1 = Monday, etc.
+    type: ApprovalPeriodType;
+    interval?: number; // for daily
+    dayOfWeek?: number; // for weekly (0=Sun, 1=Mon, ...)
 }
 
 
@@ -16,6 +18,7 @@ export interface Project {
   end_date?: string;
   created_at: string;
   approval_period: ApprovalPeriod;
+  google_calendar_id?: string;
 }
 
 export type PlanItemType = 'task' | 'meeting' | 'interview' | 'doc_review' | 'observation' | 'process_analysis';
@@ -27,17 +30,17 @@ export interface PlanItem {
   completed: boolean;
   type: PlanItemType;
   event_count?: number;
+  sub_tasks?: PlanItem[];
   data?: {
+    date?: string; // For meetings
     time?: string;
     location?: string;
     agenda?: string;
     participants?: string[];
     interviewee?: string;
     duration?: string;
-    date?: string;
+    google_calendar_event_id?: string;
   };
-  sub_tasks?: PlanItem[];
-  parent_id?: string | null;
 }
 
 export interface Plan {
@@ -59,7 +62,7 @@ export interface Week {
   start_date: string;
   end_date: string;
   created_at: string;
-  rejection_comment?: string | null;
+  rejection_comment?: string;
   report_content?: string;
   report_generated_at?: string;
 }
@@ -71,7 +74,7 @@ export interface Event {
   task_id: string;
   user_id: string | null;
   author_email: string | null;
-  type: 'comment' | 'meeting' | 'interview' | 'documentation_review';
+  type: 'comment' | 'meeting' | 'documentation_review' | 'interview';
   content: string;
   data?: {
     file_urls?: { name: string, url: string, type?: string }[];
@@ -95,10 +98,8 @@ export interface Profile {
   telegram_bot_token: string;
   telegram_chat_id: string;
   updated_at: string;
+  google_calendar_id?: string;
 }
-
-export type ContactMethod = 'telegram' | 'whatsapp' | 'email' | 'phone';
-
 
 export interface ContactPerson {
   id: string; // client-side UUID
@@ -106,9 +107,9 @@ export interface ContactPerson {
   role: string;
   email: string;
   phone: string;
-  telegram?: string;
   whatsapp?: string;
-  priority_contact_method?: ContactMethod | null;
+  telegram?: string;
+  priority_contact_method?: 'email' | 'phone' | 'whatsapp' | 'telegram';
 }
 
 export interface CompanyProfile {

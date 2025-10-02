@@ -1,8 +1,7 @@
-
-
 import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import Modal from './ui/Modal';
+// Fix: Use relative path for service import.
 import { supabase } from '../services/supabaseClient';
 // Fix: Use relative path for service import.
 import { generateAuditPlan } from '../services/geminiService';

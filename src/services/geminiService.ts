@@ -106,9 +106,11 @@ export const generateAuditPlan = async (
     
     parsed.weeks.forEach((week: any) => {
         if (week.plan) {
-            Object.values(week.plan).forEach((day: any) => {
-                if (day.tasks && Array.isArray(day.tasks)) {
-                    day.tasks.forEach((task: PlanItem) => {
+            // FIX: Cast `day` to a known shape to access `tasks`.
+            Object.values(week.plan).forEach((day: unknown) => {
+                const dayPlan = day as { tasks: PlanItem[] };
+                if (dayPlan.tasks && Array.isArray(dayPlan.tasks)) {
+                    dayPlan.tasks.forEach((task: PlanItem) => {
                         task.id = crypto.randomUUID();
                         task.completed = false; // Ensure default state
                     });
@@ -357,9 +359,11 @@ export const generateStagePlan = async (
     const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
     const parsedPlan = JSON.parse(finalJsonText);
 
-    Object.values(parsedPlan).forEach((day: any) => {
-        if (day.tasks && Array.isArray(day.tasks)) {
-            day.tasks.forEach((task: PlanItem) => {
+    // FIX: Cast `day` to a known shape to access `tasks`.
+    Object.values(parsedPlan).forEach((day: unknown) => {
+        const dayPlan = day as { tasks: PlanItem[] };
+        if (dayPlan.tasks && Array.isArray(dayPlan.tasks)) {
+            dayPlan.tasks.forEach((task: PlanItem) => {
                 task.id = crypto.randomUUID();
                 task.completed = false;
             });

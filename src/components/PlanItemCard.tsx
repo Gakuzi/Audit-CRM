@@ -1,6 +1,6 @@
 import React from 'react';
 import { PlanItem } from '../types';
-import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap, FaRegCircle, FaCheckCircle } from 'react-icons/fa';
+import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap, FaCheckSquare } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -9,10 +9,9 @@ interface PlanItemCardProps {
   onSelect: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
-  onToggleComplete?: () => void;
 }
 
-const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete, onToggleComplete }) => {
+const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete }) => {
   
   const getIcon = () => {
     switch(item.type) {
@@ -60,33 +59,31 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
         </div>
     )
   }
+  
+  const subTaskProgress = item.sub_tasks ? (item.sub_tasks.filter(st => st.completed).length / item.sub_tasks.length) * 100 : 0;
+
 
   return (
     <div 
       onClick={onSelect}
-      className="bg-white p-2.5 rounded-md shadow-sm border border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors group relative"
+      className={`p-2.5 rounded-md shadow-sm border cursor-pointer hover:bg-blue-50 transition-colors group relative ${item.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
     >
-        {onEdit && onDelete && (
+        {(onEdit || onDelete) && (
              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white bg-opacity-70 rounded-md">
-                <button onClick={(e) => handleActionClick(e, onEdit)} className="p-1.5 text-gray-500 hover:text-blue-600"><FaEdit size={12} /></button>
-                <button onClick={(e) => handleActionClick(e, onDelete)} className="p-1.5 text-gray-500 hover:text-red-600"><FaTrash size={12} /></button>
+                {onEdit && <button onClick={(e) => handleActionClick(e, onEdit)} className="p-1.5 text-gray-500 hover:text-blue-600"><FaEdit size={12} /></button>}
+                {onDelete && <button onClick={(e) => handleActionClick(e, onDelete)} className="p-1.5 text-gray-500 hover:text-red-600"><FaTrash size={12} /></button>}
             </div>
         )}
 
       <div className="flex justify-between items-start gap-2">
-        {onToggleComplete && (
-            <button onClick={(e) => handleActionClick(e, onToggleComplete)} className="mt-1 text-xl text-gray-300 hover:text-green-500">
-                {item.completed ? <FaCheckCircle className="text-green-500"/> : <FaRegCircle />}
-            </button>
-        )}
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-        <div className={`flex-1 pr-6 transition-opacity ${item.completed ? 'opacity-60' : ''}`}>
-            <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through' : ''}`}>
+        <div className="flex-1 pr-6">
+            <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-500' : ''}`}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
             </div>
             {item.data?.agenda && 
                 <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{`**Повестка:** ${item.data.agenda}`}</ReactMarkdown>
+                    <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
                 </div>
             }
             
@@ -111,6 +108,17 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
         </div>
       </div>
       {renderMeetingInvites()}
+      {item.sub_tasks && item.sub_tasks.length > 0 && (
+          <div className="mt-2 pt-2 border-t">
+              <div className="flex justify-between items-center text-xs text-gray-500">
+                  <span className="flex items-center gap-1.5"><FaTasks size={10} /> {item.sub_tasks.filter(t => t.completed).length}/{item.sub_tasks.length}</span>
+                  <span>{Math.round(subTaskProgress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                  <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${subTaskProgress}%` }}></div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

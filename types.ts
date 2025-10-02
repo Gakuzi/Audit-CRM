@@ -1,5 +1,13 @@
-// Fix: Removed self-import of 'ApprovalPeriod' that conflicted with the type definition below.
-export type ApprovalPeriod = 'weekly' | 'monthly';
+// src/types.ts
+
+export type ApprovalPeriodType = 'daily' | 'weekly';
+
+export interface ApprovalPeriod {
+    type: ApprovalPeriodType;
+    interval?: number; // for daily
+    dayOfWeek?: number; // for weekly (0=Sun, 1=Mon, ...)
+}
+
 
 export interface Project {
   id: string;
@@ -10,22 +18,28 @@ export interface Project {
   end_date?: string;
   created_at: string;
   approval_period: ApprovalPeriod;
+  google_calendar_id?: string;
 }
 
-export type PlanItemType = 'task' | 'meeting' | 'interview' | 'doc_review' | 'observation';
+export type PlanItemType = 'task' | 'meeting' | 'interview' | 'doc_review' | 'observation' | 'process_analysis';
 
 export interface PlanItem {
   id: string;
-  content: string;
+  title: string;
+  description?: string;
   completed: boolean;
   type: PlanItemType;
   event_count?: number;
+  sub_tasks?: PlanItem[];
   data?: {
+    date?: string; // For meetings
     time?: string;
     location?: string;
     agenda?: string;
     participants?: string[];
     interviewee?: string;
+    duration?: string;
+    google_calendar_event_id?: string;
   };
 }
 
@@ -49,6 +63,8 @@ export interface Week {
   end_date: string;
   created_at: string;
   rejection_comment?: string;
+  report_content?: string;
+  report_generated_at?: string;
 }
 
 export interface Event {
@@ -56,7 +72,7 @@ export interface Event {
   project_id: string;
   week_id: string;
   task_id: string;
-  user_id: string;
+  user_id: string | null;
   author_email: string | null;
   type: 'comment' | 'meeting' | 'documentation_review' | 'interview';
   content: string;
@@ -82,6 +98,7 @@ export interface Profile {
   telegram_bot_token: string;
   telegram_chat_id: string;
   updated_at: string;
+  google_calendar_id?: string;
 }
 
 export interface ContactPerson {
@@ -90,6 +107,9 @@ export interface ContactPerson {
   role: string;
   email: string;
   phone: string;
+  whatsapp?: string;
+  telegram?: string;
+  priority_contact_method?: 'email' | 'phone' | 'whatsapp' | 'telegram';
 }
 
 export interface CompanyProfile {

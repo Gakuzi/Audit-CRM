@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+// Fix: Correct import path for types from within src/services
 import { Project, PlanItem, Event, ContactPerson, Week } from '../types';
 
 // These are your public Supabase keys.

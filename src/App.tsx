@@ -1,109 +1,94 @@
-// src/App.tsx
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './services/supabaseClient';
-import { User, Session } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import AuditView from './components/AuditView';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
-import { Project, CompanyProfile, Profile, ContactPerson } from './types';
+import { Project, CompanyProfile } from './types';
 
 function App() {
-  const [, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [providerToken, setProviderToken] = useState<string | null>(null);
-
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
-  
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  
-  const [identifiedGuest, setIdentifiedGuest] = useState<ContactPerson | null>(null);
-  const [initialTaskId, setInitialTaskId] = useState<string | null>(null);
 
-  const fetchProfile = useCallback(async (user: User | null) => {
-    if (!user) {
-      setProfile(null);
-      return;
-    }
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    if (error && error.code !== 'PGRST116') console.error('Error fetching profile:', error);
-    else setProfile(data);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginModalInitialMode, setLoginModalInitialMode] = useState<'signIn' | 'signUp'>('signIn');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        setIsLoginModalOpen(false); // Close login modal on successful login
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
+  // Simple hash-based routing
   useEffect(() => {
-    const handleSession = (session: Session | null) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setProviderToken(session?.provider_token ?? null);
-        fetchProfile(session?.user ?? null);
-        if (session?.user) setIsLoginModalOpen(false);
-        else {
-            const guestSession = localStorage.getItem('guestSessionToken');
-            if (!guestSession) {
-                localStorage.removeItem('identifiedGuest');
-                setIdentifiedGuest(null);
+    const handleHashChange = async () => {
+        const hash = window.location.hash.replace('#/', '');
+        if (hash) {
+            const projectPromise = supabase
+                .from('projects')
+                .select('*')
+                .eq('id', hash)
+                .single();
+            
+            const profilePromise = supabase
+                .from('company_profiles')
+                .select('*')
+                .eq('project_id', hash)
+                .single();
+
+            const [projectResult, profileResult] = await Promise.all([projectPromise, profilePromise]);
+
+            if (projectResult.data) {
+                setSelectedProject(projectResult.data);
+            } else {
+                if (projectResult.error && projectResult.error.code !== 'PGRST116') {
+                    console.error('Project not found error:', projectResult.error.message);
+                }
+                window.location.hash = '';
             }
+            
+            if (profileResult.data) {
+                setCompanyProfile(profileResult.data);
+            } else {
+                setCompanyProfile(null);
+            }
+
+        } else {
+            setSelectedProject(null);
+            setCompanyProfile(null);
         }
-    }
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
-
-  const handleHashChange = useCallback(async () => {
-      const hash = window.location.hash.replace('#/', '');
-      const [projectId, queryParams] = hash.split('?');
-      const params = new URLSearchParams(queryParams);
-      const contactId = params.get('contactId');
-      const taskId = params.get('taskId');
-
-      if (taskId) setInitialTaskId(taskId);
-      else setInitialTaskId(null);
-
-      if (projectId) {
-          const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
-          if (data) {
-              setSelectedProject(data);
-              const { data: companyData } = await supabase.from('company_profiles').select('*').eq('project_id', projectId).single();
-              setCompanyProfile(companyData);
-
-              // Guest identification logic
-              if (contactId && companyData?.contacts) {
-                  const guest = companyData.contacts.find((c: ContactPerson) => c.id === contactId);
-                  if (guest) {
-                      setIdentifiedGuest(guest);
-                      localStorage.setItem('identifiedGuest', JSON.stringify(guest));
-                      const guestSessionToken = crypto.randomUUID();
-                      localStorage.setItem('guestSessionToken', guestSessionToken);
-                  }
-              } else if (!user) {
-                  const storedGuest = localStorage.getItem('identifiedGuest');
-                  if (storedGuest) setIdentifiedGuest(JSON.parse(storedGuest));
-              }
-          } else {
-              if (error && error.code !== 'PGRST116') console.error('Project not found error:', error.message);
-              window.location.hash = '';
-          }
-      } else {
-          setSelectedProject(null);
-          setCompanyProfile(null);
-          setIdentifiedGuest(null);
-          localStorage.removeItem('identifiedGuest');
-      }
-  }, [user]);
-
-  useEffect(() => {
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange();
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [handleHashChange]);
 
-  const handleBackToDashboard = () => { window.location.hash = ''; };
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+
+  const handleSelectProject = (project: Project) => {
+    window.location.hash = `/${project.id}`;
+  };
+
+  const handleBackToDashboard = () => {
+    window.location.hash = '';
+  };
   
   const handleSignOut = async () => {
       await supabase.auth.signOut();
@@ -111,45 +96,49 @@ function App() {
       handleBackToDashboard();
   };
   
+  const handleLoginRequest = (mode: 'signIn' | 'signUp' = 'signIn') => {
+      setLoginModalInitialMode(mode);
+      setIsLoginModalOpen(true);
+  }
+  
   const isAuditor = !!user && !!selectedProject && user.id === selectedProject.user_id;
-  const isGuest = !user;
 
   return (
     <div className="bg-gray-100 min-h-screen">
       <Header 
         user={user} 
-        profile={profile}
         project={selectedProject}
         companyProfile={companyProfile}
         isAuditor={isAuditor}
-        isGuest={isGuest}
-        identifiedGuest={identifiedGuest}
-        onLogin={() => setIsLoginModalOpen(true)}
+        onLogin={() => handleLoginRequest('signIn')}
         onProfile={() => setIsProfileModalOpen(true)}
-        onBack={handleBackToDashboard}
       />
       <main className="container mx-auto p-4 md:p-6">
         {selectedProject ? (
           <AuditView 
-            // Fix: Changed 'project' prop to use 'selectedProject' state variable to resolve 'Cannot find name' error.
             project={selectedProject} 
             user={user} 
-            profile={profile}
-            providerToken={providerToken}
             onBack={handleBackToDashboard}
             isAuditor={isAuditor}
-            isGuest={isGuest}
-            initialTaskId={initialTaskId}
           />
         ) : (
-          <Dashboard user={user} onSelectProject={(p) => window.location.hash = `/${p.id}`} onLoginRequest={() => setIsLoginModalOpen(true)} />
+          <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={handleLoginRequest} />
         )}
       </main>
 
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
+      <LoginModal 
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        initialMode={loginModalInitialMode}
+      />
 
       {user && (
-          <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} user={user} onSignOut={handleSignOut} />
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+            user={user}
+            onSignOut={handleSignOut}
+          />
       )}
     </div>
   );

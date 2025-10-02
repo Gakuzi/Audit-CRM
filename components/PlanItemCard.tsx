@@ -31,7 +31,7 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
   const renderMeetingInvites = () => {
     if (item.type !== 'meeting' || !item.data?.participants || item.data.participants.length === 0) return null;
     
-    const inviteText = `Приглашение на встречу: "${item.content}".\nВремя: ${item.data.time || 'не указано'}\nМесто: ${item.data.location || 'не указано'}\nПовестка: ${item.data.agenda || 'не указана'}`;
+    const inviteText = `Приглашение на встречу: "${item.title}".\nВремя: ${item.data.time || 'не указано'}\nМесто: ${item.data.location || 'не указано'}\nПовестка: ${item.data.agenda || 'не указана'}`;
 
     return (
         <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-end space-x-2">
@@ -74,7 +74,7 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
         <div className="flex-1 pr-6">
             <div className="text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2">
-                <ReactMarkdown>{item.content}</ReactMarkdown>
+                <ReactMarkdown>{item.title}</ReactMarkdown>
             </div>
             {item.data?.agenda && 
                 <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">

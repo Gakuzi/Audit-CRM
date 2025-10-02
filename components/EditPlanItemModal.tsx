@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { PlanItem, PlanItemType } from '../types';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 
 interface EditPlanItemModalProps {
@@ -18,63 +17,42 @@ const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode
     interview: { name: 'Интервью', icon: <FaUsers size={24} className="text-green-600" /> },
     doc_review: { name: 'Анализ документов', icon: <FaFileContract size={24} className="text-blue-600" /> },
     observation: { name: 'Наблюдение', icon: <FaBinoculars size={24} className="text-orange-600" /> },
+    process_analysis: { name: 'Анализ процесса', icon: <FaSitemap size={24} className="text-teal-600" /> }
 };
-
 
 const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, onUpdateItem, item }) => {
   const [loading, setLoading] = useState(false);
-
-  // Form states
-  const [content, setContent] = useState('');
-  const [meetingTime, setMeetingTime] = useState('');
-  const [meetingLocation, setMeetingLocation] = useState('');
-  const [meetingAgenda, setMeetingAgenda] = useState('');
-  const [meetingParticipants, setMeetingParticipants] = useState('');
-
-  // Fallback for items created before the 'type' property existed. This prevents crashes.
-  const itemTypeWithFallback = item?.type || 'task';
+  const [editedItem, setEditedItem] = useState<PlanItem>(item);
 
   useEffect(() => {
-    if (item) {
-        setContent(item.content);
-        if (itemTypeWithFallback === 'meeting' && item.data) {
-            setMeetingTime(item.data.time || '');
-            setMeetingLocation(item.data.location || '');
-            setMeetingAgenda(item.data.agenda || '');
-            setMeetingParticipants(item.data.participants?.join('\n') || '');
-        }
+    if (isOpen) {
+      setEditedItem(item);
     }
-  }, [item, itemTypeWithFallback]);
+  }, [isOpen, item]);
 
+  const handleChange = (field: keyof PlanItem, value: any) => {
+    setEditedItem(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDataChange = (field: keyof NonNullable<PlanItem['data']>, value: any) => {
+    setEditedItem(prev => ({
+      ...prev,
+      data: { ...(prev.data || {}), [field]: value }
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim()) {
-      const updatedItem: PlanItem = {
-        ...item,
-        type: itemTypeWithFallback, // Ensure type is set on the updated object
-        content: content.trim(),
-      };
-
-      if (itemTypeWithFallback === 'meeting') {
-        updatedItem.data = {
-            ...item.data,
-            time: meetingTime,
-            location: meetingLocation,
-            agenda: meetingAgenda,
-            participants: meetingParticipants.split('\n').filter(p => p.trim() !== ''),
-        };
-      }
-      
-      onUpdateItem(updatedItem);
+    if (editedItem.title.trim()) {
+      onUpdateItem(editedItem);
+      onClose();
     }
   };
 
-  if (!item) return null;
-  const currentType = eventTypes[itemTypeWithFallback];
+  const currentType = editedItem ? eventTypes[editedItem.type] : null;
 
   return (
-     <Modal isOpen={isOpen} onClose={onClose} title={`Редактировать: ${currentType.name}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Редактировать: ${currentType?.name || 'Задача'}`}>
         <form onSubmit={handleSubmit} className="space-y-4">
             <h3 className="text-lg font-bold flex items-center gap-3">
                 {currentType?.icon}
@@ -82,41 +60,53 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
             </h3>
             
             <div>
-                <label htmlFor="editItemContent" className="block text-sm font-medium text-gray-700">{itemTypeWithFallback === 'meeting' ? 'Тема встречи' : 'Описание'}</label>
+                <label htmlFor="itemTitleEdit" className="block text-sm font-medium text-gray-700">{editedItem.type === 'meeting' ? 'Тема встречи' : 'Название / Цель'}</label>
                 <textarea
-                  id="editItemContent"
-                  className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  id="itemTitleEdit"
+                  className="w-full mt-1 input"
                   rows={2}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  value={editedItem.title}
+                  onChange={(e) => handleChange('title', e.target.value)}
                   required
                   autoFocus
                 />
             </div>
-            {itemTypeWithFallback === 'meeting' && (
+            {editedItem.type === 'meeting' && (
               <>
                 <div>
-                  <label htmlFor="editMeetingAgenda" className="block text-sm font-medium text-gray-700">Повестка</label>
-                  <input id="editMeetingAgenda" type="text" value={meetingAgenda} onChange={e => setMeetingAgenda(e.target.value)} className="w-full mt-1 input"/>
+                  <label htmlFor="meetingAgendaEdit" className="block text-sm font-medium text-gray-700">Повестка</label>
+                  <input id="meetingAgendaEdit" type="text" value={editedItem.data?.agenda || ''} onChange={e => handleDataChange('agenda', e.target.value)} className="w-full mt-1 input" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                         <label htmlFor="editMeetingTime" className="block text-sm font-medium text-gray-700">Время</label>
-                         <input id="editMeetingTime" type="time" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="w-full mt-1 input" />
+                         <label htmlFor="meetingTimeEdit" className="block text-sm font-medium text-gray-700">Время</label>
+                         <input id="meetingTimeEdit" type="time" value={editedItem.data?.time || ''} onChange={e => handleDataChange('time', e.target.value)} className="w-full mt-1 input" />
                     </div>
                      <div>
-                         <label htmlFor="editMeetingLocation" className="block text-sm font-medium text-gray-700">Место</label>
-                         <input id="editMeetingLocation" type="text" value={meetingLocation} onChange={e => setMeetingLocation(e.target.value)} className="w-full mt-1 input" />
+                         <label htmlFor="meetingLocationEdit" className="block text-sm font-medium text-gray-700">Место</label>
+                         <input id="meetingLocationEdit" type="text" value={editedItem.data?.location || ''} onChange={e => handleDataChange('location', e.target.value)} className="w-full mt-1 input" />
                     </div>
                 </div>
                  <div>
-                  <label htmlFor="editMeetingParticipants" className="block text-sm font-medium text-gray-700">Участники (каждый с новой строки)</label>
-                  <textarea id="editMeetingParticipants" value={meetingParticipants} onChange={e => setMeetingParticipants(e.target.value)} className="w-full mt-1 input" rows={3} />
+                  <label htmlFor="meetingParticipantsEdit" className="block text-sm font-medium text-gray-700">Участники (каждый с новой строки)</label>
+                  <textarea id="meetingParticipantsEdit" value={editedItem.data?.participants?.join('\n') || ''} onChange={e => handleDataChange('participants', e.target.value.split('\n'))} className="w-full mt-1 input" rows={3} />
                 </div>
               </>
             )}
+             {editedItem.type === 'interview' && (
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                         <label htmlFor="intervieweeEdit" className="block text-sm font-medium text-gray-700">Опрашиваемый</label>
+                         <input id="intervieweeEdit" type="text" value={editedItem.data?.interviewee || ''} onChange={e => handleDataChange('interviewee', e.target.value)} className="w-full mt-1 input" />
+                    </div>
+                     <div>
+                         <label htmlFor="interviewTimeEdit" className="block text-sm font-medium text-gray-700">Время</label>
+                         <input id="interviewTimeEdit" type="time" value={editedItem.data?.time || ''} onChange={e => handleDataChange('time', e.target.value)} className="w-full mt-1 input" />
+                    </div>
+                </div>
+            )}
 
-            <div className="pt-2 flex justify-end items-center space-x-2">
+            <div className="pt-2 flex justify-end items-center gap-2">
                 <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
                 <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
                    {loading ? <Spinner size="sm" /> : 'Сохранить'}

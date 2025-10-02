@@ -1,78 +1,50 @@
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, Plan, PlanItem, Project } from '../types';
+import { Event, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-import { FaTimes, FaVideo } from 'react-icons/fa';
-import AddMeetingModal from './AddMeetingModal';
+import { FaTimes } from 'react-icons/fa';
 
 interface CommentPanelProps {
   user: User | null;
-  context: { weekId: string; taskId: string; taskContent: string };
+  // Fix: Add project and task to props interface
+  project: Project;
+  task: PlanItem;
+  // Fix: Let context be more specific
+  context: { weekId: string; taskId: string; };
   onClose: () => void;
+  // Fix: Add props for event count changes and new events
+  onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
+  onNewEvent: (event: Event) => void;
 }
 
-const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) => {
+const CommentPanel: React.FC<CommentPanelProps> = ({ user, project, task, context, onClose, onNewEvent }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-    const [projectId, setProjectId] = useState<string | null>(null);
-    const [project, setProject] = useState<Project | null>(null);
-    const [task, setTask] = useState<PlanItem | null>(null);
+    const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+
 
     const fetchEventsAndProject = useCallback(async () => {
         setLoading(true);
-        const eventsPromise = supabase
+        const { data, error } = await supabase
             .from('events')
-            .select('*')
+            .select('*, parent:events!parent_event_id(content, author_email)')
             .eq('task_id', context.taskId)
             .order('created_at', { ascending: true });
         
-        const weekPromise = supabase
-            .from('weeks')
-            .select('project_id, plan')
-            .eq('id', context.weekId)
-            .single();
-
-        const [eventsResult, weekResult] = await Promise.all([eventsPromise, weekPromise]);
-        
-        if (eventsResult.error) {
-            console.error("Error fetching events:", eventsResult.error);
+        if (error) {
+            console.error("Error fetching events:", error);
         } else {
-            setEvents(eventsResult.data || []);
-        }
-        
-        if (weekResult.error) {
-            console.error("Error fetching project_id from week:", weekResult.error);
-        } else if (weekResult.data) {
-            const fetchedProjectId = weekResult.data.project_id;
-            setProjectId(fetchedProjectId);
-            
-            const plan: Plan = weekResult.data.plan;
-            let foundTask: PlanItem | undefined;
-            for (const date in plan) {
-                if(plan[date]?.tasks) {
-                    foundTask = plan[date].tasks.find(t => t.id === context.taskId);
-                    if (foundTask) break;
-                }
-            }
-            setTask(foundTask || {id: context.taskId, title: context.taskContent, completed: false, type: 'task'});
-            
-            if(fetchedProjectId) {
-                const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', fetchedProjectId).single();
-                if (projectError) {
-                    console.error("Error fetching project:", projectError);
-                } else {
-                    setProject(projectData);
-                }
-            }
+            setEvents(data || []);
         }
 
         setLoading(false);
-    }, [context.taskId, context.weekId, context.taskContent]);
+    }, [context.taskId]);
 
     useEffect(() => {
         fetchEventsAndProject();
@@ -86,12 +58,11 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         };
     }, [context.taskId, fetchEventsAndProject]);
 
-    const handleReply = (_event: Event) => {
-        // Reply functionality is not implemented in this simplified panel.
-    };
-
-    const handleQuoteClick = (_eventId: string) => {
-        // Quote click functionality is not implemented in this simplified panel.
+    const handleQuoteClick = (eventId: string) => {
+        const element = document.getElementById(`event-${eventId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     };
 
     const isGuest = !user;
@@ -101,7 +72,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
             <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                 <div>
                     <h3 className="text-lg font-bold text-gray-800">Обсуждение</h3>
-                    <p className="text-sm text-gray-600 truncate" title={context.taskContent}>{context.taskContent}</p>
+                    <p className="text-sm text-gray-600 truncate" title={task.title}>{task.title}</p>
                 </div>
                 <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800"><FaTimes /></button>
             </div>
@@ -110,16 +81,16 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {events.map(event => (
-                                <EventItem
-                                    key={event.id}
-                                    event={event}
-                                    onReply={handleReply}
-                                    onQuoteClick={handleQuoteClick}
+                            {events.map(event => 
+                                <EventItem 
+                                    key={event.id} 
+                                    event={event} 
+                                    onReply={setQuotedEvent} 
+                                    onQuoteClick={handleQuoteClick} 
                                     isExpanded={event.id === expandedEventId}
-                                    onToggleExpand={() => setExpandedEventId(prevId => prevId === event.id ? null : event.id)}
+                                    onToggleExpand={() => setExpandedEventId(prev => prev === event.id ? null : event.id)}
                                 />
-                            ))}
+                            )}
                         </div>
                     ) : (
                         <p className="text-sm text-gray-500 text-center pt-8">Комментариев пока нет. Начните обсуждение!</p>
@@ -129,38 +100,17 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
             
             <div className="pt-2 border-t border-gray-200">
                  {(user || isGuest) && (
-                    <div className="flex items-center space-x-2 mb-2">
-                         <button onClick={() => setIsMeetingModalOpen(true)} className="flex-1 flex items-center justify-center text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 py-2 px-3 rounded-md">
-                            <FaVideo className="mr-2"/> Запланировать встречу
-                        </button>
-                    </div>
-                 )}
-                {(user || isGuest) && projectId && project && task ? 
                     <AddEventForm 
-                        user={user}
-                        providerToken={null} 
-                        context={{...context, projectId}} 
-                        quotedEvent={null} 
-                        onClearQuote={() => {}} 
-                        onNewEvent={() => {}} 
-                        project={project} 
+                        user={user} 
+                        context={{...context, projectId: project.id}} 
+                        quotedEvent={quotedEvent} 
+                        onClearQuote={() => setQuotedEvent(null)} 
+                        onNewEvent={onNewEvent}
+                        project={project}
                         isGuest={isGuest}
-                        onAddSubTaskRequest={() => setIsMeetingModalOpen(true)}
-                    /> 
-                    : <p className="text-sm text-center text-gray-500">{(user || isGuest) ? "Загрузка данных..." : "Войдите, чтобы оставлять комментарии."}</p>
-                }
+                    />
+                 )}
             </div>
-
-            {(user || isGuest) && projectId && project && task && (
-                <AddMeetingModal
-                    isOpen={isMeetingModalOpen}
-                    onClose={() => setIsMeetingModalOpen(false)}
-                    context={{...context, projectId}}
-                    user={user}
-                    project={project}
-                    task={task}
-                />
-            )}
         </aside>
     );
 };

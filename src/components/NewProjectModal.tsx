@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import Modal from './ui/Modal';
 import { supabase } from '../services/supabaseClient';
-// Fix: Use relative path for service import.
 import { generateAuditPlan } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
-import { ApprovalPeriod, ApprovalPeriodType } from '../types';
+import { ApprovalPeriod } from '../types';
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -18,18 +17,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
-  const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>({ type: 'weekly', interval: 1, dayOfWeek: 0 }); // Default: Every Sunday
+  const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>({ type: 'weekly', dayOfWeek: 1 });
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [error, setError] = useState('');
-
-  const handlePeriodTypeChange = (type: ApprovalPeriodType) => {
-    if (type === 'weekly') {
-        setApprovalPeriod({ type: 'weekly', interval: 1, dayOfWeek: 0 });
-    } else if (type === 'daily') {
-        setApprovalPeriod({ type: 'daily', interval: 1 });
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +65,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
             project_id: projectData.id,
             user_id: user.id,
             title: week.title,
-            description: week.description, // Added description
+            description: week.description,
             plan: week.plan,
             status: 'draft',
             start_date: week.start_date,
@@ -107,12 +98,20 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
       setDescription('');
       setStartDate(new Date().toISOString().split('T')[0]);
       setEndDate('');
-      setApprovalPeriod({ type: 'weekly', interval: 1, dayOfWeek: 0 });
+      setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
       setError('');
       setLoading(false);
       setStatusText('');
       onClose();
   }
+
+  const handlePeriodTypeChange = (type: 'daily' | 'weekly') => {
+      if (type === 'weekly') {
+          setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
+      } else if (type === 'daily') {
+          setApprovalPeriod({ type: 'daily', interval: 1 });
+      }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Создать новый план аудита">
@@ -147,7 +146,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
             <div className="mt-1 grid grid-cols-2 gap-2 items-center">
                 <select 
                     value={approvalPeriod.type} 
-                    onChange={e => handlePeriodTypeChange(e.target.value as ApprovalPeriodType)} 
+                    onChange={e => handlePeriodTypeChange(e.target.value as 'daily' | 'weekly')} 
                     className="input bg-white"
                     disabled={loading}
                 >

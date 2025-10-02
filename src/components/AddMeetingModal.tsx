@@ -9,13 +9,13 @@ import { Project, PlanItem } from '../types';
 interface AddMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  context: { weekId: string; taskId: string; taskContent: string; projectId: string; };
+  context: { weekId: string; taskId: string; projectId: string; };
   user: User | null;
   project: Project;
   task: PlanItem;
 }
 
-const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user }) => {
+const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, context, user, task }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -50,7 +50,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, cont
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Запланировать встречу">
             <p className="text-sm text-gray-500 mb-2">По задаче:</p>
-            <p className="text-sm font-semibold bg-gray-100 p-2 rounded-md mb-4">{context.taskContent}</p>
+            <p className="text-sm font-semibold bg-gray-100 p-2 rounded-md mb-4">{task.title}</p>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label htmlFor="meetingContent" className="block text-sm font-medium text-gray-700">
