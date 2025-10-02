@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { PlanItem, PlanItemType } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
-import { Spinner } from './ui/Spinner';
 
 interface EditPlanItemModalProps {
   isOpen: boolean;
