@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabaseClient';
 import { User, Session } from '@supabase/supabase-js';
 import Header from './components/Header';
@@ -10,7 +10,7 @@ import ProfileModal from './components/ProfileModal';
 import { Project, CompanyProfile, Profile, ContactPerson } from './types';
 
 function App() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [providerToken, setProviderToken] = useState<string | null>(null);
@@ -131,6 +131,7 @@ function App() {
       <main className="container mx-auto p-4 md:p-6">
         {selectedProject ? (
           <AuditView 
+            // Fix: Changed 'project' prop to use 'selectedProject' state variable to resolve 'Cannot find name' error.
             project={selectedProject} 
             user={user} 
             profile={profile}

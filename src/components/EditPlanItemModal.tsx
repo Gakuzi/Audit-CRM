@@ -44,6 +44,7 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     const updatedItem: PlanItem = { ...item, title: title.trim() };
     if (item.type === 'meeting') {
       updatedItem.data = { ...item.data, time: meetingTime, location: meetingLocation, agenda: meetingAgenda, participants: meetingParticipants.split('\n').filter(p => p.trim()) };

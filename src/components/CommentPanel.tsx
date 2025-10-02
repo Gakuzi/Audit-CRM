@@ -137,7 +137,8 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                  )}
                 {(user || isGuest) && projectId && project && task ? 
                     <AddEventForm 
-                        user={user} 
+                        user={user}
+                        providerToken={null} 
                         context={{...context, projectId}} 
                         quotedEvent={null} 
                         onClearQuote={() => {}} 

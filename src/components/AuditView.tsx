@@ -142,7 +142,22 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
       </div>
       
       <div className="space-y-6">
-        {weeks.map(week => ( <WeekCard key={week.id} week={week} isAuditor={isAuditor} isGuest={isGuest} onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)} onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})} onDeleteRequest={() => setWeekToDelete(week)} onUpdateRequest={() => fetchWeeks(false)} onGenerateReport={() => handleOpenReport(week)} onSentForApproval={setWeekToShareForApproval} /> ))}
+        {weeks.map(week => ( 
+            <WeekCard 
+                key={week.id} 
+                week={week} 
+                isAuditor={isAuditor} 
+                isGuest={isGuest} 
+                project={project} 
+                providerToken={providerToken} 
+                onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)} 
+                onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})} 
+                onDeleteRequest={() => setWeekToDelete(week)} 
+                onUpdateRequest={() => fetchWeeks(false)} 
+                onGenerateReport={() => handleOpenReport(week)} 
+                onSentForApproval={setWeekToShareForApproval} 
+            /> 
+        ))}
         {weeks.length === 0 && (<div className="text-center py-16 bg-white rounded-lg shadow-md"><h3 className="text-xl font-semibold text-gray-700">Этапы аудита еще не созданы</h3>{isAuditor && <p className="text-gray-500 mt-2">Добавьте первый этап.</p>}</div>)}
       </div>
 

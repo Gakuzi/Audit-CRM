@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project, Event, Profile, CompanyProfile } from '../types';
+import { Week, Project, Profile, CompanyProfile } from '../types';
 import { generateComprehensiveReport } from '../services/geminiService';
 import * as googleApiService from '../services/googleApiService';
 import { supabase } from '../services/supabaseClient';

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus } from '../types';
+import { Week, Plan, PlanItem, WeekStatus, Project } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaCheck, FaBan, FaUndo, FaBrain } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
@@ -17,6 +17,8 @@ interface WeekCardProps {
   week: Week;
   isAuditor: boolean;
   isGuest: boolean;
+  project: Project;
+  providerToken: string | null;
   onUpdatePlan: (plan: Plan) => void;
   onTaskSelect: (item: PlanItem) => void;
   onDeleteRequest: () => void;
@@ -45,7 +47,7 @@ const getSwipeBgColorClass = (status: WeekStatus): string => {
 };
 
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, providerToken, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -301,7 +303,14 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, onUpdateP
                 <p>{week.rejection_comment}</p>
               </div>
             )}
-            <DayPlanView week={week} onUpdatePlan={onUpdatePlan} onTaskSelect={onTaskSelect} isAuditor={isAuditor} />
+            <DayPlanView
+                week={week}
+                onUpdatePlan={onUpdatePlan}
+                onTaskSelect={onTaskSelect}
+                isAuditor={isAuditor}
+                project={project}
+                providerToken={providerToken}
+            />
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
               <div>
                 {isAuditor && week.status === 'completed' && (

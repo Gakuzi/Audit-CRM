@@ -22,7 +22,7 @@ interface AddEventFormProps {
   onAddSubTaskRequest: (type: 'meeting') => void;
 }
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, isGuest, onAddSubTaskRequest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, isGuest, onAddSubTaskRequest }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
