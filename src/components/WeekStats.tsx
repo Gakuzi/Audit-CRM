@@ -8,8 +8,7 @@ interface WeekStatsProps {
 }
 
 const WeekStats: React.FC<WeekStatsProps> = ({ week }) => {
-    // Fix: Use Object.keys to correctly infer types when iterating over the plan object.
-    const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date].tasks);
+    const allTasks = Object.keys(week.plan).flatMap(date => week.plan[date]?.tasks || []);
     const totalTasks = allTasks.length;
     const completedTasks = allTasks.filter(task => task.completed).length;
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;

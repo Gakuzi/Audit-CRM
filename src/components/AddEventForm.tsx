@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -5,6 +6,7 @@ import { Spinner } from './ui/Spinner';
 import { Event, Project, PlanItemType } from '../types';
 import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaCamera, FaPlus } from 'react-icons/fa';
 import AudioRecorderModal from './AudioRecorderModal';
+import { FILE_SIZE_LIMIT } from '../constants';
 
 interface AddEventFormProps {
   user: User | null;
@@ -63,7 +65,17 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
     
     const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setFilesToAttach(prev => [...prev, ...Array.from(event.target.files!)]);
+            const selectedFiles = Array.from(event.target.files);
+            const validFiles: File[] = [];
+            // Fix: Cast items to File to correctly access properties like 'size' and 'name'.
+            for (const file of selectedFiles as File[]) {
+                if (file.size > FILE_SIZE_LIMIT) {
+                    alert(`Файл "${file.name}" слишком большой. Максимальный размер: ${FILE_SIZE_LIMIT / 1024 / 1024} МБ.`);
+                } else {
+                    validFiles.push(file);
+                }
+            }
+            setFilesToAttach(prev => [...prev, ...validFiles]);
             event.target.value = '';
         }
     };
@@ -178,9 +190,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, context, quotedEvent,
             <AudioRecorderModal
                 isOpen={isAudioModalOpen}
                 onClose={() => setIsAudioModalOpen(false)}
-                onSave={(blob) => {
-                    const audioFile = new File([blob], `audio-recording-${Date.now()}.webm`, { type: blob.type });
-                    setFilesToAttach(prev => [...prev, audioFile]);
+                onSave={(files) => {
+                    setFilesToAttach(prev => [...prev, ...files]);
                 }}
             />
         </div>

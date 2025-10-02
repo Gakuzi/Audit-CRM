@@ -1,13 +1,13 @@
+
 import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
 import { FaCamera, FaUpload, FaMicrophone, FaBrain } from 'react-icons/fa';
 import { supabase } from '../services/supabaseClient';
-// Fix: Use relative path for service import.
 import { recognizeTextFromImage, processInterviewAudio } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
-import Modal from './ui/Modal';
-import AudioRecorder from './AudioRecorder';
+import AudioRecorderModal from './AudioRecorderModal';
+import { FILE_SIZE_LIMIT } from '../constants';
 
 interface InterviewActionBarProps {
     user: User;
@@ -44,7 +44,7 @@ const sanitizeFileName = (fileName: string) => {
 
 
 const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, events, onNewEvent }) => {
-    const [loading, setLoading] = useState<string | null>(null); // To track specific loading actions
+    const [loading, setLoading] = useState<string | null>(null);
     const [isRecorderModalOpen, setIsRecorderModalOpen] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const audioInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +70,12 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
         const file = event.target.files?.[0];
         if (!file) return;
 
+        if (file.size > FILE_SIZE_LIMIT) {
+            alert(`Файл "${file.name}" слишком большой. Максимальный размер: ${FILE_SIZE_LIMIT / 1024 / 1024} МБ.`);
+            event.target.value = '';
+            return;
+        }
+
         setLoading('recognize');
         try {
             const base64Data = await blobToBase64(file);
@@ -84,28 +90,28 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
             alert("Ошибка распознавания: " + error.message);
         } finally {
             setLoading(null);
-            event.target.value = ''; // Reset input
+            event.target.value = '';
         }
     };
     
-    const handleAudioUpload = async (file: File | Blob, fileName?: string) => {
+    const handleAudioUpload = async (files: File[]) => {
         setLoading('upload');
         try {
-             const audioFile = file instanceof File ? file : new File([file], fileName || `recording-${Date.now()}.webm`, { type: file.type });
-             const sanitizedFileName = sanitizeFileName(audioFile.name);
-             const filePath = `${user.id}/${context.item.id}/${Date.now()}-${sanitizedFileName}`;
-             const { error: uploadError } = await supabase.storage.from('audit-files').upload(filePath, audioFile);
-             if (uploadError) throw uploadError;
+            for (const file of files) {
+                 const sanitizedFileName = sanitizeFileName(file.name);
+                 const filePath = `${user.id}/${context.item.id}/${Date.now()}-${sanitizedFileName}`;
+                 const { error: uploadError } = await supabase.storage.from('audit-files').upload(filePath, file);
+                 if (uploadError) throw uploadError;
 
-             const { data: urlData } = supabase.storage.from('audit-files').getPublicUrl(filePath);
-             const fileUrl = { name: audioFile.name, url: urlData.publicUrl, type: audioFile.type };
+                 const { data: urlData } = supabase.storage.from('audit-files').getPublicUrl(filePath);
+                 const fileUrl = { name: file.name, url: urlData.publicUrl, type: file.type };
 
-             await createNewEvent({
-                 type: 'interview',
-                 content: `Прикреплена аудиозапись: ${audioFile.name}`,
-                 data: { file_urls: [fileUrl] }
-             });
-
+                 await createNewEvent({
+                     type: 'interview',
+                     content: `Прикреплена аудиозапись: ${file.name}`,
+                     data: { file_urls: [fileUrl] }
+                 });
+            }
         } catch (error: any) {
             alert("Ошибка загрузки аудио: " + error.message);
         } finally {
@@ -114,6 +120,25 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
         }
     };
     
+    const handleAudioFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const validFiles: File[] = [];
+        // Fix: Cast items to File to correctly access properties like 'size' and 'name'.
+        for (const file of Array.from(files) as File[]) {
+            if (file.size > FILE_SIZE_LIMIT) {
+                alert(`Файл "${file.name}" слишком большой. Максимальный размер: ${FILE_SIZE_LIMIT / 1024 / 1024} МБ.`);
+            } else {
+                validFiles.push(file);
+            }
+        }
+        if (validFiles.length > 0) {
+            handleAudioUpload(validFiles);
+        }
+        event.target.value = '';
+    }
+
     const handleAnalyzeAudio = async (audioEvent: Event) => {
         const audioFile = audioEvent.data?.file_urls?.[0];
         if (!audioFile) return;
@@ -141,7 +166,7 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
     return (
         <div className="p-4 border-b bg-gray-50">
              <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
-             <input type="file" accept="audio/*" ref={audioInputRef} onChange={(e) => e.target.files && handleAudioUpload(e.target.files[0])} className="hidden" />
+             <input type="file" accept="audio/*" ref={audioInputRef} onChange={handleAudioFilesSelected} className="hidden" multiple/>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                  <button onClick={() => imageInputRef.current?.click()} disabled={!!loading} className="btn-secondary flex items-center justify-center gap-2"><FaCamera /> Распознать заметки</button>
@@ -165,15 +190,11 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
                 </div>
              )}
 
-            <Modal isOpen={isRecorderModalOpen} onClose={() => setIsRecorderModalOpen(false)} title="Запись интервью">
-                <AudioRecorder 
-                    enableWakeLock={true}
-                    onSave={(blob, _duration) => {
-                        setIsRecorderModalOpen(false);
-                        handleAudioUpload(blob, `interview-recording-${Date.now()}.webm`);
-                    }}
-                />
-            </Modal>
+            <AudioRecorderModal
+                isOpen={isRecorderModalOpen}
+                onClose={() => setIsRecorderModalOpen(false)}
+                onSave={(files) => handleAudioUpload(files)}
+            />
         </div>
     )
 }

@@ -107,7 +107,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                             )}
                         </div>
                         <div className="space-y-2">
-                            {dayPlan.tasks.map(item => (
+                            {dayPlan?.tasks?.map(item => (
                                 <PlanItemCard 
                                     key={item.id} 
                                     item={item} 
