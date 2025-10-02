@@ -3,7 +3,7 @@ import Modal from './ui/Modal';
 import { Project, CompanyProfile, ContactPerson, ContactMethod } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaEdit, FaSave, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
+import { FaEdit, FaSave, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane, FaShareAlt } from 'react-icons/fa';
 
 interface CompanyProfileModalProps {
   isOpen: boolean;
@@ -25,10 +25,7 @@ const formatPhoneNumberForLink = (phone: string | undefined): string => {
     if (digits.length === 11 && (digits.startsWith('8') || digits.startsWith('7'))) {
         digits = '7' + digits.substring(1);
     }
-    if (digits.length > 0 && !digits.startsWith('+')) {
-        return `+${digits}`;
-    }
-    return `+${digits.replace('+', '')}`;
+    return digits;
 };
 
 
@@ -40,6 +37,7 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
       contacts: [],
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [shareContact, setShareContact] = useState<ContactPerson | null>(null);
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -54,7 +52,6 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
     } else if (data) {
       setProfile(data);
     } else {
-      // If no profile exists, initialize with project name
       setProfile({ company_name: project.name, address: '', contacts: [] });
     }
     setLoading(false);
@@ -63,7 +60,7 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   useEffect(() => {
     if (isOpen) {
       fetchProfile();
-      setIsEditing(false); // Reset editing state on open
+      setIsEditing(false);
     }
   }, [isOpen, fetchProfile]);
   
@@ -91,7 +88,7 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
           const newMethod = value === 'none' ? null : value as ContactMethod;
           newContacts = newContacts.map((contact, i) => ({
               ...contact,
-              priority_contact_method: i === index ? newMethod : null // Enforce only one priority
+              priority_contact_method: i === index ? newMethod : contact.priority_contact_method
           }));
       } else {
         const newContact = { ...newContacts[index], [field]: value };
@@ -110,11 +107,20 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
       setProfile(prev => ({ ...prev, contacts: prev.contacts?.filter((_, i) => i !== index) }));
   }
   
-  const ActionButton: React.FC<{ href: string, icon: React.ReactNode, colorClass: string, title: string }> = ({ href, icon, colorClass, title }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`p-2 rounded-full hover:bg-gray-200 ${colorClass}`}>
-        {icon}
-    </a>
-  );
+  const ActionButton: React.FC<{ href?: string, icon: React.ReactNode, colorClass: string, title: string, onClick?: () => void }> = ({ href, icon, colorClass, title, onClick }) => {
+    if (href) {
+        return (
+            <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`p-2 rounded-full hover:bg-gray-200 ${colorClass}`}>
+                {icon}
+            </a>
+        );
+    }
+    return (
+        <button onClick={onClick} title={title} className={`p-2 rounded-full hover:bg-gray-200 ${colorClass}`}>
+            {icon}
+        </button>
+    );
+  };
 
   const renderView = () => (
       <div className="space-y-4">
@@ -131,15 +137,14 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
                            const formattedWhatsapp = formatPhoneNumberForLink(contact.whatsapp || contact.phone);
                            return (
                                <div key={contact.id} className="p-3 border rounded-md relative">
-                                   {contact.priority_contact_method && <span className="absolute top-2 right-2 text-xs bg-yellow-200 text-yellow-800 font-bold py-0.5 px-2 rounded-full">Приоритетный контакт</span>}
+                                   {contact.priority_contact_method && <span className="absolute top-2 right-2 text-xs bg-yellow-200 text-yellow-800 font-bold py-0.5 px-2 rounded-full">Приоритетный</span>}
                                    <p className="font-bold">{contact.name} <span className="text-sm font-normal text-gray-600">- {contact.role}</span></p>
-                                   {contact.email && <p className="text-sm">Email: <a href={`mailto:${contact.email}`} className="text-blue-600">{contact.email}</a></p>}
-                                   {contact.phone && <p className="text-sm">Тел: <a href={`tel:${contact.phone}`} className="text-blue-600">{contact.phone}</a></p>}
                                    <div className="mt-2 flex items-center space-x-2">
                                         {formattedPhone && <ActionButton href={`tel:${formattedPhone}`} icon={<FaPhone />} colorClass="text-gray-600" title="Позвонить" />}
                                         {contact.email && <ActionButton href={`mailto:${contact.email}`} icon={<FaEnvelope />} colorClass="text-blue-600" title="Написать Email" />}
                                         {formattedWhatsapp && <ActionButton href={`https://wa.me/${formattedWhatsapp}`} icon={<FaWhatsapp />} colorClass="text-green-500" title="Написать в WhatsApp" />}
-                                        {formattedPhone && <ActionButton href={`https://t.me/${formattedPhone}`} icon={<FaTelegramPlane />} colorClass="text-sky-500" title="Написать в Telegram" />}
+                                        {contact.telegram && <ActionButton href={`https://t.me/${contact.telegram.replace('@', '')}`} icon={<FaTelegramPlane />} colorClass="text-sky-500" title="Написать в Telegram" />}
+                                        {isAuditor && <ActionButton onClick={() => setShareContact(contact)} icon={<FaShareAlt />} colorClass="text-gray-600" title="Поделиться персональной ссылкой" />}
                                    </div>
                                </div>
                            )
@@ -197,28 +202,67 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={profile.company_name || 'Профиль компании'}>
-        <div className="max-h-[70vh] overflow-y-auto pr-2">
-            {loading ? <Spinner /> : (isEditing ? renderEdit() : renderView())}
-        </div>
-        {isAuditor && (
-             <div className="mt-6 pt-4 border-t flex justify-end">
-                {isEditing ? (
-                    <div className="flex gap-2">
-                        <button onClick={() => { setIsEditing(false); fetchProfile(); }} className="btn-secondary">Отмена</button>
-                        <button onClick={handleSave} disabled={loading} className="btn-primary w-28 flex items-center justify-center gap-2">
-                            {loading ? <Spinner size="sm"/> : <><FaSave/> Сохранить</>}
-                        </button>
-                    </div>
-                ) : (
-                    <button onClick={() => setIsEditing(true)} className="btn-primary flex items-center gap-2">
-                        <FaEdit /> Редактировать
-                    </button>
-                )}
+    <>
+        <Modal isOpen={isOpen} onClose={onClose} title={profile.company_name || 'Профиль компании'}>
+            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                {loading ? <Spinner /> : (isEditing ? renderEdit() : renderView())}
             </div>
-        )}
-    </Modal>
+            {isAuditor && (
+                <div className="mt-6 pt-4 border-t flex justify-end">
+                    {isEditing ? (
+                        <div className="flex gap-2">
+                            <button onClick={() => { setIsEditing(false); fetchProfile(); }} className="btn-secondary">Отмена</button>
+                            <button onClick={handleSave} disabled={loading} className="btn-primary w-28 flex items-center justify-center gap-2">
+                                {loading ? <Spinner size="sm"/> : <><FaSave/> Сохранить</>}
+                            </button>
+                        </div>
+                    ) : (
+                        <button onClick={() => setIsEditing(true)} className="btn-primary flex items-center gap-2">
+                            <FaEdit /> Редактировать
+                        </button>
+                    )}
+                </div>
+            )}
+        </Modal>
+        {shareContact && isAuditor && <ContactShareModal contact={shareContact} project={project} onClose={() => setShareContact(null)} />}
+    </>
   );
 };
+
+
+// Inner modal for sharing specific contact link
+interface ContactShareModalProps {
+    contact: ContactPerson;
+    project: Project;
+    onClose: () => void;
+}
+const ContactShareModal: React.FC<ContactShareModalProps> = ({ contact, project, onClose }) => {
+    const [copied, setCopied] = useState(false);
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/${project.id}?contactId=${contact.id}`;
+    const shareText = `Здравствуйте, ${contact.name}!\n\nСсылка для гостевого доступа к аудиту «${project.name}».\n\nВНИМАНИЕ: Эта ссылка — как ключ от кабинета. Любой, у кого она есть, сможет комментировать и планировать встречи от вашего имени.\n\n${shareUrl}`;
+    
+    const handleCopy = () => {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    return (
+        <Modal isOpen={true} onClose={onClose} title={`Ссылка для ${contact.name}`}>
+            <p className="text-sm text-gray-600 mb-4">Отправьте эту персональную ссылку. Пользователь будет автоматически идентифицирован в системе.</p>
+             <div className="flex items-center space-x-2">
+                <input type="text" readOnly value={shareUrl} className="w-full p-2 border rounded bg-gray-100" />
+                <button onClick={handleCopy} className={`p-2 rounded-md text-white ${copied ? 'bg-green-500' : 'bg-blue-600 hover:bg-blue-700'}`}><FaShareAlt /></button>
+            </div>
+            {copied && <p className="text-xs text-green-600 mt-1">Ссылка скопирована!</p>}
+             <div className="mt-4 pt-4 border-t flex items-center space-x-2">
+                <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center py-2 px-4 rounded-md bg-green-500 text-white hover:bg-green-600"><FaWhatsapp className="mr-2" /> WhatsApp</a>
+                <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center py-2 px-4 rounded-md bg-sky-500 text-white hover:bg-sky-600"><FaTelegramPlane className="mr-2" /> Telegram</a>
+            </div>
+        </Modal>
+    )
+}
+
 
 export default CompanyProfileModal;

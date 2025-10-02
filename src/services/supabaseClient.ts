@@ -37,25 +37,29 @@ const sendTelegramNotification = async (project: Project, message: string, inlin
     const { telegram_bot_token, telegram_chat_id } = auditorProfile;
     const url = `https://api.telegram.org/bot${telegram_bot_token}/sendMessage`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: telegram_chat_id,
-        text: message.trim(),
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: inline_keyboard
+    try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: telegram_chat_id,
+            text: message.trim(),
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: inline_keyboard
+            }
+          }),
+        });
+    
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(`Telegram API error: ${errorData.description}`);
+        } else {
+          console.log('Telegram notification sent successfully.');
         }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Telegram API error: ${errorData.description}`);
+    } catch(e) {
+        console.error('Failed to fetch Telegram API', e);
     }
-
-    console.log('Telegram notification sent successfully.');
 };
 
 export const sendGuestStatusChangeNotification = async (project: Project, week: Week, newStatus: string, authorName: string, rejectionReason: string | null, baseUrl: string) => {

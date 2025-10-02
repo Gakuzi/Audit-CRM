@@ -87,7 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
                         <ProjectCard 
                             key={project.id} 
                             project={project} 
-                            onSelect={user ? onSelectProject : () => onLoginRequest()}
+                            onSelect={user ? onSelectProject : onLoginRequest}
                             isPublicView={!user}
                             onDelete={user?.id === project.user_id ? () => setProjectToDelete(project) : undefined}
                          />

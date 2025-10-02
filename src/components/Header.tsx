@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { FaUserCircle } from 'react-icons/fa';
 import AuditorHeaderCard from './AuditorHeaderCard';
 import CompanyHeaderCard from './CompanyHeaderCard';
-import { Project, CompanyProfile } from '../types';
+import { Project, CompanyProfile, ContactPerson } from '../types';
 
 interface HeaderProps {
     user: User | null;
@@ -11,12 +11,13 @@ interface HeaderProps {
     companyProfile: CompanyProfile | null;
     isAuditor: boolean;
     isGuest: boolean;
+    identifiedGuest: ContactPerson | null;
     onLogin: () => void;
     onProfile: () => void;
     onBack: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAuditor, isGuest, onLogin, onProfile, onBack }) => {
+const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAuditor, isGuest, identifiedGuest, onLogin, onProfile, onBack }) => {
     
     const renderProjectContext = () => {
         if (!project) {
@@ -48,7 +49,12 @@ const Header: React.FC<HeaderProps> = ({ user, project, companyProfile, isAudito
                 </div>
 
                 <div>
-                    {isGuest ? (
+                    {identifiedGuest ? (
+                         <span className="flex items-center text-gray-600">
+                           <FaUserCircle className="mr-2 text-gray-400" size={24} />
+                           <span className="font-medium">{identifiedGuest.name}</span>
+                        </span>
+                    ) : isGuest ? (
                         <span className="text-sm font-medium text-gray-600">Гостевой доступ</span>
                     ) : user ? (
                         <button onClick={onProfile} className="flex items-center text-gray-600 hover:text-blue-600">

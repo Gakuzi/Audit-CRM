@@ -69,14 +69,12 @@ export interface Event {
   project_id: string;
   week_id: string;
   task_id: string;
-  user_id: string;
+  user_id: string | null;
   author_email: string | null;
-  // Fix: Expanded event types to include more than just 'comment'.
   type: 'comment' | 'meeting' | 'interview' | 'documentation_review';
   content: string;
   data?: {
     file_urls?: { name: string, url: string, type?: string }[];
-    // Fix: Added missing fields for meeting data.
     meeting_time?: string;
     participants?: string[];
   } | null;

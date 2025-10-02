@@ -1,17 +1,20 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
+// Fix: Import FaPlus icon to resolve 'Cannot find name' error.
+import { FaArrowLeft, FaCog, FaPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
-import ShareModal from './ShareModal';
 import AddWeekModal from './AddWeekModal';
 import TaskDetailView from './TaskDetailView';
 import ConfirmationModal from './ConfirmationModal';
 import AiReportModal from './AiReportModal';
 import ApprovalShareModal from './ApprovalShareModal';
+import { sendGuestSubTaskNotification } from '../services/supabaseClient';
+
 
 interface AuditViewProps {
   project: Project;
@@ -26,7 +29,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAddWeekModalOpen, setIsAddWeekModalOpen] = useState(false);
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [selectedWeekForReport, setSelectedWeekForReport] = useState<Week | null>(null);
@@ -64,7 +66,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
   }, [fetchWeeks]);
 
   useEffect(() => {
-    if (initialTaskId && weeks.length > 0) {
+    if (initialTaskId && weeks.length > 0 && !selectedTaskForDetail) {
         let taskFound = false;
         for (const week of weeks) {
             for (const date in week.plan) {
@@ -78,7 +80,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             if (taskFound) break;
         }
     }
-  }, [initialTaskId, weeks, project.id]);
+  }, [initialTaskId, weeks, project.id, selectedTaskForDetail]);
   
   useEffect(() => {
     const subscription = supabase.channel(`public:weeks:project_id=eq.${project.id}`)
@@ -108,7 +110,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
     const newPlan = JSON.parse(JSON.stringify(weekToUpdate.plan)); // Deep copy
     let taskFound = false;
 
-    // Helper function to recursively find and update a task
     const findAndUpdate = (tasks: PlanItem[]): boolean => {
         for (let i = 0; i < tasks.length; i++) {
             if (tasks[i].id === updatedTask.id) {
@@ -131,7 +132,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
 
     if (taskFound) {
         handleUpdatePlan(weekId, newPlan);
-        // Optimistically update the detailed view context
         if (selectedTaskForDetail && selectedTaskForDetail.item.id === updatedTask.id) {
             setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
         }
@@ -207,11 +207,10 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
       setIsAiReportModalOpen(true);
   }
 
-  const handleSubTaskAdded = () => {
-    // This is handled in TaskDetailView now.
-    // if (isGuest && newSubTask.type === 'meeting') {
-    //     sendGuestSubTaskNotification(project, parentTask, newSubTask, window.location.origin);
-    // }
+  const handleSubTaskAdded = (parentTask: PlanItem, newSubTask: PlanItem) => {
+    if (isGuest && (newSubTask.type === 'meeting' || newSubTask.type === 'task')) {
+        sendGuestSubTaskNotification(project, parentTask, newSubTask, window.location.origin);
+    }
   };
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
@@ -227,7 +226,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
           {isAuditor && (
              <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 btn-secondary"><FaCog/></button>
           )}
-          <button onClick={() => setIsShareModalOpen(true)} className="p-2 btn-secondary"><FaShareAlt/></button>
         </div>
       </div>
       
@@ -239,29 +237,27 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-grow space-y-6">
-          {weeks.map(week => (
-             <WeekCard 
-                key={week.id} 
-                week={week} 
-                isAuditor={isAuditor}
-                isGuest={isGuest}
-                onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}
-                onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})}
-                onDeleteRequest={() => setWeekToDelete(week)}
-                onUpdateRequest={() => fetchWeeks(false)}
-                onGenerateReport={() => handleOpenReport(week)}
-                onSentForApproval={setWeekToShareForApproval}
-            />
-          ))}
-          {weeks.length === 0 && (
-             <div className="text-center py-16 bg-white rounded-lg shadow-md">
-                <h3 className="text-xl font-semibold text-gray-700">Этапы аудита еще не созданы</h3>
-                {isAuditor && <p className="text-gray-500 mt-2">Добавьте первый этап, чтобы начать планирование.</p>}
-             </div>
-          )}
-        </div>
+      <div className="space-y-6">
+        {weeks.map(week => (
+            <WeekCard 
+            key={week.id} 
+            week={week} 
+            isAuditor={isAuditor}
+            isGuest={isGuest}
+            onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)}
+            onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})}
+            onDeleteRequest={() => setWeekToDelete(week)}
+            onUpdateRequest={() => fetchWeeks(false)}
+            onGenerateReport={() => handleOpenReport(week)}
+            onSentForApproval={setWeekToShareForApproval}
+        />
+        ))}
+        {weeks.length === 0 && (
+            <div className="text-center py-16 bg-white rounded-lg shadow-md">
+            <h3 className="text-xl font-semibold text-gray-700">Этапы аудита еще не созданы</h3>
+            {isAuditor && <p className="text-gray-500 mt-2">Добавьте первый этап, чтобы начать планирование.</p>}
+            </div>
+        )}
       </div>
 
       {isAuditor && (
@@ -272,12 +268,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
             onProjectUpdate={onBack} 
           />
       )}
-      
-      <ShareModal 
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        project={project}
-      />
       
       {isAuditor && (
           <AddWeekModal
