@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { Week, PlanItem, PlanItemType } from '../types';
+import { Week, PlanItem, Plan, PlanItemType, Profile } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
+import * as googleApiService from '../services/googleApiService';
 
 interface AddPlanItemModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface AddPlanItemModalProps {
   onUpdatePlan: (plan: any) => void;
   week: Week;
   date: string;
+  profile: Profile | null;
+  providerToken: string | null;
 }
 
 const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] = [
@@ -20,7 +23,7 @@ const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] 
     { type: 'observation', name: 'Наблюдение', icon: <FaBinoculars size={24} className="mb-2 text-orange-600" /> },
 ];
 
-const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, onUpdatePlan, week, date }) => {
+const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, onUpdatePlan, week, date, profile, providerToken }) => {
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [itemType, setItemType] = useState<PlanItemType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,41 +68,63 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
       setLoading(false);
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (title.trim() && itemType) {
-      const newItem: PlanItem = {
-        id: crypto.randomUUID(),
-        title: title.trim(),
-        completed: false,
-        type: itemType,
-        event_count: 0,
-        data: {}
-      };
+    if (!title.trim() || !itemType) return;
 
-      if (itemType === 'meeting') {
-        newItem.data = {
-            time: meetingTime,
-            location: meetingLocation,
-            agenda: meetingAgenda,
-            participants: meetingParticipants.split('\n').filter(p => p.trim() !== ''),
-        };
-      } else if (itemType === 'interview') {
-        newItem.data = {
-            interviewee: interviewee,
-            time: interviewTime,
-        };
-      }
-      
-      const newPlan = { ...week.plan };
-      if (!newPlan[date]) {
-          newPlan[date] = { tasks: [] };
-      }
-      newPlan[date].tasks.push(newItem);
-      
-      onUpdatePlan(newPlan);
-      handleClose();
+    setLoading(true);
+
+    const newItem: PlanItem = {
+      id: crypto.randomUUID(),
+      title: title.trim(),
+      completed: false,
+      type: itemType,
+      event_count: 0,
+      data: {}
+    };
+
+    const participantsList = meetingParticipants.split('\n').filter(p => p.trim() !== '');
+
+    if (itemType === 'meeting') {
+      newItem.data = {
+          time: meetingTime,
+          location: meetingLocation,
+          agenda: meetingAgenda,
+          participants: participantsList,
+      };
+    } else if (itemType === 'interview') {
+      newItem.data = {
+          interviewee: interviewee,
+          time: interviewTime,
+      };
     }
+
+    if (itemType === 'meeting' && providerToken && profile?.google_calendar_id && meetingTime) {
+        try {
+            const eventDetails = {
+                summary: newItem.title,
+                description: `Повестка: ${meetingAgenda}\nУчастники: ${meetingParticipants}`,
+                start: { dateTime: new Date(`${date}T${meetingTime}`).toISOString(), timeZone: 'Europe/Moscow' },
+                end: { dateTime: new Date(new Date(`${date}T${meetingTime}`).getTime() + 60 * 60 * 1000).toISOString(), timeZone: 'Europe/Moscow' }, // Assuming 1 hour meetings
+                attendees: participantsList.map(email => ({email}))
+            };
+            const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
+            newItem.data!.google_calendar_event_id = calEvent.id;
+        } catch (error) {
+            console.error("Failed to create calendar event:", error);
+            alert("Задача создана, но не удалось добавить событие в Google Календарь. Проверьте ID календаря в профиле и права доступа.");
+        }
+    }
+    
+    const newPlan = { ...week.plan };
+    if (!newPlan[date]) {
+        newPlan[date] = { tasks: [] };
+    }
+    newPlan[date].tasks.push(newItem);
+    
+    onUpdatePlan(newPlan);
+    setLoading(false);
+    handleClose();
   };
 
   const renderForm = () => {
@@ -114,9 +139,9 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
             </h3>
             
             <div>
-                <label htmlFor="itemTitle" className="block text-sm font-medium text-gray-700">{itemType === 'meeting' ? 'Тема встречи' : 'Название / Цель'}</label>
+                <label htmlFor="itemContent" className="block text-sm font-medium text-gray-700">{itemType === 'meeting' ? 'Тема встречи' : 'Цель / Описание'}</label>
                 <textarea
-                  id="itemTitle"
+                  id="itemContent"
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
                   rows={2}
                   value={title}
@@ -135,7 +160,7 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                          <label htmlFor="meetingTime" className="block text-sm font-medium text-gray-700">Время</label>
-                         <input id="meetingTime" type="time" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="w-full mt-1 input" />
+                         <input id="meetingTime" type="time" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="w-full mt-1 input" required />
                     </div>
                      <div>
                          <label htmlFor="meetingLocation" className="block text-sm font-medium text-gray-700">Место</label>
@@ -143,7 +168,7 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
                     </div>
                 </div>
                  <div>
-                  <label htmlFor="meetingParticipants" className="block text-sm font-medium text-gray-700">Участники (каждый с новой строки)</label>
+                  <label htmlFor="meetingParticipants" className="block text-sm font-medium text-gray-700">Участники (email, каждый с новой строки)</label>
                   <textarea id="meetingParticipants" value={meetingParticipants} onChange={e => setMeetingParticipants(e.target.value)} className="w-full mt-1 input" rows={3} />
                 </div>
               </>

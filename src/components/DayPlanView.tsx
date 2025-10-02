@@ -1,13 +1,13 @@
-
-
 import React, { useState } from 'react';
-import { Week, Plan, PlanItem, Project } from '../types';
+import { Week, Plan, PlanItem, Project, Profile } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
 import PlanItemCard from './PlanItemCard';
 import ConfirmationModal from './ConfirmationModal';
 import EditPlanItemModal from './EditPlanItemModal';
+import * as googleApiService from '../services/googleApiService';
+
 
 interface DayPlanViewProps {
     week: Week;
@@ -16,13 +16,14 @@ interface DayPlanViewProps {
     isAuditor: boolean;
     onUpdateTask: (updatedTask: PlanItem) => void;
     project: Project;
+    profile: Profile | null;
     providerToken: string | null;
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, project, profile, providerToken }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
-    const [itemToEdit, setItemToEdit] = useState<PlanItem | null>(null);
+    const [itemToEdit, setItemToEdit] = useState<{ date: string, item: PlanItem } | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ date: string; item: PlanItem } | null>(null);
     
     const canEditPlan = isAuditor && week.status === 'draft';
@@ -42,9 +43,19 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
         }
     }
     
-    const handleDeleteItem = () => {
+    const handleDeleteItem = async () => {
         if (!itemToDelete) return;
         const { date, item } = itemToDelete;
+
+        if (item.type === 'meeting' && item.data?.google_calendar_event_id && providerToken && profile?.google_calendar_id) {
+            try {
+                await googleApiService.deleteCalendarEvent(providerToken, profile.google_calendar_id, item.data.google_calendar_event_id);
+            } catch (error) {
+                console.error("Failed to delete calendar event:", error);
+                alert("Задача удалена, но не удалось удалить событие из Google Календаря.");
+            }
+        }
+
         const newPlan = { ...week.plan };
         newPlan[date].tasks = newPlan[date].tasks.filter(t => t.id !== item.id);
         onUpdatePlan(newPlan);
@@ -77,7 +88,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                     key={item.id} 
                                     item={item} 
                                     onSelect={() => onTaskSelect(item)}
-                                    onEdit={canEditPlan ? () => setItemToEdit(item) : undefined}
+                                    onEdit={canEditPlan ? () => setItemToEdit({ date, item }) : undefined}
                                     onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined}
                                 />
                             ))}
@@ -97,14 +108,19 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                     onUpdatePlan={onUpdatePlan}
                     week={week}
                     date={selectedDate}
+                    profile={profile}
+                    providerToken={providerToken}
                 />
             )}
             {itemToEdit && (
                 <EditPlanItemModal 
                     isOpen={!!itemToEdit}
                     onClose={() => setItemToEdit(null)}
-                    item={itemToEdit}
+                    item={itemToEdit.item}
+                    date={itemToEdit.date}
                     onUpdateItem={onUpdateTask}
+                    profile={profile}
+                    providerToken={providerToken}
                 />
             )}
              <ConfirmationModal 

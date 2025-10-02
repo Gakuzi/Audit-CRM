@@ -46,6 +46,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
           telegram: profile.telegram,
           telegram_bot_token: profile.telegram_bot_token,
           telegram_chat_id: profile.telegram_chat_id,
+          google_calendar_id: profile.google_calendar_id,
           updated_at: new Date(),
       };
       const { error } = await supabase.from('profiles').upsert(updates);
@@ -86,6 +87,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
               <input id="telegram" name="telegram" type="text" value={profile.telegram || ''} onChange={handleChange} className="w-full mt-1 input" placeholder="@username" />
             </div>
             
+             <div className="pt-4 mt-4 border-t">
+                 <h3 className="text-lg font-semibold text-gray-800">Интеграции</h3>
+                 <div className="mt-2">
+                    <label htmlFor="google_calendar_id" className="block text-sm font-medium text-gray-700">Google Calendar ID</label>
+                    <input id="google_calendar_id" name="google_calendar_id" type="text" value={profile.google_calendar_id || ''} onChange={handleChange} className="w-full mt-1 input" placeholder="primary или your.email@gmail.com" />
+                    <p className="text-xs text-gray-500 mt-1">Используется для синхронизации встреч. Введите 'primary' для основного календаря.</p>
+                 </div>
+            </div>
+
             <div className="pt-4 mt-4 border-t">
                  <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-gray-800">Уведомления в Telegram</h3>

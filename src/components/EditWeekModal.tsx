@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { Week, Plan } from '../types';
+import { Week, Plan, Profile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 // Fix: Use relative path for service import.
@@ -14,9 +14,11 @@ interface EditWeekModalProps {
   onClose: () => void;
   week: Week;
   onUpdate: () => void;
+  profile: Profile | null;
+  providerToken: string | null;
 }
 
-const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, onUpdate }) => {
+const EditWeekModal: React.FC<EditWeekModalProps> = ({ isOpen, onClose, week, onUpdate, profile, providerToken }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
+import { FaGoogle } from 'react-icons/fa';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -53,6 +54,19 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initialMode = 
     }
 
     setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file',
+      },
+    });
+    if (error) {
+      setError('Ошибка входа через Google: ' + error.message);
+    }
   };
   
   const handleClose = () => {
@@ -131,6 +145,21 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initialMode = 
             </button>
           </div>
         </form>
+        <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="flex-shrink mx-4 text-gray-500 text-sm">или</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+        </div>
+         <div>
+            <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+                <FaGoogle className="mr-2" />
+                {mode === 'signIn' ? 'Войти через Google' : 'Регистрация через Google'}
+            </button>
+        </div>
       </div>
     </Modal>
   );

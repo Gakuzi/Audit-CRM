@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { PlanItem, PlanItemType } from '../types';
+import { PlanItem, PlanItemType, Profile } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
+import { Spinner } from './ui/Spinner';
+import * as googleApiService from '../services/googleApiService';
 
 interface EditPlanItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdateItem: (item: PlanItem) => void;
   item: PlanItem;
+  date: string;
+  profile: Profile | null;
+  providerToken: string | null;
 }
 
 const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode } } = {
@@ -19,7 +24,8 @@ const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode
     process_analysis: { name: 'Анализ процесса', icon: <FaSitemap size={24} className="text-teal-600" /> }
 };
 
-const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, onUpdateItem, item }) => {
+const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, onUpdateItem, item, date, profile, providerToken }) => {
+  const [loading, setLoading] = useState(false);
   const [editedItem, setEditedItem] = useState<PlanItem>(item);
 
   useEffect(() => {
@@ -39,12 +45,39 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editedItem.title.trim()) {
-      onUpdateItem(editedItem);
-      onClose();
+    if (!editedItem.title.trim()) return;
+
+    if (editedItem.type === 'meeting' && providerToken && profile?.google_calendar_id && editedItem.data?.time) {
+      setLoading(true);
+      try {
+          const participantsList = editedItem.data.participants || [];
+          const eventDetails = {
+              summary: editedItem.title,
+              description: `Повестка: ${editedItem.data.agenda || ''}\nУчастники: ${(editedItem.data.participants || []).join(', ')}`,
+              start: { dateTime: new Date(`${date}T${editedItem.data.time}`).toISOString(), timeZone: 'Europe/Moscow' },
+              end: { dateTime: new Date(new Date(`${date}T${editedItem.data.time}`).getTime() + 60 * 60 * 1000).toISOString(), timeZone: 'Europe/Moscow' }, // Assuming 1 hour
+              attendees: participantsList.map(email => ({email}))
+          };
+
+          if (editedItem.data.google_calendar_event_id) {
+              await googleApiService.updateCalendarEvent(providerToken, profile.google_calendar_id, editedItem.data.google_calendar_event_id, eventDetails);
+          } else {
+              const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
+              handleDataChange('google_calendar_event_id', calEvent.id);
+              setEditedItem(prev => ({ ...prev, data: { ...(prev.data || {}), google_calendar_event_id: calEvent.id } }));
+          }
+      } catch (error) {
+          console.error("Failed to sync calendar event:", error);
+          alert("Не удалось синхронизировать событие с Google Календарем.");
+      } finally {
+          setLoading(false);
+      }
     }
+    
+    onUpdateItem(editedItem);
+    onClose();
   };
 
   const currentType = editedItem ? eventTypes[editedItem.type] : null;
@@ -86,7 +119,7 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
                     </div>
                 </div>
                  <div>
-                  <label htmlFor="meetingParticipantsEdit" className="block text-sm font-medium text-gray-700">Участники (каждый с новой строки)</label>
+                  <label htmlFor="meetingParticipantsEdit" className="block text-sm font-medium text-gray-700">Участники (email, каждый с новой строки)</label>
                   <textarea id="meetingParticipantsEdit" value={editedItem.data?.participants?.join('\n') || ''} onChange={e => handleDataChange('participants', e.target.value.split('\n'))} className="w-full mt-1 input" rows={3} />
                 </div>
               </>
@@ -106,8 +139,8 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
 
             <div className="pt-2 flex justify-end items-center gap-2">
                 <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
-                <button type="submit" className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
-                   Сохранить
+                <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
+                   {loading ? <Spinner size="sm" /> : 'Сохранить'}
                </button>
            </div>
         </form>
