@@ -148,7 +148,8 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
                 week={week} 
                 isAuditor={isAuditor} 
                 isGuest={isGuest} 
-                project={project} 
+                project={project}
+                profile={profile}
                 providerToken={providerToken} 
                 onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)} 
                 onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id, projectId: project.id})} 

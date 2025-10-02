@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { Week, PlanItem, Plan, PlanItemType, Profile } from '../types';
+import { Week, PlanItem, PlanItemType, Profile } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import * as googleApiService from '../services/googleApiService';

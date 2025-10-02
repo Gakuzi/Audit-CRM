@@ -257,8 +257,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                 onClose={() => setIsEditModalOpen(false)}
                 week={week}
                 onUpdate={onUpdateRequest}
-                profile={profile}
-                providerToken={providerToken}
             />
             <AddDayModal
                 isOpen={isAddDayModalOpen}

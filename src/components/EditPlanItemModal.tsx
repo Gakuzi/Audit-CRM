@@ -48,25 +48,26 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editedItem.title.trim()) return;
+    
+    let finalItem = { ...editedItem };
 
-    if (editedItem.type === 'meeting' && providerToken && profile?.google_calendar_id && editedItem.data?.time) {
+    if (finalItem.type === 'meeting' && providerToken && profile?.google_calendar_id && finalItem.data?.time) {
       setLoading(true);
       try {
-          const participantsList = editedItem.data.participants || [];
+          const participantsList = finalItem.data.participants || [];
           const eventDetails = {
-              summary: editedItem.title,
-              description: `Повестка: ${editedItem.data.agenda || ''}\nУчастники: ${(editedItem.data.participants || []).join(', ')}`,
-              start: { dateTime: new Date(`${date}T${editedItem.data.time}`).toISOString(), timeZone: 'Europe/Moscow' },
-              end: { dateTime: new Date(new Date(`${date}T${editedItem.data.time}`).getTime() + 60 * 60 * 1000).toISOString(), timeZone: 'Europe/Moscow' }, // Assuming 1 hour
+              summary: finalItem.title,
+              description: `Повестка: ${finalItem.data.agenda || ''}\nУчастники: ${(finalItem.data.participants || []).join(', ')}`,
+              start: { dateTime: new Date(`${date}T${finalItem.data.time}`).toISOString(), timeZone: 'Europe/Moscow' },
+              end: { dateTime: new Date(new Date(`${date}T${finalItem.data.time}`).getTime() + 60 * 60 * 1000).toISOString(), timeZone: 'Europe/Moscow' }, // Assuming 1 hour
               attendees: participantsList.map(email => ({email}))
           };
 
-          if (editedItem.data.google_calendar_event_id) {
-              await googleApiService.updateCalendarEvent(providerToken, profile.google_calendar_id, editedItem.data.google_calendar_event_id, eventDetails);
+          if (finalItem.data.google_calendar_event_id) {
+              await googleApiService.updateCalendarEvent(providerToken, profile.google_calendar_id, finalItem.data.google_calendar_event_id, eventDetails);
           } else {
               const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
-              handleDataChange('google_calendar_event_id', calEvent.id);
-              setEditedItem(prev => ({ ...prev, data: { ...(prev.data || {}), google_calendar_event_id: calEvent.id } }));
+              finalItem = { ...finalItem, data: { ...finalItem.data, google_calendar_event_id: calEvent.id } };
           }
       } catch (error) {
           console.error("Failed to sync calendar event:", error);
@@ -76,7 +77,7 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
       }
     }
     
-    onUpdateItem(editedItem);
+    onUpdateItem(finalItem);
     onClose();
   };
 

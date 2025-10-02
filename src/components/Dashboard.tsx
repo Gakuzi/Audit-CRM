@@ -81,7 +81,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
         return (
             <div className="text-center py-16 px-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto">
                 <FaUserLock className="mx-auto text-5xl text-blue-400 mb-4" />
-                <h3 className="text-2xl font-bold text-gray-800">Добро пожаловать в AuditFlow</h3>
+                <h3 className="text-2xl font-bold text-gray-800">Добро пожаловать в АУДИТ & ПРОЕКТ</h3>
                 <p className="text-gray-600 mt-2">Это защищенная система для совместной работы над аудиторскими проектами.</p>
                 <p className="text-gray-600 mt-2">Для доступа к вашему проекту, пожалуйста, запросите персональную ссылку у вашего аудитора.</p>
                 <div className="mt-6">
