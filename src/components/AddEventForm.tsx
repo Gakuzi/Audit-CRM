@@ -1,4 +1,3 @@
-
 // src/components/AddEventForm.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
@@ -21,6 +20,8 @@ interface AddEventFormProps {
   onAddSubTaskRequest: () => void;
   project: Project;
   isGuest: boolean;
+  // Fix: Add isAuditor to props to resolve 'Cannot find name' error.
+  isAuditor: boolean;
 }
 
 const sanitizeFileName = (fileName: string) => {
@@ -34,7 +35,7 @@ const sanitizeFileName = (fileName: string) => {
     return cleanedName + extension;
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, onAddSubTaskRequest, isGuest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, onAddSubTaskRequest, isGuest, isAuditor }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -68,7 +69,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         const files = event.target.files;
         if (!files) return;
 
-        for (const file of Array.from(files)) {
+        // Fix: Cast the iterable to File[] to correctly access properties like 'size' and 'name'.
+        for (const file of Array.from(files) as File[]) {
             if (file.size > FILE_SIZE_LIMIT) {
                 if (providerToken) {
                     setFileToDrive(file); // Trigger Drive upload modal for large files

@@ -1,4 +1,3 @@
-
 // src/components/TaskDetailView.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
@@ -21,12 +20,13 @@ interface TaskDetailViewProps {
   context: { item: PlanItem; weekId: string; projectId: string; };
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
   onUpdateTask: (weekId: string, updatedTask: PlanItem) => void;
+  isAuditor: boolean;
   isGuest: boolean;
   project: Project;
   onSubTaskAdded: (parentTask: PlanItem, newSubTask: PlanItem) => void;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, providerToken, context, onEventCountChange, onUpdateTask, isGuest, project, onSubTaskAdded }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, providerToken, context, onEventCountChange, onUpdateTask, isAuditor, isGuest, project, onSubTaskAdded }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddSubTaskModalOpen, setIsAddSubTaskModalOpen] = useState(false);
@@ -151,13 +151,13 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     onToggleDescription={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
                 />
                 
-                <div className="flex-1 flex flex-col bg-white">
+                <div className="flex-1 flex flex-col bg-white overflow-hidden">
                     <header className="flex justify-between items-center p-4 border-b">
                         <h2 className="text-xl font-bold text-gray-800">Обсуждение задачи</h2>
                         <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100"><FaTimes size={20} /></button>
                     </header>
 
-                    <main ref={mainRef} className="flex-1 overflow-y-auto p-4">
+                    <main ref={mainRef} className="flex-1 overflow-y-auto p-4 min-h-0">
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : 
                             events.length > 0 ? (
                                 <div className="divide-y divide-gray-200">
@@ -196,6 +196,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             onAddSubTaskRequest={() => setIsAddSubTaskModalOpen(true)}
                             project={project}
                             isGuest={isGuest}
+                            isAuditor={isAuditor}
                         />
                     </footer>
                 </div>

@@ -172,7 +172,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
       {isAuditor && <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} project={project} onProjectUpdate={onBack} />}
       {isAuditor && <AddWeekModal isOpen={isAddWeekModalOpen} onClose={() => setIsAddWeekModalOpen(false)} onAddWeek={handleAddWeek} />}
       
-       <TaskDetailView isOpen={!!selectedTaskForDetail} onClose={() => setSelectedTaskForDetail(null)} user={user} providerToken={providerToken} context={selectedTaskForDetail!} onEventCountChange={handleEventCountChange} onUpdateTask={handleUpdateTask} isGuest={isGuest} project={project} onSubTaskAdded={(parent, sub) => sendGuestSubTaskNotification(project, parent, sub, window.location.origin)} />
+       <TaskDetailView isOpen={!!selectedTaskForDetail} onClose={() => setSelectedTaskForDetail(null)} user={user} providerToken={providerToken} context={selectedTaskForDetail!} onEventCountChange={handleEventCountChange} onUpdateTask={handleUpdateTask} isAuditor={isAuditor} isGuest={isGuest} project={project} onSubTaskAdded={(parent, sub) => sendGuestSubTaskNotification(project, parent, sub, window.location.origin)} />
        <ConfirmationModal isOpen={!!weekToDelete} onClose={() => setWeekToDelete(null)} onConfirm={handleDeleteWeek} title="Удалить этап?" message={`Вы уверены, что хотите удалить этап "${weekToDelete?.title}"?`} />
 
        {selectedWeekForReport && isAuditor && <AiReportModal isOpen={isAiReportModalOpen} onClose={() => setSelectedWeekForReport(null)} week={selectedWeekForReport} project={project} auditor={profile} company={companyForReport} providerToken={providerToken} onUpdate={() => fetchWeeks(false)} />}
