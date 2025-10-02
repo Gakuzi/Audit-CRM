@@ -3,8 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event, Project } from '../types';
-import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaLink, FaCamera, FaTasks, FaGoogleDrive } from 'react-icons/fa';
+import { Event, Project, PlanItem } from '../types';
+import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaLink, FaCamera, FaTasks, FaGoogleDrive, FaPlus, FaPaperPlane } from 'react-icons/fa';
 import AudioRecorderModal from './AudioRecorderModal';
 import AttachLinkModal from './AttachLinkModal';
 import UploadToDriveModal from './UploadToDriveModal';
@@ -20,7 +20,6 @@ interface AddEventFormProps {
   onAddSubTaskRequest: () => void;
   project: Project;
   isGuest: boolean;
-  // Fix: Add isAuditor to props to resolve 'Cannot find name' error.
   isAuditor: boolean;
 }
 
@@ -43,14 +42,39 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
     const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
     const [fileToDrive, setFileToDrive] = useState<File | null>(null);
+    const [isActionsOpen, setIsActionsOpen] = useState(false);
+    const actionsRef = useRef<HTMLDivElement>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
+    
+    const autoGrow = (element: HTMLTextAreaElement | null) => {
+        if (element) {
+            element.style.height = 'auto';
+            element.style.height = `${element.scrollHeight}px`;
+        }
+    };
+    
+    useEffect(() => {
+        autoGrow(textareaRef.current);
+    }, [content]);
 
     useEffect(() => {
-        if(quotedEvent) textareaRef.current?.focus();
+        if (quotedEvent) textareaRef.current?.focus();
     }, [quotedEvent]);
+    
+     useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+                setIsActionsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const uploadFiles = async (files: File[]) => {
         if (!files || files.length === 0) return [];
@@ -69,11 +93,10 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         const files = event.target.files;
         if (!files) return;
 
-        // Fix: Cast the iterable to File[] to correctly access properties like 'size' and 'name'.
         for (const file of Array.from(files) as File[]) {
             if (file.size > FILE_SIZE_LIMIT) {
                 if (providerToken) {
-                    setFileToDrive(file); // Trigger Drive upload modal for large files
+                    setFileToDrive(file); 
                 } else {
                     alert(`Файл "${file.name}" слишком большой (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимальный размер: ${FILE_SIZE_LIMIT / 1024 / 1024}MB. Войдите через Google, чтобы загружать большие файлы.`);
                 }
@@ -81,7 +104,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                 setFilesToAttach(prev => [...prev, file]);
             }
         }
-        event.target.value = ''; // Reset input
+        event.target.value = '';
     };
     
     const handleAttachLink = (url: string) => {
@@ -124,42 +147,66 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
     };
 
     return (
-        <div className="bg-white p-3 rounded-lg border">
+        <div className="bg-white rounded-lg border">
             <input type="file" multiple ref={fileInputRef} onChange={handleFilesSelected} className="hidden" />
             <input type="file" accept="image/*" capture="environment" ref={imageInputRef} onChange={handleFilesSelected} className="hidden" />
             <input type="file" accept="video/*" capture="environment" ref={videoInputRef} onChange={handleFilesSelected} className="hidden" />
-            {quotedEvent && (
-                <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative">
-                    <p className="font-semibold text-gray-700">Ответ на: {quotedEvent.author_email}</p>
-                    <p className="text-gray-600 truncate">{quotedEvent.content}</p>
-                    <button onClick={onClearQuote} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"><FaTimes size={12}/></button>
-                </div>
-            )}
-            <form onSubmit={handleSubmit}>
-                <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} className="w-full p-2 border-0 focus:ring-0 resize-none" rows={3} placeholder="Напишите комментарий..." disabled={loading}/>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    {filesToAttach.map((file, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 text-sm">
-                            <span className="max-w-xs truncate">{file.name}</span>
-                            <button type="button" onClick={() => handleRemoveFile(index)} className="text-gray-500 hover:text-gray-800"><FaTimes size={12} /></button>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-2 pt-2 border-t flex justify-between items-center">
-                    <div className="flex items-center space-x-1">
-                        <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Прикрепить файл"><FaPaperclip/></button>
-                        <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Сделать фото"><FaCamera/></button>
-                        <button type="button" onClick={() => videoInputRef.current?.click()} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Записать видео"><FaVideo/></button>
-                        <button type="button" onClick={() => setIsAudioModalOpen(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Записать аудио"><FaMicrophone/></button>
-                        <button type="button" onClick={() => setIsLinkModalOpen(true)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Прикрепить ссылку"><FaLink/></button>
-                        {(isGuest || isAuditor) && <button type="button" onClick={onAddSubTaskRequest} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Добавить подзадачу"><FaTasks/></button>}
-                        {providerToken && <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100" title="Загрузить большой файл на Google Drive"><FaGoogleDrive/></button>}
+
+            <form onSubmit={handleSubmit} className="p-2">
+                 {quotedEvent && (
+                    <div className="mb-2 bg-gray-100 rounded-md text-sm relative border-l-4 border-blue-400 p-2">
+                        <p className="font-semibold text-gray-700">Ответ на: {quotedEvent.author_email}</p>
+                        <p className="text-gray-600 truncate">{quotedEvent.content}</p>
+                        <button onClick={onClearQuote} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"><FaTimes size={12}/></button>
                     </div>
-                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
-                        {loading ? <Spinner size="sm" /> : 'Отправить'}
+                )}
+                {filesToAttach.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2 border-b pb-2">
+                        {filesToAttach.map((file, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 text-sm">
+                                <span className="max-w-xs truncate">{file.name}</span>
+                                <button type="button" onClick={() => handleRemoveFile(index)} className="text-gray-500 hover:text-gray-800"><FaTimes size={12} /></button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                <div className="flex items-end gap-2">
+                    <div className="relative" ref={actionsRef}>
+                        <button type="button" onClick={() => setIsActionsOpen(prev => !prev)} className="p-3 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors" title="Прикрепить">
+                            <FaPlus />
+                        </button>
+                        {isActionsOpen && (
+                            <div className="absolute bottom-full mb-2 w-max bg-white border rounded-lg shadow-lg p-1 flex flex-col items-start gap-1 z-10">
+                                <button type="button" onClick={() => { fileInputRef.current?.click(); setIsActionsOpen(false); }} className="action-button"><FaPaperclip className="mr-2 text-gray-500"/>Файл</button>
+                                <button type="button" onClick={() => { imageInputRef.current?.click(); setIsActionsOpen(false); }} className="action-button"><FaCamera className="mr-2 text-gray-500"/>Фото</button>
+                                <button type="button" onClick={() => { videoInputRef.current?.click(); setIsActionsOpen(false); }} className="action-button"><FaVideo className="mr-2 text-orange-500"/>Видео</button>
+                                <button type="button" onClick={() => { setIsAudioModalOpen(true); setIsActionsOpen(false); }} className="action-button"><FaMicrophone className="mr-2 text-red-500"/>Аудио</button>
+                                <button type="button" onClick={() => { setIsLinkModalOpen(true); setIsActionsOpen(false); }} className="action-button"><FaLink className="mr-2 text-blue-500"/>Ссылка</button>
+                                {(isGuest || isAuditor) && <button type="button" onClick={() => { onAddSubTaskRequest(); setIsActionsOpen(false); }} className="action-button"><FaTasks className="mr-2 text-green-500"/>Подзадача</button>}
+                                {providerToken && <button type="button" onClick={() => { fileInputRef.current?.click(); setIsActionsOpen(false); }} className="action-button"><FaGoogleDrive className="mr-2 text-yellow-500"/>Большой файл</button>}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex-grow bg-gray-100 rounded-lg flex items-end">
+                        <textarea
+                            ref={textareaRef}
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
+                            className="w-full bg-transparent py-2 px-3 border-0 focus:ring-0 resize-none textarea-autogrow"
+                            rows={1}
+                            placeholder="Напишите комментарий..."
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="p-3 btn-primary flex justify-center items-center rounded-lg disabled:bg-blue-300" title="Отправить">
+                        {loading ? <Spinner size="sm" /> : <FaPaperPlane />}
                     </button>
                 </div>
             </form>
+
             <AudioRecorderModal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} onSave={(files) => setFilesToAttach(prev => [...prev, ...files])} />
             <AttachLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} onAttach={handleAttachLink} />
             {fileToDrive && providerToken && <UploadToDriveModal isOpen={!!fileToDrive} onClose={() => setFileToDrive(null)} file={fileToDrive} providerToken={providerToken} onUploadComplete={(link) => handleAttachLink(link.url)} />}

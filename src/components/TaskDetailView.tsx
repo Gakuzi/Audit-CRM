@@ -185,7 +185,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         }
                     </main>
 
-                    <footer className="p-4 bg-gray-50 border-t">
+                    <footer className="p-2 bg-gray-50 border-t">
                         <AddEventForm 
                             user={user} 
                             providerToken={providerToken}
