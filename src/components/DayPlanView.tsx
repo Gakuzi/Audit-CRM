@@ -1,5 +1,7 @@
+
+
 import React, { useState } from 'react';
-import { Week, Plan, PlanItem } from '../types';
+import { Week, Plan, PlanItem, Project } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
@@ -13,6 +15,8 @@ interface DayPlanViewProps {
     onTaskSelect: (item: PlanItem) => void;
     isAuditor: boolean;
     onUpdateTask: (updatedTask: PlanItem) => void;
+    project: Project;
+    providerToken: string | null;
 }
 
 const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask }) => {
@@ -68,7 +72,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                             )}
                         </div>
                         <div className="space-y-2">
-                            {dayPlan.tasks.map(item => (
+                            {(dayPlan.tasks || []).map(item => (
                                 <PlanItemCard 
                                     key={item.id} 
                                     item={item} 

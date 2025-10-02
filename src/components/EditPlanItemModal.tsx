@@ -21,7 +21,6 @@ const eventTypes: { [key in PlanItemType]: { name: string, icon: React.ReactNode
 };
 
 const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, onUpdateItem, item }) => {
-  const [loading, setLoading] = useState(false);
   const [editedItem, setEditedItem] = useState<PlanItem>(item);
 
   useEffect(() => {
@@ -49,7 +48,7 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
     }
   };
 
-  const currentType = eventTypes[editedItem.type];
+  const currentType = editedItem ? eventTypes[editedItem.type] : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Редактировать: ${currentType?.name || 'Задача'}`}>
@@ -108,8 +107,8 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
 
             <div className="pt-2 flex justify-end items-center gap-2">
                 <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
-                <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
-                   {loading ? <Spinner size="sm" /> : 'Сохранить'}
+                <button type="submit" className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
+                   Сохранить
                </button>
            </div>
         </form>

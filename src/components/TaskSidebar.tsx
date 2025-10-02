@@ -19,7 +19,7 @@ interface TaskSidebarProps {
   onToggleDescription: () => void;
 }
 
-const TaskSidebar: React.FC<TaskSidebarProps> = ({ task, events, project, isAuditor, isGuest, onAddSubTask, onNewAiEvent, isDescriptionExpanded, onToggleDescription }) => {
+const TaskSidebar: React.FC<TaskSidebarProps> = ({ task, events, isAuditor, isGuest, onAddSubTask, onNewAiEvent, isDescriptionExpanded, onToggleDescription }) => {
   
   const descriptionNeedsTruncation = (task.description?.length || 0) > 200;
 

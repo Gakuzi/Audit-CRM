@@ -8,28 +8,27 @@ import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
 import { FaTimes } from 'react-icons/fa';
+import AddMeetingModal from './AddMeetingModal';
 
 interface CommentPanelProps {
   user: User | null;
-  // Fix: Add project and task to props interface
   project: Project;
   task: PlanItem;
-  // Fix: Let context be more specific
   context: { weekId: string; taskId: string; };
   onClose: () => void;
-  // Fix: Add props for event count changes and new events
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
   onNewEvent: (event: Event) => void;
+  providerToken: string | null;
 }
 
-const CommentPanel: React.FC<CommentPanelProps> = ({ user, project, task, context, onClose, onNewEvent }) => {
+const CommentPanel: React.FC<CommentPanelProps> = ({ user, project, task, context, onClose, onNewEvent, providerToken }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
     const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
-
-    const fetchEventsAndProject = useCallback(async () => {
+    const fetchEvents = useCallback(async () => {
         setLoading(true);
         const { data, error } = await supabase
             .from('events')
@@ -47,16 +46,16 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, project, task, contex
     }, [context.taskId]);
 
     useEffect(() => {
-        fetchEventsAndProject();
+        fetchEvents();
 
         const subscription = supabase.channel(`public:events:task_id=eq.${context.taskId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.taskId}` }, fetchEventsAndProject)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.taskId}` }, fetchEvents)
             .subscribe();
 
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [context.taskId, fetchEventsAndProject]);
+    }, [context.taskId, fetchEvents]);
 
     const handleQuoteClick = (eventId: string) => {
         const element = document.getElementById(`event-${eventId}`);
@@ -86,7 +85,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, project, task, contex
                                     key={event.id} 
                                     event={event} 
                                     onReply={setQuotedEvent} 
-                                    onQuoteClick={handleQuoteClick} 
+                                    onQuoteClick={handleQuoteClick}
                                     isExpanded={event.id === expandedEventId}
                                     onToggleExpand={() => setExpandedEventId(prev => prev === event.id ? null : event.id)}
                                 />
@@ -102,15 +101,28 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, project, task, contex
                  {(user || isGuest) && (
                     <AddEventForm 
                         user={user} 
+                        providerToken={providerToken}
                         context={{...context, projectId: project.id}} 
                         quotedEvent={quotedEvent} 
                         onClearQuote={() => setQuotedEvent(null)} 
                         onNewEvent={onNewEvent}
                         project={project}
                         isGuest={isGuest}
+                        onAddSubTaskRequest={() => { /* Dummy function */ }}
                     />
                  )}
             </div>
+
+            {(user || isGuest) && project && task && (
+                <AddMeetingModal
+                    isOpen={isMeetingModalOpen}
+                    onClose={() => setIsMeetingModalOpen(false)}
+                    context={{...context, projectId: project.id}}
+                    user={user}
+                    project={project}
+                    task={task}
+                />
+            )}
         </aside>
     );
 };

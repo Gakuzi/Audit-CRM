@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import Header from './components/Header';
@@ -6,72 +6,113 @@ import Dashboard from './components/Dashboard';
 import AuditView from './components/AuditView';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
-import { Project, CompanyProfile } from './types';
+import { Project, CompanyProfile, Profile, ContactPerson } from './types';
 
 function App() {
-  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [providerToken, setProviderToken] = useState<string | null>(null);
+
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [loginModalInitialMode, setLoginModalInitialMode] = useState<'signIn' | 'signUp'>('signIn');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Guest-related state
+  const [isGuest, setIsGuest] = useState(false);
+  const [identifiedGuest, setIdentifiedGuest] = useState<ContactPerson | null>(null);
+  const [initialTaskId, setInitialTaskId] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async (userToFetch: User | null) => {
+    if (userToFetch) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', userToFetch.id).single();
+      setProfile(data as Profile);
+    } else {
+      setProfile(null);
+    }
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
       setUser(session?.user ?? null);
+      setProviderToken(session?.provider_token || null);
+      fetchProfile(session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
       setUser(session?.user ?? null);
+      setProviderToken(session?.provider_token || null);
+      fetchProfile(session?.user ?? null);
       if (session?.user) {
-        setIsLoginModalOpen(false); // Close login modal on successful login
+        setIsLoginModalOpen(false);
+        setIsGuest(false);
+        localStorage.removeItem('guestToken');
+        localStorage.removeItem('guestName');
+      } else {
+        const guestToken = localStorage.getItem('guestToken');
+        const guestName = localStorage.getItem('guestName');
+        if (guestToken && guestName) {
+            setIsGuest(true);
+        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfile]);
 
-  // Simple hash-based routing
   useEffect(() => {
     const handleHashChange = async () => {
         const hash = window.location.hash.replace('#/', '');
-        if (hash) {
-            const projectPromise = supabase
-                .from('projects')
-                .select('*')
-                .eq('id', hash)
-                .single();
+        const [projectId, searchParams] = hash.split('?');
+        const params = new URLSearchParams(searchParams);
+        const contactId = params.get('contactId');
+        const taskId = params.get('taskId');
+
+        setInitialTaskId(taskId);
+
+        if (projectId) {
+            const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', projectId).single();
+            if (projectError) {
+                console.error('Project not found:', projectError.message);
+                window.location.hash = ''; return;
+            }
+            setSelectedProject(projectData);
+
+            const { data: companyData } = await supabase.from('company_profiles').select('*').eq('project_id', projectId).single();
+            setCompanyProfile(companyData);
             
-            const profilePromise = supabase
-                .from('company_profiles')
-                .select('*')
-                .eq('project_id', hash)
-                .single();
-
-            const [projectResult, profileResult] = await Promise.all([projectPromise, profilePromise]);
-
-            if (projectResult.data) {
-                setSelectedProject(projectResult.data);
-            } else {
-                if (projectResult.error && projectResult.error.code !== 'PGRST116') {
-                    console.error('Project not found error:', projectResult.error.message);
+            if (!user) { // If user is not logged in, they are a guest
+                setIsGuest(true);
+                if (contactId) { // New guest identified by link
+                    const contact = companyData?.contacts.find((c: ContactPerson) => c.id === contactId);
+                    if (contact) {
+                        const guestToken = `${projectId}-${contactId}`;
+                        localStorage.setItem('guestToken', guestToken);
+                        localStorage.setItem('guestName', contact.name);
+                        setIdentifiedGuest(contact);
+                    }
+                } else { // Returning guest, check local storage
+                    const guestToken = localStorage.getItem('guestToken');
+                    const storedProjectId = guestToken?.split('-')[0];
+                    if (guestToken && storedProjectId === projectId) {
+                        const guestName = localStorage.getItem('guestName');
+                        if (guestName) setIdentifiedGuest({ name: guestName } as ContactPerson);
+                    } else {
+                        // Guest is accessing a project they don't have a token for. Clear identity.
+                        setIdentifiedGuest(null);
+                    }
                 }
-                window.location.hash = '';
-            }
-            
-            if (profileResult.data) {
-                setCompanyProfile(profileResult.data);
             } else {
-                setCompanyProfile(null);
+                setIsGuest(false);
+                setIdentifiedGuest(null);
             }
-
         } else {
             setSelectedProject(null);
             setCompanyProfile(null);
+            setIsGuest(false);
+            setIdentifiedGuest(null);
         }
     };
 
@@ -79,12 +120,8 @@ function App() {
     handleHashChange();
 
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [user]);
 
-
-  const handleSelectProject = (project: Project) => {
-    window.location.hash = `/${project.id}`;
-  };
 
   const handleBackToDashboard = () => {
     window.location.hash = '';
@@ -106,23 +143,31 @@ function App() {
   return (
     <div className="bg-gray-100 min-h-screen">
       <Header 
-        user={user} 
+        user={user}
+        profile={profile}
         project={selectedProject}
         companyProfile={companyProfile}
         isAuditor={isAuditor}
+        isGuest={isGuest}
+        identifiedGuest={identifiedGuest}
         onLogin={() => handleLoginRequest('signIn')}
         onProfile={() => setIsProfileModalOpen(true)}
+        onBack={handleBackToDashboard}
       />
       <main className="container mx-auto p-4 md:p-6">
         {selectedProject ? (
           <AuditView 
             project={selectedProject} 
-            user={user} 
+            user={user}
+            profile={profile}
+            providerToken={providerToken}
             onBack={handleBackToDashboard}
             isAuditor={isAuditor}
+            isGuest={isGuest}
+            initialTaskId={initialTaskId}
           />
         ) : (
-          <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={handleLoginRequest} />
+          <Dashboard user={user} onSelectProject={(p) => window.location.hash = `/${p.id}`} onLoginRequest={handleLoginRequest} />
         )}
       </main>
 

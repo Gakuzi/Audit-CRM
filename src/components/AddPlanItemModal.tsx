@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { Week, PlanItem, Plan, PlanItemType } from '../types';
+import { Week, PlanItem, PlanItemType } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 

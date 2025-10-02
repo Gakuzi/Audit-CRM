@@ -1,6 +1,7 @@
 // Stub for googleApiService.ts to resolve module not found errors.
 // A proper implementation would use the Google APIs client library.
 
+// Fix: Add 'content' parameter to match usage and logical function of creating a document.
 export const createGoogleDoc = async (token: string, title: string, content: string): Promise<string> => {
     console.log('googleApiService.createGoogleDoc called (stub implementation)');
     // In a real implementation, you would use the token to call the Google Docs API.
@@ -9,6 +10,7 @@ export const createGoogleDoc = async (token: string, title: string, content: str
         throw new Error("Google authentication token is missing.");
     }
     console.log(`Creating doc with title: ${title}`);
+    console.log(`Doc content length: ${content.length}`);
     return `https://docs.google.com/document/d/mock-doc-id-for-${encodeURIComponent(title)}`;
 }
 

@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Week, Plan, PlanItem, WeekStatus, Project } from '../types';
 import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
-import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaFileAlt, FaPaperPlane } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
 import EditWeekModal from './EditWeekModal';
 import AddDayModal from './AddDayModal';
 import WeekStats from './WeekStats';
-import ConfirmationModal from './ConfirmationModal';
 import WeekHistoryFeed from './WeekHistoryFeed';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -56,7 +55,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
     let reason: string | null = null;
 
     if (newStatus === 'rejected') {
-        const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment);
+        const comment = prompt("Пожалуйста, укажите причину отклонения:", rejectionComment || undefined);
         if (comment === null) return; // User cancelled prompt
         updateData.rejection_comment = comment;
         reason = comment;
@@ -227,6 +226,8 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                 onTaskSelect={onTaskSelect}
                 isAuditor={isAuditor}
                 onUpdateTask={handleUpdateTask}
+                project={project}
+                providerToken={providerToken}
             />
             
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">

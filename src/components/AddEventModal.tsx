@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem, PlanItemType } from '../types';
-import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import AudioRecorder from './AudioRecorder';
-import { FaComment, FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
+
+import { FaComment, FaVideo, FaArrowLeft } from 'react-icons/fa';
 
 interface AddEventModalProps {
     isOpen: boolean;
@@ -18,7 +17,7 @@ interface AddEventModalProps {
     preselectedType?: PlanItemType;
 }
 
-const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, onAddSubTask, parentItem, parentEvent, isGuest, preselectedType }) => {
+const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSubTask, preselectedType }) => {
     const [step, setStep] = useState<'select' | 'form'>(preselectedType ? 'form' : 'select');
     const [eventType, setEventType] = useState<PlanItemType | null>(preselectedType || null);
     const [loading, setLoading] = useState(false);
