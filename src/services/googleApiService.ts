@@ -65,9 +65,31 @@ const uploadFileContent = (location: string, file: File, onProgress: (p: number)
     xhr.send(file);
 };
 
+export const getCalendarList = async (token: string): Promise<{ id: string, summary: string, primary: boolean }[]> => {
+    if (!token) throw new Error("Google authentication token is missing.");
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Google Calendar API error (list): ${(await res.json()).error.message}`);
+    const data = await res.json();
+    return data.items;
+};
+
+export const createCalendar = async (token: string, summary: string): Promise<{ id: string, summary: string }> => {
+    if (!token) throw new Error("Google authentication token is missing.");
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary }),
+    });
+    if (!res.ok) throw new Error(`Google Calendar API error (create calendar): ${(await res.json()).error.message}`);
+    return res.json();
+};
+
 type CalendarEvent = {
     summary: string;
     description: string;
+    location?: string;
     start: { dateTime: string; timeZone: string };
     end: { dateTime: string; timeZone: string };
     attendees?: { email: string }[];
@@ -75,7 +97,7 @@ type CalendarEvent = {
 
 export const createCalendarEvent = async (token: string, calendarId: string, event: CalendarEvent): Promise<{ id: string; htmlLink: string }> => {
     if (!token) throw new Error("Google authentication token is missing.");
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?sendUpdates=all`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(event),
@@ -86,7 +108,7 @@ export const createCalendarEvent = async (token: string, calendarId: string, eve
 
 export const deleteCalendarEvent = async (token: string, calendarId: string, eventId: string): Promise<void> => {
     if (!token) throw new Error("Google authentication token is missing.");
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}?sendUpdates=all`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -97,7 +119,7 @@ export const deleteCalendarEvent = async (token: string, calendarId: string, eve
 
 export const updateCalendarEvent = async (token: string, calendarId: string, eventId: string, event: CalendarEvent): Promise<{ id: string; htmlLink: string }> => {
     if (!token) throw new Error("Google authentication token is missing.");
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}?sendUpdates=all`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(event),

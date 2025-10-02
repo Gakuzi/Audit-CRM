@@ -34,6 +34,7 @@ export interface PlanItem {
   data?: {
     date?: string; // For meetings
     time?: string;
+    endTime?: string;
     location?: string;
     agenda?: string;
     participants?: string[];

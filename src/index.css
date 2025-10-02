@@ -127,3 +127,7 @@ body {
 .label {
     @apply block text-sm font-medium text-gray-700;
 }
+
+.gcal-title-input {
+    @apply w-full text-2xl border-0 border-b-2 border-gray-200 focus:ring-0 focus:border-blue-500 py-2;
+}

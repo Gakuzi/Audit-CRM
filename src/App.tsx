@@ -183,6 +183,7 @@ function App() {
             onClose={() => setIsProfileModalOpen(false)}
             user={user}
             onSignOut={handleSignOut}
+            providerToken={providerToken}
           />
       )}
     </div>

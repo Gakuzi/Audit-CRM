@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { PlanItem, PlanItemType, Profile } from '../types';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap, FaClock, FaMapMarkerAlt, FaUsers as FaUsersIcon, FaAlignLeft } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import * as googleApiService from '../services/googleApiService';
 
@@ -51,15 +51,16 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
     
     let finalItem = { ...editedItem };
 
-    if (finalItem.type === 'meeting' && providerToken && profile?.google_calendar_id && finalItem.data?.time) {
+    if (finalItem.type === 'meeting' && providerToken && profile?.google_calendar_id && finalItem.data?.time && finalItem.data?.endTime) {
       setLoading(true);
       try {
           const participantsList = finalItem.data.participants || [];
           const eventDetails = {
               summary: finalItem.title,
-              description: `Повестка: ${finalItem.data.agenda || ''}\nУчастники: ${(finalItem.data.participants || []).join(', ')}`,
+              description: finalItem.description || '',
+              location: finalItem.data.location || '',
               start: { dateTime: new Date(`${date}T${finalItem.data.time}`).toISOString(), timeZone: 'Europe/Moscow' },
-              end: { dateTime: new Date(new Date(`${date}T${finalItem.data.time}`).getTime() + 60 * 60 * 1000).toISOString(), timeZone: 'Europe/Moscow' }, // Assuming 1 hour
+              end: { dateTime: new Date(`${date}T${finalItem.data.endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
               attendees: participantsList.map(email => ({email}))
           };
 
@@ -83,68 +84,58 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
 
   const currentType = editedItem ? eventTypes[editedItem.type] : null;
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Редактировать: ${currentType?.name || 'Задача'}`}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-3">
-                {currentType?.icon}
-                <span>{currentType?.name}</span>
-            </h3>
-            
-            <div>
-                <label htmlFor="itemTitleEdit" className="block text-sm font-medium text-gray-700">{editedItem.type === 'meeting' ? 'Тема встречи' : 'Название / Цель'}</label>
-                <textarea
-                  id="itemTitleEdit"
-                  className="w-full mt-1 input"
-                  rows={2}
-                  value={editedItem.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  required
-                  autoFocus
-                />
-            </div>
-            {editedItem.type === 'meeting' && (
-              <>
-                <div>
-                  <label htmlFor="meetingAgendaEdit" className="block text-sm font-medium text-gray-700">Повестка</label>
-                  <input id="meetingAgendaEdit" type="text" value={editedItem.data?.agenda || ''} onChange={e => handleDataChange('agenda', e.target.value)} className="w-full mt-1 input" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                         <label htmlFor="meetingTimeEdit" className="block text-sm font-medium text-gray-700">Время</label>
-                         <input id="meetingTimeEdit" type="time" value={editedItem.data?.time || ''} onChange={e => handleDataChange('time', e.target.value)} className="w-full mt-1 input" />
-                    </div>
-                     <div>
-                         <label htmlFor="meetingLocationEdit" className="block text-sm font-medium text-gray-700">Место</label>
-                         <input id="meetingLocationEdit" type="text" value={editedItem.data?.location || ''} onChange={e => handleDataChange('location', e.target.value)} className="w-full mt-1 input" />
-                    </div>
-                </div>
-                 <div>
-                  <label htmlFor="meetingParticipantsEdit" className="block text-sm font-medium text-gray-700">Участники (email, каждый с новой строки)</label>
-                  <textarea id="meetingParticipantsEdit" value={editedItem.data?.participants?.join('\n') || ''} onChange={e => handleDataChange('participants', e.target.value.split('\n'))} className="w-full mt-1 input" rows={3} />
-                </div>
-              </>
-            )}
-             {editedItem.type === 'interview' && (
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                         <label htmlFor="intervieweeEdit" className="block text-sm font-medium text-gray-700">Опрашиваемый</label>
-                         <input id="intervieweeEdit" type="text" value={editedItem.data?.interviewee || ''} onChange={e => handleDataChange('interviewee', e.target.value)} className="w-full mt-1 input" />
-                    </div>
-                     <div>
-                         <label htmlFor="interviewTimeEdit" className="block text-sm font-medium text-gray-700">Время</label>
-                         <input id="interviewTimeEdit" type="time" value={editedItem.data?.time || ''} onChange={e => handleDataChange('time', e.target.value)} className="w-full mt-1 input" />
-                    </div>
-                </div>
-            )}
+  const renderMeetingForm = () => (
+      <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="text" value={editedItem.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="Добавьте название" className="w-full text-xl border-0 border-b-2 border-gray-200 focus:ring-0 focus:border-blue-500 py-2" required autoFocus/>
+          <div className="flex items-center gap-4 text-gray-600">
+              <FaClock size={20} className="flex-shrink-0" />
+              <input type="date" value={date} className="input bg-gray-100" readOnly disabled />
+              <input type="time" value={editedItem.data?.time || ''} onChange={e => handleDataChange('time', e.target.value)} className="input w-32" required />
+              <span>-</span>
+              <input type="time" value={editedItem.data?.endTime || ''} onChange={e => handleDataChange('endTime', e.target.value)} className="input w-32" required />
+          </div>
+          <div className="flex items-center gap-4 text-gray-600">
+              <FaMapMarkerAlt size={20} className="flex-shrink-0" />
+              <input type="text" value={editedItem.data?.location || ''} onChange={e => handleDataChange('location', e.target.value)} className="input w-full" placeholder="Место или ссылка на конференцию"/>
+          </div>
+          <div className="flex items-start gap-4 text-gray-600">
+              <FaUsersIcon size={20} className="flex-shrink-0 mt-2" />
+              <textarea value={editedItem.data?.participants?.join('\n') || ''} onChange={e => handleDataChange('participants', e.target.value.split(/[\n,]+/))} className="input w-full" rows={3} placeholder="Добавьте участников по email..." />
+          </div>
+          <div className="flex items-start gap-4 text-gray-600">
+              <FaAlignLeft size={20} className="flex-shrink-0 mt-2" />
+              <textarea value={editedItem.description || ''} onChange={e => handleChange('description', e.target.value)} className="input w-full" rows={4} placeholder="Добавьте описание или повестку" />
+          </div>
+          <div className="pt-4 flex justify-end gap-2">
+              <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
+              <button type="submit" disabled={loading} className="btn-primary w-32 flex justify-center">{loading ? <Spinner size="sm" /> : 'Сохранить'}</button>
+          </div>
+      </form>
+  );
 
-            <div className="pt-2 flex justify-end items-center gap-2">
-                <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
-                <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
-                   {loading ? <Spinner size="sm" /> : 'Сохранить'}
-               </button>
-           </div>
-        </form>
+  const renderGenericForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+        <h3 className="text-lg font-bold flex items-center gap-3">{currentType?.icon}<span>{currentType?.name}</span></h3>
+        <div>
+            <label className="label">Название / Цель</label>
+            <textarea className="input" rows={2} value={editedItem.title} onChange={(e) => handleChange('title', e.target.value)} required autoFocus/>
+        </div>
+         {editedItem.type === 'interview' && (
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="label">Опрашиваемый</label><input type="text" value={editedItem.data?.interviewee || ''} onChange={e => handleDataChange('interviewee', e.target.value)} className="input" /></div>
+                <div><label className="label">Время</label><input type="time" value={editedItem.data?.time || ''} onChange={e => handleDataChange('time', e.target.value)} className="input" /></div>
+            </div>
+        )}
+        <div className="pt-2 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
+            <button type="submit" disabled={loading} className="w-32 flex justify-center btn-primary">{loading ? <Spinner size="sm" /> : 'Сохранить'}</button>
+        </div>
+    </form>
+  );
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={item.type === 'meeting' ? '' : `Редактировать: ${currentType?.name || 'Задача'}`} size={item.type === 'meeting' ? 'lg' : 'md'}>
+        {item.type === 'meeting' ? renderMeetingForm() : renderGenericForm()}
     </Modal>
   );
 };

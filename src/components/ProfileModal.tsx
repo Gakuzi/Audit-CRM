@@ -5,18 +5,22 @@ import { supabase } from '../services/supabaseClient';
 import { Profile } from '../types';
 import { Spinner } from './ui/Spinner';
 import { FaQuestionCircle } from 'react-icons/fa';
+import * as googleApiService from '../services/googleApiService';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: User;
   onSignOut: () => void;
+  providerToken: string | null;
 }
 
-const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSignOut }) => {
+const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSignOut, providerToken }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [calendars, setCalendars] = useState<{ id: string, summary: string }[]>([]);
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
   
   const getProfile = useCallback(async () => {
       setLoading(true);
@@ -29,11 +33,27 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
       setLoading(false);
   }, [user.id]);
 
+  const fetchCalendars = useCallback(async () => {
+    if (providerToken) {
+        setCalendarsLoading(true);
+        try {
+            const calendarList = await googleApiService.getCalendarList(providerToken);
+            setCalendars(calendarList.map(c => ({ id: c.id, summary: c.summary })));
+        } catch (error) {
+            console.error("Failed to fetch Google Calendars:", error);
+            // Could alert user here if needed
+        } finally {
+            setCalendarsLoading(false);
+        }
+    }
+  }, [providerToken]);
+
   useEffect(() => {
     if (isOpen) {
         getProfile();
+        fetchCalendars();
     }
-  }, [isOpen, getProfile]);
+  }, [isOpen, getProfile, fetchCalendars]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -58,9 +78,25 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
       setLoading(false);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setProfile({...profile, [e.target.name]: e.target.value});
   }
+
+  const handleCreateCalendar = async () => {
+      const calendarName = prompt("Введите название нового календаря:", `Аудит & Проект`);
+      if (calendarName && providerToken) {
+          setLoading(true);
+          try {
+              const newCalendar = await googleApiService.createCalendar(providerToken, calendarName);
+              await fetchCalendars(); // Refresh list
+              setProfile(p => ({ ...p, google_calendar_id: newCalendar.id }));
+          } catch (error: any) {
+              alert("Ошибка создания календаря: " + error.message);
+          } finally {
+              setLoading(false);
+          }
+      }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Настройки профиля">
@@ -90,9 +126,28 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
              <div className="pt-4 mt-4 border-t">
                  <h3 className="text-lg font-semibold text-gray-800">Интеграции</h3>
                  <div className="mt-2">
-                    <label htmlFor="google_calendar_id" className="block text-sm font-medium text-gray-700">Google Calendar ID</label>
-                    <input id="google_calendar_id" name="google_calendar_id" type="text" value={profile.google_calendar_id || ''} onChange={handleChange} className="w-full mt-1 input" placeholder="primary или your.email@gmail.com" />
-                    <p className="text-xs text-gray-500 mt-1">Используется для синхронизации встреч. Введите 'primary' для основного календаря.</p>
+                    <label htmlFor="google_calendar_id" className="block text-sm font-medium text-gray-700">Google Calendar</label>
+                    {providerToken ? (
+                        <div className="flex items-center gap-2 mt-1">
+                            <select
+                                id="google_calendar_id"
+                                name="google_calendar_id"
+                                value={profile.google_calendar_id || ''}
+                                onChange={handleChange}
+                                className="w-full input"
+                                disabled={loading || calendarsLoading}
+                            >
+                                <option value="">{calendarsLoading ? 'Загрузка...' : 'Не выбрано'}</option>
+                                {calendars.map(cal => (
+                                    <option key={cal.id} value={cal.id}>{cal.summary}</option>
+                                ))}
+                            </select>
+                            <button type="button" onClick={handleCreateCalendar} className="btn-secondary" disabled={loading || calendarsLoading}>Создать</button>
+                        </div>
+                    ) : (
+                        <input id="google_calendar_id" name="google_calendar_id" type="text" value={profile.google_calendar_id || ''} onChange={handleChange} className="w-full mt-1 input" placeholder="primary или your.email@gmail.com" />
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Выберите календарь для синхронизации встреч.</p>
                  </div>
             </div>
 
