@@ -1,11 +1,12 @@
 import React from 'react';
-import { Event } from '../types';
+import { Event, ContactPerson } from '../types';
 import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip, FaImage, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface EventItemProps {
   event: Event;
+  contacts: ContactPerson[];
   onReply: (event: Event) => void;
   onQuoteClick: (eventId: string) => void;
   onDelete?: () => void;
@@ -22,6 +23,21 @@ const getEventTypeIcon = (type: Event['type']) => {
         default: return <FaRegComment className="text-gray-500" />;
     }
 }
+
+const ContactPills: React.FC<{ contactIds?: string[], allContacts: ContactPerson[] }> = ({ contactIds, allContacts }) => {
+    if (!contactIds || contactIds.length === 0) return null;
+    const linkedContacts = allContacts.filter(c => contactIds.includes(c.id));
+    if (linkedContacts.length === 0) return null;
+
+    return (
+        <div className="mt-2 flex flex-wrap gap-2">
+            {linkedContacts.map(c => (
+                <div key={c.id} className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">{c.name}</div>
+            ))}
+        </div>
+    );
+};
+
 
 const AttachmentSummary: React.FC<{ files: { name: string, url: string, type?: string }[] }> = ({ files }) => {
     if (!files || files.length === 0) return null;
@@ -58,7 +74,7 @@ const EventAttachments: React.FC<{ files: { name: string, url: string, type?: st
     </div>
 );
 
-const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onDelete, onEdit, isExpanded, onToggleExpand }) => {
+const EventItem: React.FC<EventItemProps> = ({ event, contacts, onReply, onQuoteClick, onDelete, onEdit, isExpanded, onToggleExpand }) => {
     
     return (
         <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 rounded -mx-4 px-4 transition-colors duration-300">
@@ -83,6 +99,8 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
                         </div>
                     )}
                     
+                    <ContactPills contactIds={event.data?.contact_ids} allContacts={contacts} />
+
                     {isExpanded && event.data?.file_urls && <EventAttachments files={event.data.file_urls} />}
                     {!isExpanded && event.data?.file_urls && <AttachmentSummary files={event.data.file_urls} />}
                 </div>

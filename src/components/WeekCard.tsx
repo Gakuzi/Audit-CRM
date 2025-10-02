@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus, Project, Profile } from '../types';
+import { Week, Plan, PlanItem, WeekStatus, Project, Profile, CompanyProfile } from '../types';
 import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaPaperPlane, FaArrowRight } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
@@ -17,6 +17,7 @@ interface WeekCardProps {
   isGuest: boolean;
   project: Project;
   profile: Profile | null;
+  companyProfile: CompanyProfile | null;
   providerToken: string | null;
   onUpdatePlan: (plan: Plan) => void;
   onTaskSelect: (item: PlanItem) => void;
@@ -35,7 +36,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, profile, providerToken, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval, onUpdateTask }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, profile, companyProfile, providerToken, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval, onUpdateTask }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -257,6 +258,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                     <div className="mt-4">
                     <DayPlanView 
                         week={week}
+                        companyProfile={companyProfile}
                         onUpdatePlan={onUpdatePlan}
                         onTaskSelect={onTaskSelect}
                         isAuditor={isAuditor}

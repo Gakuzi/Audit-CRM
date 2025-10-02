@@ -1,19 +1,19 @@
-
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabaseClient';
+import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { Event, Project, PlanItem } from '../types';
-import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks } from 'react-icons/fa';
+import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane } from 'react-icons/fa';
 import { FILE_SIZE_LIMIT } from '../constants';
 import UploadToDriveModal from './UploadToDriveModal';
 import AttachLinkModal from './AttachLinkModal';
+import AudioRecorderModal from './AudioRecorderModal';
+import { useGooglePicker } from '../hooks/useGooglePicker';
 
 interface AddEventFormProps {
   user: User | null;
   providerToken: string | null;
-  context: { weekId: string; taskId: string; projectId: string; };
+  context: { weekId: string; taskId: string; projectId: string; item: PlanItem };
   quotedEvent: Event | null;
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
@@ -23,10 +23,10 @@ interface AddEventFormProps {
 }
 
 const sanitizeFileName = (fileName: string): string => {
-    return fileName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '').substring(0, 100);
+    return fileName.replace(/[^a-zA-Z0-9_.-]/g, '_').substring(0, 100);
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, isGuest, onAddSubTaskRequest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, isGuest, onAddSubTaskRequest }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -34,9 +34,42 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
     
     const [fileForDrive, setFileForDrive] = useState<File | null>(null);
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+    const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
+    const actionMenuRef = useRef<HTMLDivElement>(null);
+    
+    const onPickerSelect = (files: any[]) => {
+        const links = files.map(file => `[${file.name}](${file.url})`).join('\n');
+        setContent(prev => `${prev}\n${links}`.trim());
+    };
+    
+    const { openPicker } = useGooglePicker({
+        clientId: '228020662283-kuhv2h4k2t6d3e6i1fudsc918k9a9h2t.apps.googleusercontent.com',
+        developerKey: process.env.API_KEY || '',
+        token: providerToken,
+        onSelect: onPickerSelect,
+    });
+
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+                setIsActionMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+        }
+    }, [content]);
 
     const uploadFiles = async (files: File[]) => {
         if (files.length === 0) return [];
@@ -58,7 +91,6 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         const selectedFiles = Array.from(event.target.files);
         const validFiles: File[] = [];
         for (const file of selectedFiles) {
-            // Fix: Cast file to File type to resolve errors when accessing its properties.
             const currentFile = file as File;
             if (currentFile.size > FILE_SIZE_LIMIT) {
                 if (providerToken) setFileForDrive(currentFile);
@@ -90,7 +122,11 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             }).select().single();
             if (error) throw error;
             if (data) {
-                onNewEvent(data as Event);
+                const newEvent = data as Event;
+                onNewEvent(newEvent);
+                if (isGuest) {
+                    sendGuestEventNotification(project, context.item, newEvent, window.location.origin);
+                }
                 setContent(''); setFilesToAttach([]); onClearQuote();
             }
         } catch(err: any) {
@@ -100,44 +136,64 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         }
     };
     
-    const handleAttachLink = (url: string) => {
-        setContent(prev => `${prev}\n[Ссылка](${url})`.trim());
-    }
+    const handleAttachLink = (url: string) => { setContent(prev => `${prev}\n[Ссылка](${url})`.trim()); }
+
+    const ActionButton = ({ icon, label, action, disabled = false }: { icon: React.ReactNode, label: string, action: () => void, disabled?: boolean }) => (
+        <button type="button" onClick={() => { if (!disabled) { action(); setIsActionMenuOpen(false); } }} className="action-button" disabled={disabled}>
+            {icon} <span className="ml-3">{label}</span>
+        </button>
+    );
 
     return (
-        <div className="bg-white p-3 rounded-lg border">
+        <div className="relative">
             <input type="file" multiple ref={fileInputRef} onChange={handleFilesSelected} className="hidden" />
             <input type="file" accept="image/*" capture="environment" ref={imageInputRef} onChange={handleFilesSelected} className="hidden" />
-            {quotedEvent && (
-                <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative">
-                    <p>Ответ на: <span className="font-semibold">{quotedEvent.author_email}</span></p>
-                    <p className="truncate">{quotedEvent.content}</p>
-                    <button onClick={onClearQuote} className="absolute top-2 right-2"><FaTimes size={12}/></button>
-                </div>
-            )}
-            <form onSubmit={handleSubmit}>
-                <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={3} placeholder="Напишите комментарий..." disabled={loading} className="w-full p-2 border-0 focus:ring-0 resize-none" />
+
+            <div className="bg-white p-2 rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
+                {quotedEvent && (
+                    <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative border-l-4 border-blue-400">
+                        <p className="font-semibold text-gray-700">Ответ на: {quotedEvent.author_email}</p>
+                        <p className="truncate text-gray-600">{quotedEvent.content}</p>
+                        <button onClick={onClearQuote} className="absolute top-1.5 right-1.5 p-1 rounded-full hover:bg-gray-200"><FaTimes size={12}/></button>
+                    </div>
+                )}
+                <form onSubmit={handleSubmit} className="flex items-end gap-2">
+                    <div className="relative" ref={actionMenuRef}>
+                        <button type="button" onClick={() => setIsActionMenuOpen(p => !p)} className="action-btn flex-shrink-0">
+                            <FaPlus />
+                        </button>
+                        {isActionMenuOpen && (
+                             <div className="absolute bottom-full left-0 mb-2 w-60 bg-white rounded-lg shadow-lg border p-2 z-10">
+                                <ActionButton icon={<FaPaperclip />} label="Файл с устройства" action={() => fileInputRef.current?.click()} />
+                                <ActionButton icon={<FaCamera />} label="Сделать фото" action={() => imageInputRef.current?.click()} />
+                                <ActionButton icon={<FaLink />} label="Прикрепить ссылку" action={() => setIsLinkModalOpen(true)} />
+                                <ActionButton icon={<FaVideo />} label="Записать аудио" action={() => setIsAudioModalOpen(true)} />
+                                {providerToken && <ActionButton icon={<FaGoogleDrive />} label="Файл с Google Drive" action={openPicker} />}
+                                <div className="my-1 border-t"></div>
+                                <ActionButton icon={<FaTasks />} label="Добавить подзадачу" action={onAddSubTaskRequest} />
+                            </div>
+                        )}
+                    </div>
+                    <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={1} placeholder="Напишите комментарий..." disabled={loading} className="w-full p-2 border-0 focus:ring-0 resize-none bg-transparent textarea-autogrow" />
+                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="btn-primary p-2.5 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                        {loading ? <Spinner size="sm" /> : <FaPaperPlane />}
+                    </button>
+                </form>
+            </div>
+            {filesToAttach.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                     {filesToAttach.map((file, i) => (
                         <div key={i} className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 text-sm">
-                            <span className="truncate">{file.name}</span>
+                            <span className="truncate max-w-xs">{file.name}</span>
                             <button type="button" onClick={() => setFilesToAttach(f => f.filter((_, idx) => idx !== i))}><FaTimes size={12} /></button>
                         </div>
                     ))}
                 </div>
-                <div className="mt-2 pt-2 border-t flex justify-between items-center">
-                    <div className="flex items-center space-x-1 text-gray-500">
-                        <button type="button" onClick={() => fileInputRef.current?.click()} title="Прикрепить файл" className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100"><FaPaperclip/></button>
-                        <button type="button" onClick={() => imageInputRef.current?.click()} title="Сделать фото" className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100"><FaCamera/></button>
-                        <button type="button" onClick={() => setIsLinkModalOpen(true)} title="Прикрепить ссылку" className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100"><FaLink/></button>
-                        {(user || isGuest) && <button type="button" onClick={onAddSubTaskRequest} title="Добавить подзадачу" className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100"><FaTasks/></button>}
-                        {providerToken && <button type="button" disabled title="Загрузить на Google Drive (через 'Прикрепить файл')" className="p-2 text-gray-400"><FaGoogleDrive/></button>}
-                    </div>
-                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">{loading ? <Spinner size="sm" /> : 'Отправить'}</button>
-                </div>
-            </form>
+            )}
+            
             {fileForDrive && providerToken && <UploadToDriveModal isOpen={!!fileForDrive} onClose={() => setFileForDrive(null)} file={fileForDrive} providerToken={providerToken} onUploadComplete={link => setContent(p => `${p}\n[${link.name}](${link.url})`)} />}
             <AttachLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} onAttach={handleAttachLink} />
+            <AudioRecorderModal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} onSave={(files) => setFilesToAttach(prev => [...prev, ...files])} />
         </div>
     );
 };

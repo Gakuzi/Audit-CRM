@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { PlanItem, PlanItemType } from '../types';
+import { PlanItem, PlanItemType, ContactPerson } from '../types';
 import { Spinner } from './ui/Spinner';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap, FaTimes } from 'react-icons/fa';
 
 interface AddEventModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAddSubTask: (subTask: PlanItem) => void;
+    contacts: ContactPerson[];
 }
 
 const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] = [
@@ -19,7 +20,7 @@ const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] 
     { type: 'process_analysis', name: 'Анализ процесса', icon: <FaSitemap size={24} className="mb-2 text-teal-600" /> },
 ];
 
-const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSubTask }) => {
+const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSubTask, contacts }) => {
     const [step, setStep] = useState<'select' | 'form'>('select');
     const [itemType, setItemType] = useState<PlanItemType | null>(null);
     const [loading, setLoading] = useState(false);
@@ -27,29 +28,23 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
     // Form states
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [contactIds, setContactIds] = useState<string[]>([]);
 
     const handleSelectType = (type: PlanItemType) => {
         setItemType(type);
         setStep('form');
     }
     
-    const handleBack = () => {
-        resetForm();
-        setStep('select');
-    }
-    
-    const handleClose = () => {
-        resetForm();
-        setStep('select');
-        onClose();
-    }
+    const handleBack = () => { resetForm(); setStep('select'); }
+    const handleClose = () => { resetForm(); setStep('select'); onClose(); }
     
     const resetForm = () => {
-        setTitle('');
-        setDescription('');
-        setItemType(null);
-        setLoading(false);
+        setTitle(''); setDescription(''); setItemType(null); setLoading(false); setContactIds([]);
     }
+    
+    const handleContactToggle = (contactId: string) => {
+      setContactIds(prev => prev.includes(contactId) ? prev.filter(id => id !== contactId) : [...prev, contactId]);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,8 +56,8 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
             title: title.trim(),
             description: description.trim(),
             completed: false,
-            // Fix: Corrected the variable name from 'eventType' to 'itemType'.
             type: itemType,
+            data: { contact_ids: contactIds }
         };
         
         onAddSubTask(newSubTask);
@@ -73,6 +68,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
     const renderForm = () => {
         if (!itemType) return null;
         const currentType = eventTypes.find(et => et.type === itemType);
+        const selectedContacts = contacts.filter(c => contactIds.includes(c.id));
 
         return (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,6 +80,16 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
                 <div>
                     <label className="label">Описание (опционально)</label>
                     <textarea className="input" rows={3} value={description} onChange={e => setDescription(e.target.value)} />
+                </div>
+                 <div>
+                    <label className="label">Участники (опционально)</label>
+                    <select onChange={e => handleContactToggle(e.target.value)} className="input" value="">
+                        <option value="" disabled>-- Выберите участников --</option>
+                        {contacts.filter(c => !contactIds.includes(c.id)).map(c => <option key={c.id} value={c.id}>{c.name} ({c.role})</option>)}
+                    </select>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedContacts.map(c => <div key={c.id} className="flex items-center gap-2 bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded-full">{c.name}<button type="button" onClick={() => handleContactToggle(c.id)}><FaTimes size={10}/></button></div>)}
+                    </div>
                 </div>
                 <div className="pt-2 flex justify-between items-center">
                     <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>

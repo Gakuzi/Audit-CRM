@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event, Project, PlanItem } from '../types';
-import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane } from 'react-icons/fa';
+import { Event, Project, PlanItem, ContactPerson } from '../types';
+import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane, FaUserPlus } from 'react-icons/fa';
 import { FILE_SIZE_LIMIT } from '../constants';
 import UploadToDriveModal from './UploadToDriveModal';
 import AttachLinkModal from './AttachLinkModal';
@@ -18,6 +18,7 @@ interface AddEventFormProps {
   onClearQuote: () => void;
   onNewEvent: (event: Event) => void;
   project: Project;
+  contacts: ContactPerson[];
   isGuest: boolean;
   onAddSubTaskRequest: () => void;
 }
@@ -26,11 +27,13 @@ const sanitizeFileName = (fileName: string): string => {
     return fileName.replace(/[^a-zA-Z0-9_.-]/g, '_').substring(0, 100);
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, isGuest, onAddSubTaskRequest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, contacts, isGuest, onAddSubTaskRequest }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [filesToAttach, setFilesToAttach] = useState<File[]>([]);
+    const [contactIds, setContactIds] = useState<string[]>([]);
+    const [isContactSelectorOpen, setIsContactSelectorOpen] = useState(false);
     
     const [fileForDrive, setFileForDrive] = useState<File | null>(null);
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -58,22 +61,17 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         const handleClickOutside = (event: MouseEvent) => {
             if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
                 setIsActionMenuOpen(false);
+                setIsContactSelectorOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-        }
-    }, [content]);
+    useEffect(() => { if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; } }, [content]);
 
     const uploadFiles = async (files: File[]) => {
         if (files.length === 0) return [];
-        
         const uploadPromises = files.map(async file => {
             const sanitized = sanitizeFileName(file.name);
             const filePath = `${user ? user.id : 'guests'}/${context.taskId}/${Date.now()}-${sanitized}`;
@@ -82,7 +80,6 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             const { data } = supabase.storage.from('audit-files').getPublicUrl(filePath);
             return { name: file.name, url: data.publicUrl, type: file.type };
         });
-    
         return Promise.all(uploadPromises);
     };
     
@@ -94,7 +91,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             const currentFile = file as File;
             if (currentFile.size > FILE_SIZE_LIMIT) {
                 if (providerToken) setFileForDrive(currentFile);
-                else alert(`Файл "${currentFile.name}" слишком большой (>${FILE_SIZE_LIMIT/1024/1024}MB) и не может быть загружен. Войдите через Google, чтобы загружать большие файлы на Google Drive.`);
+                else alert(`Файл "${currentFile.name}" слишком большой (>${FILE_SIZE_LIMIT/1024/1024}MB).`);
             } else {
                 validFiles.push(currentFile);
             }
@@ -109,31 +106,27 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         setLoading(true);
         try {
             const uploadedFiles = await uploadFiles(filesToAttach);
+            const eventData: any = { file_urls: uploadedFiles };
+            if (contactIds.length > 0) eventData.contact_ids = contactIds;
+
             const { data, error } = await supabase.from('events').insert({
-                project_id: context.projectId,
-                week_id: context.weekId,
-                task_id: context.taskId,
+                project_id: context.projectId, week_id: context.weekId, task_id: context.taskId,
                 user_id: user ? user.id : null,
                 author_email: user ? user.email : (localStorage.getItem('guestName') || 'Гость'),
-                type: 'comment' as const,
-                content: content.trim(),
+                type: 'comment' as const, content: content.trim(),
                 parent_event_id: quotedEvent?.id || null,
-                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : null,
+                data: Object.keys(eventData).length > 0 ? eventData : null,
             }).select().single();
+
             if (error) throw error;
             if (data) {
                 const newEvent = data as Event;
                 onNewEvent(newEvent);
-                if (isGuest) {
-                    sendGuestEventNotification(project, context.item, newEvent, window.location.origin);
-                }
-                setContent(''); setFilesToAttach([]); onClearQuote();
+                if (isGuest) sendGuestEventNotification(project, context.item, newEvent, window.location.origin);
+                setContent(''); setFilesToAttach([]); setContactIds([]); onClearQuote();
             }
-        } catch(err: any) {
-            alert('Ошибка: ' + err.message);
-        } finally {
-            setLoading(false);
-        }
+        } catch(err: any) { alert('Ошибка: ' + err.message); } 
+        finally { setLoading(false); }
     };
     
     const handleAttachLink = (url: string) => { setContent(prev => `${prev}\n[Ссылка](${url})`.trim()); }
@@ -143,9 +136,11 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             {icon} <span className="ml-3">{label}</span>
         </button>
     );
+    
+    const selectedContacts = contacts.filter(c => contactIds.includes(c.id));
 
     return (
-        <div className="relative">
+        <div className="relative" ref={actionMenuRef}>
             <input type="file" multiple ref={fileInputRef} onChange={handleFilesSelected} className="hidden" />
             <input type="file" accept="image/*" capture="environment" ref={imageInputRef} onChange={handleFilesSelected} className="hidden" />
 
@@ -158,10 +153,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                     </div>
                 )}
                 <form onSubmit={handleSubmit} className="flex items-end gap-2">
-                    <div className="relative" ref={actionMenuRef}>
-                        <button type="button" onClick={() => setIsActionMenuOpen(p => !p)} className="action-btn flex-shrink-0">
-                            <FaPlus />
-                        </button>
+                    <div className="relative">
+                        <button type="button" onClick={() => setIsActionMenuOpen(p => !p)} className="action-btn flex-shrink-0"><FaPlus /></button>
                         {isActionMenuOpen && (
                              <div className="absolute bottom-full left-0 mb-2 w-60 bg-white rounded-lg shadow-lg border p-2 z-10">
                                 <ActionButton icon={<FaPaperclip />} label="Файл с устройства" action={() => fileInputRef.current?.click()} />
@@ -175,19 +168,29 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                         )}
                     </div>
                     <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={1} placeholder="Напишите комментарий..." disabled={loading} className="w-full p-2 border-0 focus:ring-0 resize-none bg-transparent textarea-autogrow" />
+                    <div className="relative">
+                         <button type="button" onClick={() => setIsContactSelectorOpen(p => !p)} className="action-btn flex-shrink-0"><FaUserPlus /></button>
+                         {isContactSelectorOpen && (
+                            <div className="absolute bottom-full right-0 mb-2 w-64 bg-white rounded-lg shadow-lg border z-10 p-2 max-h-60 overflow-y-auto">
+                                <p className="text-xs font-bold text-gray-500 px-2 pb-1">Отметить участников</p>
+                                {contacts.map(c => (
+                                    <label key={c.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                                        <input type="checkbox" checked={contactIds.includes(c.id)} onChange={() => setContactIds(p => p.includes(c.id) ? p.filter(id => id !== c.id) : [...p, c.id])} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
+                                        <span className="text-sm">{c.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                         )}
+                    </div>
                     <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="btn-primary p-2.5 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
                         {loading ? <Spinner size="sm" /> : <FaPaperPlane />}
                     </button>
                 </form>
             </div>
-            {filesToAttach.length > 0 && (
+            {(filesToAttach.length > 0 || selectedContacts.length > 0) && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                    {filesToAttach.map((file, i) => (
-                        <div key={i} className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 text-sm">
-                            <span className="truncate max-w-xs">{file.name}</span>
-                            <button type="button" onClick={() => setFilesToAttach(f => f.filter((_, idx) => idx !== i))}><FaTimes size={12} /></button>
-                        </div>
-                    ))}
+                    {filesToAttach.map((file, i) => <div key={`f-${i}`} className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 text-sm"><span className="truncate max-w-xs">{file.name}</span><button type="button" onClick={() => setFilesToAttach(f => f.filter((_, idx) => idx !== i))}><FaTimes size={12} /></button></div>)}
+                    {selectedContacts.map(c => <div key={`c-${c.id}`} className="flex items-center gap-2 bg-blue-100 rounded-full px-3 py-1 text-sm"><span className="truncate max-w-xs">{c.name}</span><button type="button" onClick={() => setContactIds(p => p.filter(id => id !== c.id))}><FaTimes size={12} /></button></div>)}
                 </div>
             )}
             

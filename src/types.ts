@@ -37,10 +37,11 @@ export interface PlanItem {
     endTime?: string;
     location?: string;
     agenda?: string;
-    participants?: string[];
-    interviewee?: string;
+    participants?: string[]; // Legacy, prefer contact_ids
+    interviewee?: string; // Legacy, prefer contact_ids
     duration?: string;
     google_calendar_event_id?: string;
+    contact_ids?: string[];
   };
 }
 
@@ -80,7 +81,8 @@ export interface Event {
   data?: {
     file_urls?: { name: string, url: string, type?: string }[];
     meeting_time?: string;
-    participants?: string[];
+    participants?: string[]; // Legacy
+    contact_ids?: string[];
   } | null;
   parent_event_id?: string | null;
   parent?: {

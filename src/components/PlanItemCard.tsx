@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlanItem } from '../types';
+import { PlanItem, ContactPerson } from '../types';
 import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap, FaCheck, FaUndo } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,13 +7,14 @@ import { useSwipe } from '../hooks/useSwipe';
 
 interface PlanItemCardProps {
   item: PlanItem;
+  contacts: ContactPerson[];
   onSelect: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onToggleComplete?: () => void;
 }
 
-const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete, onToggleComplete }) => {
+const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, contacts, onSelect, onEdit, onDelete, onToggleComplete }) => {
   
   const hasActions = onEdit && onDelete;
   const { ref, style } = useSwipe({ 
@@ -39,18 +40,8 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
       action?.();
   }
 
-  const renderMeetingInvites = () => {
-    if (item.type !== 'meeting' || !item.data?.participants || item.data.participants.length === 0) return null;
-    const inviteText = `Приглашение на встречу: "${item.title}".\nВремя: ${item.data.time || 'не указ.'}\nМесто: ${item.data.location || 'не указ.'}\nПовестка: ${item.data.agenda || 'не указ.'}`;
-    return (
-        <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-end space-x-2">
-            <span className="text-xs text-gray-500">Пригласить:</span>
-             <a href={`https://wa.me/?text=${encodeURIComponent(inviteText)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-green-500 hover:text-green-700"><FaWhatsapp /></a>
-            <a href={`https://t.me/share/url?url=&text=${encodeURIComponent(inviteText)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-sky-500 hover:text-sky-700"><FaTelegramPlane /></a>
-        </div>
-    )
-  }
-  
+  const linkedContacts = contacts.filter(c => item.data?.contact_ids?.includes(c.id));
+
   const subTaskProgress = item.sub_tasks ? (item.sub_tasks.filter(st => st.completed).length / item.sub_tasks.length) * 100 : 0;
 
   return (
@@ -94,11 +85,6 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
                 <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-600' : ''}`}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
                 </div>
-                {item.description && (
-                     <div className="text-xs text-gray-500 mt-1 prose prose-xs max-w-none line-clamp-2">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.description}</ReactMarkdown>
-                    </div>
-                )}
                 {(item.type === 'meeting' || item.type === 'interview') && item.data?.time && (
                     <div className="flex items-center text-xs text-gray-500 mt-1"><FaClock className="mr-1.5" /><span>{item.data.time}</span>{item.type === 'meeting' && item.data.location && <span className="ml-1">, {item.data.location}</span>}</div>
                 )}
@@ -108,7 +94,14 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
             </div>
             <div className="flex items-center space-x-1 text-gray-400 mt-1 flex-shrink-0"><FaRegCommentDots /><span className="text-xs font-medium">{item.event_count || 0}</span></div>
           </div>
-          {renderMeetingInvites()}
+          {linkedContacts.length > 0 && (
+            <div className="mt-2 pt-2 border-t flex items-center gap-2">
+                {linkedContacts.slice(0, 3).map(contact => (
+                    <div key={contact.id} title={contact.name} className="h-6 w-6 bg-blue-100 text-blue-700 text-xs font-bold rounded-full flex items-center justify-center">{contact.name.charAt(0)}</div>
+                ))}
+                {linkedContacts.length > 3 && <div className="text-xs text-gray-500">+{linkedContacts.length - 3}</div>}
+            </div>
+          )}
           {item.sub_tasks && item.sub_tasks.length > 0 && (
               <div className="mt-2 pt-2 border-t">
                   <div className="flex justify-between items-center text-xs text-gray-500">

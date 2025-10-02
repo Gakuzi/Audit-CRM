@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Week, Plan, PlanItem, Profile } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
@@ -11,6 +11,7 @@ import * as googleApiService from '../services/googleApiService';
 
 interface DayPlanViewProps {
     week: Week;
+    companyProfile: CompanyProfile | null;
     onUpdatePlan: (plan: Plan) => void;
     onTaskSelect: (item: PlanItem) => void;
     isAuditor: boolean;
@@ -19,13 +20,14 @@ interface DayPlanViewProps {
     providerToken: string | null;
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, profile, providerToken }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, profile, providerToken }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [itemToEdit, setItemToEdit] = useState<{ date: string, item: PlanItem } | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ date: string; item: PlanItem } | null>(null);
+    const contacts = companyProfile?.contacts || [];
     
-    const canEditPlan = isAuditor && ['draft', 'rejected', 'completed'].includes(week.status);
+    const canEditPlan = isAuditor && ['draft', 'rejected'].includes(week.status);
     const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
     const canToggleComplete = isAuditor && week.status === 'approved';
 
@@ -76,7 +78,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                 const dayName = DAY_NAMES[dayDate.getDay()];
                 
                 return (
-                    <div key={date} className="bg-gray-50 rounded-lg p-3">
+                    <div key={date} className="bg-white rounded-lg p-3 shadow-sm">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <h4 className="font-bold">{dayName}</h4>
@@ -91,6 +93,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                 <PlanItemCard 
                                     key={item.id} 
                                     item={item} 
+                                    contacts={contacts}
                                     onSelect={() => onTaskSelect(item)}
                                     onEdit={canEditPlan ? () => setItemToEdit({ date, item }) : undefined}
                                     onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined}
@@ -115,6 +118,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                     date={selectedDate}
                     profile={profile}
                     providerToken={providerToken}
+                    contacts={contacts}
                 />
             )}
             {itemToEdit && (
@@ -126,6 +130,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                     onUpdateItem={onUpdateTask}
                     profile={profile}
                     providerToken={providerToken}
+                    contacts={contacts}
                 />
             )}
              <ConfirmationModal 

@@ -34,12 +34,14 @@ export interface PlanItem {
   data?: {
     date?: string; // For meetings
     time?: string;
+    endTime?: string;
     location?: string;
     agenda?: string;
     participants?: string[];
     interviewee?: string;
     duration?: string;
     google_calendar_event_id?: string;
+    contact_ids?: string[];
   };
 }
 
@@ -62,7 +64,7 @@ export interface Week {
   start_date: string;
   end_date: string;
   created_at: string;
-  rejection_comment?: string;
+  rejection_comment?: string | null;
   report_content?: string;
   report_generated_at?: string;
 }
@@ -80,6 +82,7 @@ export interface Event {
     file_urls?: { name: string, url: string, type?: string }[];
     meeting_time?: string;
     participants?: string[];
+    contact_ids?: string[];
   } | null;
   parent_event_id?: string | null;
   parent?: {

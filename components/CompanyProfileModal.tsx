@@ -3,7 +3,8 @@ import Modal from './ui/Modal';
 import { Project, CompanyProfile, ContactPerson } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaEdit, FaSave, FaTimes, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
+import { FaEdit, FaSave, FaPlus, FaTrash, FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane, FaShareAlt } from 'react-icons/fa';
+import ApprovalShareModal from './ApprovalShareModal';
 
 interface CompanyProfileModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
       contacts: [],
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [contactToShare, setContactToShare] = useState<ContactPerson | null>(null);
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -34,7 +36,6 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
     } else if (data) {
       setProfile(data);
     } else {
-      // If no profile exists, initialize with project name
       setProfile({ company_name: project.name, address: '', contacts: [] });
     }
     setLoading(false);
@@ -43,24 +44,16 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   useEffect(() => {
     if (isOpen) {
       fetchProfile();
-      setIsEditing(false); // Reset editing state on open
+      setIsEditing(false);
     }
   }, [isOpen, fetchProfile]);
   
   const handleSave = async () => {
       setLoading(true);
-      const profileToSave = {
-          ...profile,
-          project_id: project.id,
-          updated_at: new Date().toISOString()
-      };
+      const profileToSave = { ...profile, project_id: project.id, updated_at: new Date().toISOString() };
       const { error } = await supabase.from('company_profiles').upsert(profileToSave, { onConflict: 'project_id'});
-      
-      if (error) {
-          alert("Ошибка сохранения: " + error.message);
-      } else {
-          setIsEditing(false);
-      }
+      if (error) alert("Ошибка сохранения: " + error.message);
+      else setIsEditing(false);
       setLoading(false);
   }
 
@@ -79,10 +72,10 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
       setProfile(prev => ({ ...prev, contacts: prev.contacts?.filter((_, i) => i !== index) }));
   }
   
-  const ActionButton: React.FC<{ href: string, icon: React.ReactNode, colorClass: string, title: string }> = ({ href, icon, colorClass, title }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`p-2 rounded-full hover:bg-gray-200 ${colorClass}`}>
+  const ActionButton: React.FC<{ action: () => void, icon: React.ReactNode, colorClass: string, title: string }> = ({ action, icon, colorClass, title }) => (
+    <button onClick={action} title={title} className={`p-2 rounded-full hover:bg-gray-200 ${colorClass}`}>
         {icon}
-    </a>
+    </button>
   );
 
   const renderView = () => (
@@ -97,14 +90,19 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
                   <div className="mt-2 space-y-3">
                       {profile.contacts.map(contact => (
                            <div key={contact.id} className="p-3 border rounded-md">
-                               <p className="font-bold">{contact.name} <span className="text-sm font-normal text-gray-600">- {contact.role}</span></p>
-                               {contact.email && <p className="text-sm">Email: <a href={`mailto:${contact.email}`} className="text-blue-600">{contact.email}</a></p>}
-                               {contact.phone && <p className="text-sm">Тел: <a href={`tel:${contact.phone}`} className="text-blue-600">{contact.phone}</a></p>}
+                               <div className="flex justify-between items-start">
+                                   <div>
+                                       <p className="font-bold">{contact.name} <span className="text-sm font-normal text-gray-600">- {contact.role}</span></p>
+                                       {contact.email && <p className="text-sm">Email: <a href={`mailto:${contact.email}`} className="text-blue-600">{contact.email}</a></p>}
+                                       {contact.phone && <p className="text-sm">Тел: <a href={`tel:${contact.phone}`} className="text-blue-600">{contact.phone}</a></p>}
+                                   </div>
+                                   {isAuditor && <ActionButton action={() => setContactToShare(contact)} icon={<FaShareAlt/>} colorClass="text-blue-600" title="Поделиться доступом" />}
+                               </div>
                                <div className="mt-2 flex items-center space-x-2">
-                                    {contact.phone && <ActionButton href={`tel:${contact.phone}`} icon={<FaPhone />} colorClass="text-gray-600" title="Позвонить" />}
-                                    {contact.email && <ActionButton href={`mailto:${contact.email}`} icon={<FaEnvelope />} colorClass="text-blue-600" title="Написать Email" />}
-                                    {contact.phone && <ActionButton href={`https://wa.me/${contact.phone.replace(/\D/g, '')}`} icon={<FaWhatsapp />} colorClass="text-green-500" title="Написать в WhatsApp" />}
-                                    {contact.email && <ActionButton href={`https://t.me/share/url?url=&text=Здравствуйте, ${contact.name}!`} icon={<FaTelegramPlane />} colorClass="text-sky-500" title="Написать в Telegram" />}
+                                    {contact.phone && <a href={`tel:${contact.phone}`} className="action-btn"><FaPhone /></a>}
+                                    {contact.email && <a href={`mailto:${contact.email}`} className="action-btn"><FaEnvelope /></a>}
+                                    {contact.whatsapp && <a href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="action-btn text-green-500"><FaWhatsapp /></a>}
+                                    {contact.telegram && <a href={`https://t.me/${contact.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="action-btn text-sky-500"><FaTelegramPlane /></a>}
                                </div>
                            </div>
                       ))}
@@ -135,6 +133,8 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
                              <input type="text" placeholder="Должность" value={contact.role} onChange={e => handleContactChange(index, 'role', e.target.value)} className="input text-sm"/>
                              <input type="text" placeholder="Телефон" value={contact.phone} onChange={e => handleContactChange(index, 'phone', e.target.value)} className="input text-sm"/>
                              <input type="email" placeholder="Email" value={contact.email} onChange={e => handleContactChange(index, 'email', e.target.value)} className="input text-sm col-span-2"/>
+                             <input type="text" placeholder="WhatsApp" value={contact.whatsapp || ''} onChange={e => handleContactChange(index, 'whatsapp', e.target.value)} className="input text-sm" />
+                             <input type="text" placeholder="Telegram (@...)" value={contact.telegram || ''} onChange={e => handleContactChange(index, 'telegram', e.target.value)} className="input text-sm" />
                         </div>
                     </div>
                 ))}
@@ -145,27 +145,37 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={profile.company_name || 'Профиль компании'}>
-        <div className="max-h-[70vh] overflow-y-auto pr-2">
-            {loading ? <Spinner /> : (isEditing ? renderEdit() : renderView())}
-        </div>
-        {isAuditor && (
-             <div className="mt-6 pt-4 border-t flex justify-end">
-                {isEditing ? (
-                    <div className="flex gap-2">
-                        <button onClick={() => setIsEditing(false)} className="btn-secondary">Отмена</button>
-                        <button onClick={handleSave} disabled={loading} className="btn-primary w-28 flex items-center justify-center gap-2">
-                            {loading ? <Spinner size="sm"/> : <><FaSave/> Сохранить</>}
-                        </button>
-                    </div>
-                ) : (
-                    <button onClick={() => setIsEditing(true)} className="btn-primary flex items-center gap-2">
-                        <FaEdit /> Редактировать
-                    </button>
-                )}
+    <>
+        <Modal isOpen={isOpen} onClose={onClose} title={profile.company_name || 'Профиль компании'}>
+            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                {loading ? <Spinner /> : (isEditing ? renderEdit() : renderView())}
             </div>
+            {isAuditor && (
+                 <div className="mt-6 pt-4 border-t flex justify-end">
+                    {isEditing ? (
+                        <div className="flex gap-2">
+                            <button onClick={() => setIsEditing(false)} className="btn-secondary">Отмена</button>
+                            <button onClick={handleSave} disabled={loading} className="btn-primary w-28 flex items-center justify-center gap-2">
+                                {loading ? <Spinner size="sm"/> : <><FaSave/> Сохранить</>}
+                            </button>
+                        </div>
+                    ) : (
+                        <button onClick={() => setIsEditing(true)} className="btn-primary flex items-center gap-2">
+                            <FaEdit /> Редактировать
+                        </button>
+                    )}
+                </div>
+            )}
+        </Modal>
+        {contactToShare && (
+            <ApprovalShareModal
+                isOpen={!!contactToShare}
+                onClose={() => setContactToShare(null)}
+                project={project}
+                contact={contactToShare}
+            />
         )}
-    </Modal>
+    </>
   );
 };
 
