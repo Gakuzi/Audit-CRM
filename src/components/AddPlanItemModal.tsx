@@ -1,8 +1,7 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { Week, PlanItem, Plan, PlanItemType, Profile } from '../types';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap } from 'react-icons/fa';
+import { Week, PlanItem, PlanItemType, Profile } from '../types';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaClock, FaMapMarkerAlt, FaUsers as FaUsersIcon, FaAlignLeft, FaSitemap } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import * as googleApiService from '../services/googleApiService';
 
@@ -30,134 +29,171 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   const [itemType, setItemType] = useState<PlanItemType | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Form states
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  // Meeting
-  const [meetingTime, setMeetingTime] = useState('');
+  const [time, setTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [meetingLocation, setMeetingLocation] = useState('');
-  const [meetingParticipants, setMeetingParticipants] = useState('');
-  // Interview
+  const [location, setLocation] = useState('');
+  const [participants, setParticipants] = useState('');
   const [interviewee, setInterviewee] = useState('');
-  const [interviewTime, setInterviewTime] = useState('');
 
+   useEffect(() => {
+    if (time) {
+      const startTime = new Date(`${date}T${time}`);
+      startTime.setHours(startTime.getHours() + 1);
+      const newEndTime = startTime.toTimeString().substring(0, 5);
+      setEndTime(newEndTime);
+    }
+  }, [time, date]);
 
-  const handleSelectType = (type: PlanItemType) => { setItemType(type); setStep('form'); }
-  const handleBack = () => { resetForm(); setStep('select'); }
-  const handleClose = () => { resetForm(); setStep('select'); onClose(); }
+  const handleSelectType = (type: PlanItemType) => {
+    setItemType(type);
+    setStep('form');
+  };
+
+  const handleBack = () => {
+    resetForm();
+    setStep('select');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    setStep('select');
+    onClose();
+  };
   
   const resetForm = () => {
       setItemType(null);
       setTitle('');
       setDescription('');
-      setMeetingTime('');
+      setTime('');
       setEndTime('');
-      setMeetingLocation('');
-      setMeetingParticipants('');
+      setLocation('');
+      setParticipants('');
       setInterviewee('');
-      setInterviewTime('');
       setLoading(false);
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !itemType) return;
+
     setLoading(true);
 
     const newItem: PlanItem = {
       id: crypto.randomUUID(),
       title: title.trim(),
-      description: description.trim() || undefined,
+      description: description.trim(),
       completed: false,
       type: itemType,
-      event_count: 0,
       data: {}
     };
 
     if (itemType === 'meeting') {
-      newItem.data = {
-          time: meetingTime,
-          endTime: endTime,
-          location: meetingLocation,
-          participants: meetingParticipants.split(/[\n,]+/).filter(p => p.trim() !== ''),
-      };
+      const participantsList = participants.split(/[\n,]+/).filter(p => p.trim() !== '');
+      newItem.data = { time, endTime, location, participants: participantsList };
 
-      if (providerToken && profile?.google_calendar_id && meetingTime && endTime) {
+      if (providerToken && profile?.google_calendar_id && time && endTime) {
         try {
-          const eventDetails = {
-            summary: newItem.title,
-            description: newItem.description || '',
-            location: newItem.data.location || '',
-            start: { dateTime: new Date(`${date}T${meetingTime}`).toISOString(), timeZone: 'Europe/Moscow' },
-            end: { dateTime: new Date(`${date}T${endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
-            attendees: newItem.data.participants?.map(email => ({email}))
-          };
-          const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
-          newItem.data.google_calendar_event_id = calEvent.id;
+            const eventDetails = {
+                summary: newItem.title,
+                description: newItem.description || '',
+                location: location,
+                start: { dateTime: new Date(`${date}T${time}`).toISOString(), timeZone: 'Europe/Moscow' },
+                end: { dateTime: new Date(`${date}T${endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
+                attendees: participantsList.map(email => ({email}))
+            };
+            const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
+            newItem.data!.google_calendar_event_id = calEvent.id;
         } catch (error) {
-          console.error("Failed to create calendar event:", error);
-          alert("Задача создана, но не удалось добавить событие в Google Календарь.");
+            console.error("Failed to create calendar event:", error);
+            alert("Задача создана, но не удалось добавить событие в Google Календарь. Проверьте ID календаря в профиле и права доступа.");
         }
       }
-
     } else if (itemType === 'interview') {
-      newItem.data = {
-          interviewee: interviewee,
-          time: interviewTime,
-      };
+      newItem.data = { interviewee: interviewee, time: time };
     }
     
     const newPlan = { ...week.plan };
-    if (!newPlan[date]) newPlan[date] = { tasks: [] };
+    if (!newPlan[date]) {
+        newPlan[date] = { tasks: [] };
+    }
     newPlan[date].tasks.push(newItem);
     
     onUpdatePlan(newPlan);
-    handleClose();
     setLoading(false);
+    handleClose();
   };
 
   const renderForm = () => {
     if (!itemType) return null;
     const currentType = eventTypes.find(et => et.type === itemType);
 
+    if (itemType === 'meeting') {
+      return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Добавьте название" className="w-full text-xl border-0 border-b-2 border-gray-200 focus:ring-0 focus:border-blue-500 py-2" required autoFocus/>
+            <div className="flex items-center gap-4 text-gray-600">
+                <FaClock size={20} className="flex-shrink-0" />
+                 <input type="date" value={date} className="input bg-gray-100" readOnly disabled />
+                 <input type="time" value={time} onChange={e => setTime(e.target.value)} className="input w-32" required />
+                 <span>-</span>
+                 <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input w-32" required />
+            </div>
+             <div className="flex items-center gap-4 text-gray-600">
+                <FaMapMarkerAlt size={20} className="flex-shrink-0" />
+                <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input w-full" placeholder="Место или ссылка на конференцию"/>
+            </div>
+             <div className="flex items-start gap-4 text-gray-600">
+                <FaUsersIcon size={20} className="flex-shrink-0 mt-2" />
+                <textarea value={participants} onChange={e => setParticipants(e.target.value)} className="input w-full" rows={3} placeholder="Добавьте участников по email (каждый с новой строки)" />
+            </div>
+             <div className="flex items-start gap-4 text-gray-600">
+                <FaAlignLeft size={20} className="flex-shrink-0 mt-2" />
+                <textarea value={description} onChange={e => setDescription(e.target.value)} className="input w-full" rows={4} placeholder="Добавьте описание или повестку" />
+            </div>
+            <div className="pt-4 flex justify-end gap-2">
+                <button type="button" onClick={handleBack} className="btn-secondary">Отмена</button>
+                <button type="submit" disabled={loading} className="btn-primary w-32 flex justify-center">{loading ? <Spinner size="sm" /> : 'Сохранить'}</button>
+            </div>
+        </form>
+      );
+    }
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <h3 className="text-lg font-bold flex items-center gap-3">{currentType?.icon}<span>Добавить: {currentType?.name}</span></h3>
-            <div><label className="label">{itemType === 'meeting' ? 'Тема встречи' : 'Название / Цель'}</label><input type="text" className="input" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus/></div>
-            <div><label className="label">Описание / Повестка</label><textarea className="input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)}/></div>
-            
-            {itemType === 'meeting' && (
-              <>
+            <div>
+                <label className="label">Название / Цель</label>
+                <textarea className="input" rows={2} value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus/>
+            </div>
+            <div>
+                <label className="label">Описание (опционально)</label>
+                <textarea className="input" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            {itemType === 'interview' && (
                 <div className="grid grid-cols-2 gap-4">
-                    <div><label className="label">Начало</label><input type="time" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="input" required/></div>
-                    <div><label className="label">Окончание</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input" required/></div>
-                </div>
-                <div><label className="label">Место</label><input type="text" value={meetingLocation} onChange={e => setMeetingLocation(e.target.value)} className="input" placeholder="Например, онлайн"/></div>
-                <div><label className="label">Участники (email через запятую или с новой строки)</label><textarea value={meetingParticipants} onChange={e => setMeetingParticipants(e.target.value)} className="input" rows={3}/></div>
-              </>
-            )}
-             {itemType === 'interview' && (
-                <div className="grid grid-cols-2 gap-4">
-                    <div><label className="label">Опрашиваемый</label><input type="text" value={interviewee} onChange={e => setInterviewee(e.target.value)} className="input" placeholder="Напр., Главбух"/></div>
-                    <div><label className="label">Время</label><input type="time" value={interviewTime} onChange={e => setInterviewTime(e.target.value)} className="input"/></div>
+                    <div><label className="label">Опрашиваемый</label><input type="text" value={interviewee} onChange={e => setInterviewee(e.target.value)} className="input" /></div>
+                    <div><label className="label">Время</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="input" /></div>
                 </div>
             )}
-
-
             <div className="pt-2 flex justify-between items-center">
                 <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
-                <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">{loading ? <Spinner size="sm"/> : 'Добавить'}</button>
-           </div>
+                <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center">{loading ? <Spinner size="sm" /> : 'Добавить'}</button>
+            </div>
         </form>
     );
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Добавить событие в план">
+    <Modal isOpen={isOpen} onClose={handleClose} title={itemType === 'meeting' ? '' : "Добавить событие"} size={itemType === 'meeting' ? 'lg' : 'md'}>
       {step === 'select' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {eventTypes.map(({ type, name, icon }) => (
-                <button key={type} onClick={() => handleSelectType(type)} className="modal-select-btn">{icon}<span className="font-semibold text-sm">{name}</span></button>
+                <button key={type} onClick={() => handleSelectType(type)} className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
+                    {icon}<span className="font-semibold text-sm">{name}</span>
+                </button>
             ))}
         </div>
       ) : renderForm()}

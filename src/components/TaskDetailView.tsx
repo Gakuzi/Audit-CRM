@@ -19,7 +19,7 @@ interface TaskDetailViewProps {
   providerToken: string | null;
   context: { item: PlanItem; weekId: string; projectId: string; };
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
-  onUpdateTask: (updatedTask: PlanItem) => void;
+  onUpdateTask: (weekId: string, updatedTask: PlanItem) => void;
   isAuditor: boolean;
   isGuest: boolean;
   project: Project;
@@ -30,7 +30,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
-    const [addSubTaskType, setAddSubTaskType] = useState<PlanItem['type'] | undefined>(undefined);
     const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const feedRef = useRef<HTMLDivElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
@@ -61,7 +60,28 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     }, [events, loading]);
     
     const handleNewEvent = (newEvent: Event) => {
+        setEvents(prev => [...prev, newEvent]);
         onEventCountChange(context.weekId, context.item.id, 1);
+    };
+
+    const handleNewAiEvent = async (eventPayload: Partial<Event>) => {
+        const fullPayload = {
+            project_id: context.projectId,
+            week_id: context.weekId,
+            task_id: context.item.id,
+            user_id: user ? user.id : null,
+            author_email: 'AI Ассистент',
+            ...eventPayload,
+        };
+
+        const { data, error } = await supabase.from('events').insert(fullPayload).select('*, parent:events!parent_event_id(content, author_email)').single();
+
+        if (error) {
+            alert("Ошибка создания AI события: " + error.message);
+        } else if (data) {
+            setEvents(prev => [...prev, data as Event]);
+            onEventCountChange(context.weekId, context.item.id, 1);
+        }
     };
 
     const handleUpdateEvent = async (content: string) => {
@@ -74,6 +94,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const handleDeleteEvent = async () => {
         if (!eventToDelete) return;
         await supabase.from('events').delete().eq('id', eventToDelete.id);
+        setEvents(prev => prev.filter(e => e.id !== eventToDelete.id));
         onEventCountChange(context.weekId, context.item.id, -1);
         setEventToDelete(null);
     };
@@ -81,21 +102,34 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     useEffect(() => {
         if (!context) return;
         const channel = supabase.channel(`public:events:task_id=eq.${context.item.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, () => fetchEvents(false))
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, (payload) => {
+                setEvents(prev => {
+                    if (prev.find(e => e.id === payload.new.id)) return prev;
+                    return [...prev, payload.new as Event];
+                });
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, (payload) => {
+                setEvents(prev => prev.filter(e => e.id !== payload.old.id));
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, (payload) => {
+                setEvents(prev => prev.map(e => e.id === payload.new.id ? payload.new as Event : e));
+            })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [context, fetchEvents]);
+    }, [context]);
     
     const handleQuoteClick = (eventId: string) => {
         const element = document.getElementById(`event-${eventId}`);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.classList.add('highlight');
+            setTimeout(() => element.classList.remove('highlight'), 1000);
         }
     };
     
     const handleAddSubTask = (subTask: PlanItem) => {
         const updatedTask = { ...context.item, sub_tasks: [...(context.item.sub_tasks || []), subTask] };
-        onUpdateTask(updatedTask);
+        onUpdateTask(context.weekId, updatedTask);
         if (isGuest) {
             onSubTaskAdded(context.item, subTask);
         }
@@ -104,32 +138,59 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     if (!isOpen || !context) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-end">
-            <style>{`.highlight { background-color: #eef2ff; transition: background-color 0.5s; }`}</style>
-            <div className="bg-white h-full w-full max-w-5xl shadow-xl flex flex-col lg:flex-row">
-                <TaskSidebar task={context.item} events={events} project={project} isAuditor={isAuditor} isGuest={isGuest} onAddSubTask={() => setIsAddEventModalOpen(true)} onNewAiEvent={handleNewEvent} isDescriptionExpanded={isDescriptionExpanded} onToggleDescription={() => setIsDescriptionExpanded(!isDescriptionExpanded)} />
-                <div className="flex-1 flex flex-col min-w-0">
-                    <header className="flex-shrink-0 flex justify-end items-center p-4 border-b lg:border-l">
-                        <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100"><FaTimes size={20} /></button>
-                    </header>
-                    <main ref={feedRef} className="flex-1 overflow-y-auto p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-end animate-fade-in">
+             <style>{`.highlight { background-color: #eef2ff; transition: background-color 0.5s; } .animate-fade-in { animation: fadeIn 0.3s ease-out; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+            <div className="bg-white h-full w-full max-w-5xl shadow-xl flex flex-col lg:flex-row relative">
+                <button onClick={onClose} className="absolute top-2 right-2 p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 z-20"><FaTimes size={20} /></button>
+                <TaskSidebar 
+                  task={context.item} 
+                  events={events} 
+                  isAuditor={isAuditor} 
+                  isGuest={isGuest} 
+                  onAddSubTask={() => setIsAddEventModalOpen(true)} 
+                  onNewAiEvent={handleNewAiEvent} 
+                  isDescriptionExpanded={isDescriptionExpanded} 
+                  onToggleDescription={() => setIsDescriptionExpanded(!isDescriptionExpanded)} 
+                />
+                <div className="flex-1 flex flex-col min-w-0" style={{minHeight: 0}}>
+                    <header className="flex-shrink-0 h-12 lg:border-l"></header>
+                    <main ref={feedRef} className="flex-1 overflow-y-auto p-4" style={{minHeight: 0}}>
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
                             events.length > 0 ? (
                                 <div className="divide-y divide-gray-200">
                                     {events.map(event => (
-                                        <EventItem key={event.id} event={event} onReply={setQuotedEvent} onQuoteClick={handleQuoteClick} onDelete={isAuditor ? () => setEventToDelete(event) : undefined} onEdit={isAuditor ? () => setEventToEdit(event) : undefined} isExpanded={event.id === expandedEventId} onToggleExpand={() => setExpandedEventId(prev => prev === event.id ? null : event.id)} />
+                                        <EventItem 
+                                          key={event.id} 
+                                          event={event} 
+                                          onReply={setQuotedEvent} 
+                                          onQuoteClick={handleQuoteClick} 
+                                          onDelete={isAuditor ? () => setEventToDelete(event) : undefined} 
+                                          onEdit={isAuditor ? () => setEventToEdit(event) : undefined} 
+                                          isExpanded={event.id === expandedEventId} 
+                                          onToggleExpand={() => setExpandedEventId(prev => prev === event.id ? null : event.id)} 
+                                        />
                                     ))}
                                 </div>
-                            ) : (<p className="text-sm text-gray-500 text-center pt-8">Событий нет.</p>)
+                            ) : (<p className="text-sm text-gray-500 text-center pt-8">Событий нет. Начните обсуждение, чтобы зафиксировать прогресс.</p>)
                         )}
                     </main>
-                    <footer className="flex-shrink-0 p-4 bg-gray-50 border-t lg:border-l">
-                        <AddEventForm user={user} providerToken={providerToken} context={context} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} isGuest={isGuest} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} />
+                    <footer className="flex-shrink-0 p-2 bg-gray-50 border-t lg:border-l">
+                        <AddEventForm 
+                          user={user} 
+                          providerToken={providerToken} 
+                          context={{ ...context, taskId: context.item.id }} 
+                          quotedEvent={quotedEvent} 
+                          onClearQuote={() => setQuotedEvent(null)} 
+                          onNewEvent={handleNewEvent} 
+                          project={project} 
+                          isGuest={isGuest} 
+                          onAddSubTaskRequest={() => setIsAddEventModalOpen(true)}
+                        />
                     </footer>
                 </div>
             </div>
-            {(isAuditor || isGuest) && <AddEventModal isOpen={isAddEventModalOpen} onClose={() => setIsAddEventModalOpen(false)} user={user} onAddSubTask={handleAddSubTask} parentItem={context.item} parentEvent={null} isGuest={isGuest} preselectedType={addSubTaskType} />}
-            <ConfirmationModal isOpen={!!eventToDelete} onClose={() => setEventToDelete(null)} onConfirm={handleDeleteEvent} title="Удалить событие?" message="Вы уверены?" />
+            {(isAuditor || isGuest) && <AddEventModal isOpen={isAddEventModalOpen} onClose={() => setIsAddEventModalOpen(false)} onAddSubTask={handleAddSubTask} />}
+            <ConfirmationModal isOpen={!!eventToDelete} onClose={() => setEventToDelete(null)} onConfirm={handleDeleteEvent} title="Удалить событие?" message="Вы уверены, что хотите удалить это событие? Это действие необратимо." />
             {eventToEdit && <EditEventModal isOpen={!!eventToEdit} onClose={() => setEventToEdit(null)} event={eventToEdit} onUpdate={handleUpdateEvent} />}
         </div>
     );

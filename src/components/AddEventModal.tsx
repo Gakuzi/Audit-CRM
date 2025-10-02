@@ -1,129 +1,114 @@
-
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { User } from '@supabase/supabase-js';
-import { Event, PlanItem } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { PlanItem, PlanItemType } from '../types';
 import { Spinner } from './ui/Spinner';
-import AudioRecorderModal from './AudioRecorderModal';
-import { FaComment, FaVideo, FaMicrophone, FaFileAlt, FaArrowLeft, FaTasks } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap } from 'react-icons/fa';
 
 interface AddEventModalProps {
     isOpen: boolean;
     onClose: () => void;
-    user: User | null;
     onAddSubTask: (subTask: PlanItem) => void;
-    parentItem: PlanItem;
-    parentEvent: Event | null;
-    isGuest: boolean;
-    preselectedType?: PlanItem['type'];
 }
 
-const sanitizeFileName = (fileName: string) => {
-    const parts = fileName.split('.');
-    const extension = parts.length > 1 ? '.' + parts.pop() : '';
-    const name = parts.join('.');
-    const cleanedName = name
-      .replace(/\s+/g, '_')
-      .replace(/[^a-zA-Z0-9_-]/g, '')
-      .substring(0, 100);
-    return cleanedName + extension;
-};
+const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] = [
+    { type: 'task', name: 'Задача', icon: <FaTasks size={24} className="mb-2 text-gray-600" /> },
+    { type: 'meeting', name: 'Встреча', icon: <FaCalendarCheck size={24} className="mb-2 text-purple-600" /> },
+    { type: 'interview', name: 'Интервью', icon: <FaUsers size={24} className="mb-2 text-green-600" /> },
+    { type: 'doc_review', name: 'Анализ документов', icon: <FaFileContract size={24} className="mb-2 text-blue-600" /> },
+    { type: 'observation', name: 'Наблюдение', icon: <FaBinoculars size={24} className="mb-2 text-orange-600" /> },
+    { type: 'process_analysis', name: 'Анализ процесса', icon: <FaSitemap size={24} className="mb-2 text-teal-600" /> },
+];
 
-const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, user, onAddSubTask, parentItem, parentEvent, isGuest }) => {
+const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSubTask }) => {
     const [step, setStep] = useState<'select' | 'form'>('select');
-    const [itemType, setItemType] = useState<PlanItem['type']>('task');
+    const [itemType, setItemType] = useState<PlanItemType | null>(null);
     const [loading, setLoading] = useState(false);
-    const [isRecorderOpen, setIsRecorderOpen] = useState(false);
 
     // Form states
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [meetingTime, setMeetingTime] = useState('');
-    const [participants, setParticipants] = useState('');
-    const [files, setFiles] = useState<FileList | null>(null);
 
-    const handleSelectType = (type: PlanItem['type']) => {
+    const handleSelectType = (type: PlanItemType) => {
         setItemType(type);
         setStep('form');
     }
     
-    const handleBack = () => { resetForm(); setStep('select'); }
-    const handleClose = () => { resetForm(); setStep('select'); onClose(); }
+    const handleBack = () => {
+        resetForm();
+        setStep('select');
+    }
+    
+    const handleClose = () => {
+        resetForm();
+        setStep('select');
+        onClose();
+    }
     
     const resetForm = () => {
         setTitle('');
         setDescription('');
-        setMeetingTime('');
-        setParticipants('');
-        setFiles(null);
+        setItemType(null);
         setLoading(false);
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!itemType || !title.trim()) return;
         setLoading(true);
 
-        const subTask: PlanItem = {
+        const newSubTask: PlanItem = {
             id: crypto.randomUUID(),
             title: title.trim(),
             description: description.trim(),
-            type: itemType,
             completed: false,
-            data: {},
+            // Fix: Corrected the variable name from 'eventType' to 'itemType'.
+            type: itemType,
         };
-
-        if (itemType === 'meeting') {
-            subTask.data = {
-                date: meetingTime.split('T')[0],
-                time: meetingTime.split('T')[1],
-                participants: participants.split('\n').filter(p => p.trim())
-            }
-        }
         
-        onAddSubTask(subTask);
+        onAddSubTask(newSubTask);
+        setLoading(false);
         handleClose();
     };
     
     const renderForm = () => {
-        switch (itemType) {
-            case 'meeting':
-                return <>
-                    <h3 className="text-lg font-bold">Запланировать встречу</h3>
-                    <div><label className="label">Тема встречи</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="input" required/></div>
-                    <div><label className="label">Дата и время</label><input type="datetime-local" value={meetingTime} onChange={e => setMeetingTime(e.target.value)} className="input" required/></div>
-                    <div><label className="label">Участники (каждый с новой строки)</label><textarea value={participants} onChange={e => setParticipants(e.target.value)} className="input" rows={3}/></div>
-                    <div><label className="label">Описание/повестка</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="input" rows={3}/></div>
-                </>;
-            default: // task
-                return <>
-                    <h3 className="text-lg font-bold">Добавить подзадачу</h3>
-                    <div><label className="label">Название</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="input" required/></div>
-                    <div><label className="label">Описание (опционально)</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="input" rows={3}/></div>
-                </>;
-        }
+        if (!itemType) return null;
+        const currentType = eventTypes.find(et => et.type === itemType);
+
+        return (
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-3">{currentType?.icon}<span>Добавить: {currentType?.name}</span></h3>
+                <div>
+                    <label className="label">Название / Цель</label>
+                    <textarea className="input" rows={2} value={title} onChange={e => setTitle(e.target.value)} required autoFocus/>
+                </div>
+                <div>
+                    <label className="label">Описание (опционально)</label>
+                    <textarea className="input" rows={3} value={description} onChange={e => setDescription(e.target.value)} />
+                </div>
+                <div className="pt-2 flex justify-between items-center">
+                    <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
+                    <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
+                        {loading ? <Spinner size="sm" /> : 'Добавить'}
+                    </button>
+                </div>
+            </form>
+        )
     }
     
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title={step === 'select' ? "Добавить подзадачу" : ""}>
+        <Modal isOpen={isOpen} onClose={handleClose} title="Добавить подзадачу">
             {step === 'select' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button onClick={() => handleSelectType('task')} className="modal-select-btn"><FaTasks size={24} className="mb-2 text-gray-600"/><span>Задача</span></button>
-                    <button onClick={() => handleSelectType('meeting')} className="modal-select-btn"><FaVideo size={24} className="mb-2 text-purple-600"/><span>Встреча</span></button>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {eventTypes.map(({ type, name, icon }) => (
+                        <button key={type} onClick={() => handleSelectType(type)} className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
+                            {icon}
+                            <span className="font-semibold text-sm">{name}</span>
+                        </button>
+                    ))}
                 </div>
             ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {renderForm()}
-                    <div className="pt-2 flex justify-between items-center">
-                         <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
-                         <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
-                            {loading ? <Spinner size="sm" /> : 'Добавить'}
-                        </button>
-                    </div>
-                </form>
+                renderForm()
             )}
-            {isRecorderOpen && <AudioRecorderModal isOpen={isRecorderOpen} onClose={() => setIsRecorderOpen(false)} onSave={() => {}} />}
         </Modal>
     )
 };

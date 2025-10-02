@@ -1,82 +1,68 @@
 // src/hooks/useGooglePicker.ts
 import { useState, useEffect, useCallback } from 'react';
 
-declare global {
-    interface Window {
-        gapi: any;
-        google: any;
-    }
-}
+// Fix: Add global declarations for Google APIs to resolve 'Cannot find name' errors.
+declare const gapi: any;
+declare const google: any;
 
-interface PickerFile {
-    id: string;
-    name: string;
-    url: string;
-    mimeType: string;
-}
-
-interface UseGooglePickerOptions {
+interface GooglePickerConfig {
+    clientId: string;
+    developerKey: string;
     token: string | null;
-    onFilesSelected: (files: PickerFile[]) => void;
+    onSelect: (files: any[]) => void;
 }
 
-export const useGooglePicker = ({ token, onFilesSelected }: UseGooglePickerOptions) => {
-    const [isPickerApiLoaded, setIsPickerApiLoaded] = useState(false);
+let pickerApiLoaded = false;
+let gapiLoaded = false;
 
-    useEffect(() => {
-        if (window.gapi && window.google) {
-            setIsPickerApiLoaded(true);
+export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: GooglePickerConfig) => {
+    const [isPickerReady, setIsPickerReady] = useState(false);
+
+    const loadGapi = useCallback(() => {
+        if (gapiLoaded) {
+            gapi.load('picker', { 'callback': () => { pickerApiLoaded = true; setIsPickerReady(true); } });
             return;
         }
 
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
-        script.async = true;
-        script.defer = true;
         script.onload = () => {
-            window.gapi.load('picker', () => {
-                setIsPickerApiLoaded(true);
-            });
+            gapiLoaded = true;
+            gapi.load('picker', { 'callback': () => { pickerApiLoaded = true; setIsPickerReady(true); } });
         };
         document.body.appendChild(script);
-
-        return () => {
-            // It's generally safe to leave the script in the document, 
-            // but if cleanup is needed, it can be handled here.
-        };
     }, []);
 
-    const openPicker = useCallback(() => {
-        if (!isPickerApiLoaded) {
-            alert('Google Picker API еще не загружен. Пожалуйста, подождите.');
-            return;
+    useEffect(() => {
+        if (token) {
+            loadGapi();
         }
-        if (!token) {
-            alert('Вы не авторизованы через Google. Пожалуйста, войдите, чтобы использовать Google Drive.');
+    }, [token, loadGapi]);
+
+    const openPicker = useCallback(() => {
+        if (!isPickerReady || !token) {
+            console.error("Picker is not ready or token is missing.");
             return;
         }
 
-        const view = new window.google.picker.View(window.google.picker.ViewId.DOCS);
-        view.setMimeTypes("image/png,image/jpeg,image/jpg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        
-        const picker = new window.google.picker.PickerBuilder()
-            .addView(view)
+        const view = new google.picker.View(google.picker.ViewId.DOCS);
+        view.setMimeTypes("image/png,image/jpeg,image/jpg,application/pdf,application/vnd.google-apps.document,application/vnd.google-apps.spreadsheet");
+
+        const picker = new google.picker.PickerBuilder()
+            .enableFeature(google.picker.Feature.NAV_HIDDEN)
+            .setAppId(clientId)
             .setOAuthToken(token)
-            // No developer key is set, assuming the origin is authorized in the Google Cloud project.
+            .addView(view)
+            .setDeveloperKey(developerKey)
             .setCallback((data: any) => {
-                if (data.action === window.google.picker.Action.PICKED) {
-                    const files: PickerFile[] = data.docs.map((doc: any) => ({
-                        id: doc.id,
-                        name: doc.name,
-                        url: doc.url,
-                        mimeType: doc.mimeType,
-                    }));
-                    onFilesSelected(files);
+                if (data[google.picker.Action.PICKED]) {
+                    onSelect(data[google.picker.Response.DOCUMENTS]);
                 }
             })
             .build();
         picker.setVisible(true);
-    }, [isPickerApiLoaded, token, onFilesSelected]);
 
-    return { openPicker, isPickerReady: isPickerApiLoaded && !!token };
+    }, [isPickerReady, token, clientId, developerKey, onSelect]);
+
+    return { openPicker, isPickerReady };
 };

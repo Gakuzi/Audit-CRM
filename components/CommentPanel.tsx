@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -113,7 +114,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {events.map(event => <EventItem key={event.id} event={event} onReply={handleReply} onQuoteClick={handleQuoteClick} isExpanded={false} onToggleExpand={() => {}} />)}
+                            {events.map(event => <EventItem key={event.id} event={event} onReply={handleReply} onQuoteClick={handleQuoteClick} />)}
                         </div>
                     ) : (
                         <p className="text-sm text-gray-500 text-center pt-8">Комментариев пока нет. Начните обсуждение!</p>
@@ -130,7 +131,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                     </div>
                  )}
                 {/* FIX: Pass all required props to AddEventForm, including isGuest, project, and task. */}
-                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} providerToken={null} context={{item: task, weekId: context.weekId, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={fetchEventsAndProject} project={project} isGuest={isGuest} onAddSubTaskRequest={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
+                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} providerToken={null} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} isGuest={isGuest} onAddSubTaskRequest={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
             </div>
 
             {/* FIX: Pass all required props to AddMeetingModal, including project and task. */}
