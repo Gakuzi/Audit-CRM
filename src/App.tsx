@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabaseClient';
 import { User } from '@supabase/supabase-js';
@@ -21,7 +20,6 @@ function App() {
   const [loginModalInitialMode, setLoginModalInitialMode] = useState<'signIn' | 'signUp'>('signIn');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
-  // Guest-related state
   const [isGuest, setIsGuest] = useState(false);
   const [identifiedGuest, setIdentifiedGuest] = useState<ContactPerson | null>(null);
   const [initialTaskId, setInitialTaskId] = useState<string | null>(null);
@@ -36,13 +34,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setProviderToken(session?.provider_token || null);
-      fetchProfile(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const sessionResponse = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setProviderToken(session?.provider_token || null);
       fetchProfile(session?.user ?? null);
@@ -60,14 +52,14 @@ function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => sessionResponse.data.subscription.unsubscribe();
   }, [fetchProfile]);
 
   useEffect(() => {
     const handleHashChange = async () => {
         const hash = window.location.hash.replace('#/', '');
         const [projectId, searchParams] = hash.split('?');
-        const params = new URLSearchParams(searchParams);
+        const params = new URLSearchParams(searchParams || '');
         const contactId = params.get('contactId');
         const taskId = params.get('taskId');
 
@@ -84,24 +76,25 @@ function App() {
             const { data: companyData } = await supabase.from('company_profiles').select('*').eq('project_id', projectId).single();
             setCompanyProfile(companyData);
             
-            if (!user) { // If user is not logged in, they are a guest
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) {
                 setIsGuest(true);
-                if (contactId) { // New guest identified by link
-                    const contact = companyData?.contacts.find((c: ContactPerson) => c.id === contactId);
+                if (contactId && companyData?.contacts) {
+                    const contact = (companyData.contacts as ContactPerson[]).find(c => c.id === contactId);
                     if (contact) {
                         const guestToken = `${projectId}-${contactId}`;
                         localStorage.setItem('guestToken', guestToken);
                         localStorage.setItem('guestName', contact.name);
                         setIdentifiedGuest(contact);
                     }
-                } else { // Returning guest, check local storage
+                } else {
                     const guestToken = localStorage.getItem('guestToken');
                     const storedProjectId = guestToken?.split('-')[0];
                     if (guestToken && storedProjectId === projectId) {
                         const guestName = localStorage.getItem('guestName');
                         if (guestName) setIdentifiedGuest({ name: guestName } as ContactPerson);
                     } else {
-                        // Guest is accessing a project they don't have a token for. Clear identity.
                         setIdentifiedGuest(null);
                     }
                 }
@@ -121,7 +114,7 @@ function App() {
     handleHashChange();
 
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [user]);
+  }, []);
 
 
   const handleBackToDashboard = () => {

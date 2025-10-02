@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
@@ -119,7 +120,9 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
 
         setLoading(`analyze-${audioEvent.id}`);
         try {
-            const resultText = await processInterviewAudio(context.item.content);
+            // Fix: Use 'title' and 'description' properties instead of 'content' to form a complete context.
+            const fullContext = `${context.item.title}\n\n${context.item.description || ''}`;
+            const resultText = await processInterviewAudio(fullContext);
             
             await createNewEvent({
                 type: 'comment',

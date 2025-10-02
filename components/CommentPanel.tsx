@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -59,7 +60,8 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                     if (foundTask) break;
                 }
             }
-            setTask(foundTask || {id: context.taskId, content: context.taskContent, completed: false, type: 'task'});
+            // Fix: Use 'title' property instead of 'content' for the fallback PlanItem object.
+            setTask(foundTask || {id: context.taskId, title: context.taskContent, completed: false, type: 'task'});
             
             if(fetchedProjectId) {
                 const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', fetchedProjectId).single();

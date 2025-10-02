@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 // Fix: Use relative path for type import.
-import { Project, ApprovalPeriod } from '../types';
+import { Project, ApprovalPeriod, ApprovalPeriodType } from '../types';
 import { supabase } from '../services/supabaseClient';
 // Fix: Use relative path for service import.
 import { generateAuditPlan } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
+import AiChatModal from './AiChatModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,16 +19,23 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project, onProjectUpdate }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>('weekly');
+    // Fix: Initialize state with a valid ApprovalPeriod object.
+    const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>({ type: 'weekly', dayOfWeek: 1 });
     const [loading, setLoading] = useState(false);
     const [statusText, setStatusText] = useState('');
     const [error, setError] = useState('');
+    const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
     useEffect(() => {
         if (project) {
             setName(project.name);
             setDescription(project.description);
-            setApprovalPeriod(project.approval_period);
+            // Fix: Handle both old string and new object format for backward compatibility.
+            if (typeof project.approval_period === 'string') {
+                 setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 }); // Default for old data
+            } else {
+                setApprovalPeriod(project.approval_period);
+            }
         }
     }, [project]);
     
@@ -81,11 +89,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
              if (!project.end_date) {
                   end.setDate(end.getDate() + 27); // Default 4 weeks
              }
-             const durationInDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-             const durationInWeeks = Math.ceil(durationInDays / 7);
-
+             
             setStatusText('Генерация нового плана с помощью AI...');
-            const generatedData = await generateAuditPlan(name, description, project.start_date, project.end_date || '', durationInWeeks, approvalPeriod);
+            // Fix: Remove durationInWeeks argument and pass the approvalPeriod object.
+            const generatedData = await generateAuditPlan(name, description, project.start_date, project.end_date || '', approvalPeriod);
 
             // 4. Insert new weeks
             const weeksToInsert = generatedData.weeks.map((week: any) => ({
@@ -114,8 +121,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
         }
     };
 
+    // Fix: Add handler for changing the approval period type.
+    const handlePeriodTypeChange = (type: ApprovalPeriodType) => {
+      if (type === 'weekly') {
+          setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
+      } else if (type === 'daily') {
+          setApprovalPeriod({ type: 'daily', interval: 1 });
+      }
+    };
+
 
     return (
+        <>
         <Modal isOpen={isOpen} onClose={handleClose} title="Настройки проекта">
             <form onSubmit={handleUpdateSettings} className="space-y-4">
                  {error && <p className="text-red-600 bg-red-100 p-3 rounded-md text-sm">{error}</p>}
@@ -132,13 +149,54 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
                 <div>
                     <label htmlFor="projectDescSettings" className="block text-sm font-medium text-gray-700">Описание / Цели</label>
                     <textarea id="projectDescSettings" value={description} onChange={e => setDescription(e.target.value)} className="w-full mt-1 input" rows={3} required disabled={loading} />
+                    <button type="button" onClick={() => setIsChatModalOpen(true)} className="text-xs text-blue-600 hover:underline mt-1">
+                        Сгенерировать с помощью AI чата
+                    </button>
                 </div>
+                {/* Fix: Replace simple select with a detailed UI for ApprovalPeriod. */}
                 <div>
-                    <label htmlFor="approvalPeriodSettings" className="block text-sm font-medium text-gray-700">Период отчетности</label>
-                    <select id="approvalPeriodSettings" value={approvalPeriod} onChange={e => setApprovalPeriod(e.target.value as ApprovalPeriod)} className="w-full mt-1 input bg-white" disabled={loading}>
-                        <option value="weekly">Еженедельно</option>
-                        <option value="monthly">Ежемесячно</option>
-                    </select>
+                    <label className="block text-sm font-medium text-gray-700">Период отчетности</label>
+                    <div className="mt-1 grid grid-cols-2 gap-2 items-center">
+                        <select 
+                            value={approvalPeriod.type} 
+                            onChange={e => handlePeriodTypeChange(e.target.value as ApprovalPeriodType)} 
+                            className="input bg-white"
+                            disabled={loading}
+                        >
+                            <option value="weekly">Еженедельно</option>
+                            <option value="daily">Каждые N дней</option>
+                        </select>
+                        {approvalPeriod.type === 'weekly' && (
+                            <select 
+                                value={approvalPeriod.dayOfWeek}
+                                onChange={e => setApprovalPeriod({ ...approvalPeriod, dayOfWeek: parseInt(e.target.value) })}
+                                className="input bg-white"
+                                disabled={loading}
+                            >
+                                <option value={1}>по понедельникам</option>
+                                <option value={2}>по вторникам</option>
+                                <option value={3}>по средам</option>
+                                <option value={4}>по четвергам</option>
+                                <option value={5}>по пятницам</option>
+                                <option value={6}>по субботам</option>
+                                <option value={0}>по воскресеньям</option>
+                            </select>
+                        )}
+                        {approvalPeriod.type === 'daily' && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">Каждые</span>
+                                <input 
+                                    type="number"
+                                    min="1"
+                                    value={approvalPeriod.interval}
+                                    onChange={e => setApprovalPeriod({ ...approvalPeriod, interval: parseInt(e.target.value) || 1 })}
+                                    className="input w-16"
+                                    disabled={loading}
+                                />
+                                <span className="text-sm">дн.</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="pt-2 flex justify-end">
                     <button type="button" onClick={handleClose} className="mr-2 py-2 px-4 btn-secondary" disabled={loading}>Отмена</button>
@@ -159,6 +217,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, project,
                 </button>
             </div>
         </Modal>
+        <AiChatModal 
+            isOpen={isChatModalOpen}
+            onClose={() => setIsChatModalOpen(false)}
+            onConfirm={(generatedDesc) => {
+                setDescription(generatedDesc);
+                setIsChatModalOpen(false);
+            }}
+            initialContext={`Создай описание для проекта аудита с названием "${name}"`}
+        />
+        </>
     );
 };
 

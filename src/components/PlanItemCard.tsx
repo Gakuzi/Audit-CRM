@@ -1,6 +1,6 @@
 import React from 'react';
 import { PlanItem } from '../types';
-import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap } from 'react-icons/fa';
+import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap, FaCheck, FaUndo } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSwipe } from '../hooks/useSwipe';
@@ -10,16 +10,16 @@ interface PlanItemCardProps {
   onSelect: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleComplete?: () => void;
 }
 
-const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete }) => {
+const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete, onToggleComplete }) => {
   
   const hasActions = onEdit && onDelete;
-
-  const { ref, style } = useSwipe({
-    onSwipeLeftAction: onDelete,
-    rightRevealWidth: hasActions ? 128 : 0, // Width for two buttons
-    threshold: 60,
+  const { ref, style } = useSwipe({ 
+     onSwipeRightAction: onToggleComplete,
+     rightRevealWidth: hasActions ? 128 : 0,
+     leftRevealWidth: onToggleComplete ? 64 : 0,
   });
 
   const getIcon = () => {
@@ -41,82 +41,59 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
 
   const renderMeetingInvites = () => {
     if (item.type !== 'meeting' || !item.data?.participants || item.data.participants.length === 0) return null;
-    
-    const inviteText = `Приглашение на встречу: "${item.title}".\nВремя: ${item.data.time || 'не указано'}\nМесто: ${item.data.location || 'не указано'}\nПовестка: ${item.data.agenda || 'не указана'}`;
-
+    const inviteText = `Приглашение на встречу: "${item.title}".\nВремя: ${item.data.time || 'не указ.'}\nМесто: ${item.data.location || 'не указ.'}\nПовестка: ${item.data.agenda || 'не указ.'}`;
     return (
         <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-end space-x-2">
             <span className="text-xs text-gray-500">Пригласить:</span>
-             <a 
-                href={`https://wa.me/?text=${encodeURIComponent(inviteText)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-green-500 hover:text-green-700"
-            >
-                <FaWhatsapp />
-            </a>
-            <a 
-                href={`https://t.me/share/url?url=&text=${encodeURIComponent(inviteText)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-sky-500 hover:text-sky-700"
-            >
-                <FaTelegramPlane />
-            </a>
+             <a href={`https://wa.me/?text=${encodeURIComponent(inviteText)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-green-500 hover:text-green-700"><FaWhatsapp /></a>
+            <a href={`https://t.me/share/url?url=&text=${encodeURIComponent(inviteText)}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-sky-500 hover:text-sky-700"><FaTelegramPlane /></a>
         </div>
     )
   }
   
   const subTaskProgress = item.sub_tasks ? (item.sub_tasks.filter(st => st.completed).length / item.sub_tasks.length) * 100 : 0;
 
-
   return (
     <div className="swipe-container">
+       {onToggleComplete && (
+           <div className="swipe-actions-left touch-only">
+               <button onClick={(e) => handleActionClick(e, onToggleComplete)} className="swipe-action green">
+                   {item.completed ? <FaUndo /> : <FaCheck />}
+               </button>
+           </div>
+       )}
        {hasActions && (
-          <div className="swipe-actions-right">
+          <div className="swipe-actions-right touch-only">
             <button onClick={(e) => handleActionClick(e, onEdit)} className="swipe-action blue"><FaEdit/></button>
             <button onClick={(e) => handleActionClick(e, onDelete)} className="swipe-action red"><FaTrash/></button>
           </div>
         )}
-      <div 
-        ref={ref}
-        style={style}
-        onClick={onSelect}
-        className={`swipe-content p-2.5 rounded-md shadow-sm border cursor-pointer transition-colors group relative ${item.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
-      >
+      <div ref={ref} style={style} onClick={onSelect} className={`swipe-content p-2.5 rounded-md shadow-sm border cursor-pointer transition-colors group relative ${item.completed ? 'bg-green-50/70 border-green-200' : 'bg-white border-gray-200'}`}>
+          {hasActions && (
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-center bg-white bg-opacity-70 rounded-md">
+                <button onClick={(e) => handleActionClick(e, onEdit)} className="p-1.5 text-gray-500 hover:text-blue-600"><FaEdit size={12} /></button>
+                <button onClick={(e) => handleActionClick(e, onDelete)} className="p-1.5 text-gray-500 hover:text-red-600"><FaTrash size={12} /></button>
+              </div>
+          )}
           <div className="flex justify-between items-start gap-2">
             <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-            <div className="flex-1 pr-6">
-                <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-500' : ''}`}>
+            <div className="flex-1 min-w-0 pr-6">
+                <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-600' : ''}`}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
                 </div>
-                {item.data?.agenda && 
-                    <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
-                        <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
+                {item.description && (
+                     <div className="text-xs text-gray-500 mt-1 prose prose-xs max-w-none line-clamp-2">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.description}</ReactMarkdown>
                     </div>
-                }
-                
+                )}
                 {(item.type === 'meeting' || item.type === 'interview') && item.data?.time && (
-                    <div className="flex items-center text-xs text-gray-500 mt-1">
-                        <FaClock className="mr-1.5" />
-                        <span>{item.data.time}</span>
-                        {item.type === 'meeting' && item.data.location && <span className="ml-1">, {item.data.location}</span>}
-                    </div>
+                    <div className="flex items-center text-xs text-gray-500 mt-1"><FaClock className="mr-1.5" /><span>{item.data.time}</span>{item.type === 'meeting' && item.data.location && <span className="ml-1">, {item.data.location}</span>}</div>
                 )}
                  {item.type === 'interview' && item.data?.interviewee && (
-                    <div className="flex items-center text-xs text-gray-500 mt-1">
-                        <FaUser className="mr-1.5" />
-                        <span>{item.data.interviewee}</span>
-                    </div>
+                    <div className="flex items-center text-xs text-gray-500 mt-1"><FaUser className="mr-1.5" /><span>{item.data.interviewee}</span></div>
                 )}
-
             </div>
-            <div className="flex items-center space-x-1 text-gray-400 mt-1 flex-shrink-0">
-                 <FaRegCommentDots />
-                 <span className="text-xs font-medium">{item.event_count || 0}</span>
-            </div>
+            <div className="flex items-center space-x-1 text-gray-400 mt-1 flex-shrink-0"><FaRegCommentDots /><span className="text-xs font-medium">{item.event_count || 0}</span></div>
           </div>
           {renderMeetingInvites()}
           {item.sub_tasks && item.sub_tasks.length > 0 && (
@@ -125,9 +102,7 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
                       <span className="flex items-center gap-1.5"><FaTasks size={10} /> {item.sub_tasks.filter(t => t.completed).length}/{item.sub_tasks.length}</span>
                       <span>{Math.round(subTaskProgress)}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                      <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${subTaskProgress}%` }}></div>
-                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1 mt-1"><div className="bg-blue-500 h-1 rounded-full" style={{ width: `${subTaskProgress}%` }}></div></div>
               </div>
           )}
       </div>

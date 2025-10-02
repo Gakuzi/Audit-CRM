@@ -1,4 +1,3 @@
-// src/components/AddEventForm.tsx
 import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -39,13 +38,12 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         if (!event.target.files) return;
         const selectedFiles = Array.from(event.target.files);
         
-        // Fix: Explicitly type 'file' as 'File' to resolve type inference issue.
         selectedFiles.forEach((file: File) => {
             if (file.size > FILE_SIZE_LIMIT) {
                 if (providerToken) {
                     setLargeFileToUpload(file);
                 } else {
-                    alert(`Файл "${file.name}" слишком большой (>${FILE_SIZE_LIMIT / 1024 / 1024} MB) и не может быть загружен. Подключите Google Drive для загрузки больших файлов.`);
+                    alert(`Файл "${file.name}" слишком большой (>${(FILE_SIZE_LIMIT / 1024 / 1024).toFixed(0)} MB) и не может быть загружен. Подключите Google Drive для загрузки больших файлов.`);
                 }
             } else {
                 setFilesToAttach(prev => [...prev, file]);
@@ -56,13 +54,14 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
 
     const handleDriveUploadComplete = (link: { name: string; url: string }) => {
         const newContent = `Прикреплен большой файл (Google Drive): [${link.name}](${link.url})`;
-        onNewEvent({ content: newContent } as Event);
+        handleSubmit(undefined, newContent);
         setLargeFileToUpload(null);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!content.trim() && filesToAttach.length === 0) return;
+    const handleSubmit = async (e?: React.FormEvent, injectedContent?: string) => {
+        e?.preventDefault();
+        const finalContent = injectedContent || content;
+        if (!finalContent.trim() && filesToAttach.length === 0) return;
         setLoading(true);
         try {
             const uploadPromises = filesToAttach.map(async file => {
@@ -73,14 +72,13 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             });
             const uploadedFiles = await Promise.all(uploadPromises);
 
-            const { data, error } = await supabase.from('events').insert({
+            const { data } = await supabase.from('events').insert({
                 project_id: context.projectId, week_id: context.weekId, task_id: context.taskId,
-                user_id: user?.id, author_email: user?.email ?? (localStorage.getItem('guestName') || 'Гость'),
-                type: 'comment', content: content.trim(), parent_event_id: quotedEvent?.id,
-                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : {},
+                user_id: user?.id ?? null, author_email: user?.email ?? (localStorage.getItem('guestName') || 'Гость'),
+                type: 'comment', content: finalContent.trim(), parent_event_id: quotedEvent?.id,
+                data: uploadedFiles.length > 0 ? { file_urls: uploadedFiles } : null,
             }).select().single();
     
-            if (error) throw error;
             onNewEvent(data as Event);
             setContent(''); setFilesToAttach([]); onClearQuote();
         } catch(err: any) {
@@ -96,7 +94,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             <input type="file" accept="image/*" capture="environment" ref={imageInputRef} onChange={handleFilesSelected} className="hidden" />
             <input type="file" accept="video/*" capture="environment" ref={videoInputRef} onChange={handleFilesSelected} className="hidden" />
 
-             {quotedEvent && <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative"><p className="font-semibold">Ответ на:</p><p className="truncate">{quotedEvent.content}</p><button onClick={onClearQuote} className="absolute top-2 right-2"><FaTimes size={12}/></button></div>}
+            {quotedEvent && <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative"><p className="font-semibold">Ответ на:</p><p className="truncate">{quotedEvent.content}</p><button onClick={onClearQuote} className="absolute top-2 right-2"><FaTimes size={12}/></button></div>}
             
             <form onSubmit={handleSubmit}>
                 <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} className="w-full p-2 border-0 focus:ring-0 resize-none" rows={3} placeholder="Напишите комментарий..." disabled={loading} />
@@ -115,7 +113,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             </form>
 
             <AudioRecorderModal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} onSave={files => setFilesToAttach(prev => [...prev, ...files])} />
-            <AttachLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} onAttach={url => onNewEvent({ content: `Прикреплена ссылка: [${url}](${url})` } as Event)} />
+            <AttachLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} onAttach={url => handleSubmit(undefined, `Прикреплена ссылка: [${url}](${url})`)} />
             {largeFileToUpload && providerToken && <UploadToDriveModal isOpen={!!largeFileToUpload} onClose={() => setLargeFileToUpload(null)} file={largeFileToUpload} providerToken={providerToken} onUploadComplete={handleDriveUploadComplete} />}
         </div>
     );

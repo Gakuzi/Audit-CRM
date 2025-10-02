@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Week, Plan, PlanItem, Project, Profile } from '../types';
+import { Week, Plan, PlanItem, Profile } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
@@ -25,8 +25,9 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
     const [itemToEdit, setItemToEdit] = useState<{ date: string, item: PlanItem } | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ date: string; item: PlanItem } | null>(null);
     
-    const canEditPlan = isAuditor && week.status === 'draft';
+    const canEditPlan = isAuditor && ['draft', 'rejected', 'completed'].includes(week.status);
     const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
+    const canToggleComplete = isAuditor && week.status === 'approved';
 
 
     const handleAddTaskClick = (date: string) => {
@@ -41,6 +42,10 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
             onUpdatePlan(newPlan);
         }
     }
+
+    const handleToggleComplete = (item: PlanItem) => {
+        onUpdateTask({ ...item, completed: !item.completed });
+    };
     
     const handleDeleteItem = async () => {
         if (!itemToDelete) return;
@@ -89,6 +94,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                     onSelect={() => onTaskSelect(item)}
                                     onEdit={canEditPlan ? () => setItemToEdit({ date, item }) : undefined}
                                     onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined}
+                                    onToggleComplete={canToggleComplete ? () => handleToggleComplete(item) : undefined}
                                 />
                             ))}
                             {canAddTask && (

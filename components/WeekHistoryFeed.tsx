@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Event, PlanItem } from '../types';
@@ -50,8 +51,9 @@ const WeekHistoryFeed: React.FC<WeekHistoryFeedProps> = ({ weekId, allTasks, onT
         fetchEvents();
     }, [fetchEvents]);
     
-    const findTaskContent = (taskId: string) => {
-        return allTasks.find(task => task.id === taskId)?.content;
+    // Fix: Rename function for clarity and access the correct 'title' property.
+    const findTaskTitle = (taskId: string) => {
+        return allTasks.find(task => task.id === taskId)?.title;
     }
 
     if (loading) {
@@ -83,7 +85,7 @@ const WeekHistoryFeed: React.FC<WeekHistoryFeedProps> = ({ weekId, allTasks, onT
                                     }}
                                     className="font-semibold text-blue-600 hover:underline cursor-pointer"
                                 >
-                                    {findTaskContent(event.task_id) || 'Задача не найдена'}
+                                    {findTaskTitle(event.task_id) || 'Задача не найдена'}
                                 </p>
                                 <div className="mt-1 text-gray-800 prose prose-sm max-w-none">
                                     <ReactMarkdown>{event.content || ''}</ReactMarkdown>

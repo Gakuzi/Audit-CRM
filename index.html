@@ -5,27 +5,47 @@
     <link rel="icon" type="image/jpeg" href="https://bwwyovaeqnfqqxjmfkir.supabase.co/storage/v1/object/public/avatars/logo.jpeg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>АУДИТ & ПРОЕКТ</title>
-  <script type="importmap">
+    <!-- Этот скрипт нужен ТОЛЬКО для корректного отображения в песочнице. Vercel его проигнорирует. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Базовая конфигурация для Tailwind CDN, чтобы работали плагины
+      tailwind.config = {
+        theme: {
+          extend: {
+            typography: ({ theme }) => ({
+              DEFAULT: {
+                css: {
+                  '--tw-prose-body': theme('colors.gray[800]'),
+                  '--tw-prose-headings': theme('colors.gray[900]'),
+                  '--tw-prose-invert-body': theme('colors.gray[200]'),
+                  '--tw-prose-invert-headings': theme('colors.white'),
+                },
+              },
+            }),
+          }
+        }
+      }
+    </script>
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.58.0",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react-icons/": "https://aistudiocdn.com/react-icons@^5.5.0/",
     "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
-    "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.0",
-    "vite": "https://aistudiocdn.com/vite@^7.1.7",
+    "vite": "https://aistudiocdn.com/vite@^7.1.8",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
-    "mermaid": "https://aistudiocdn.com/mermaid@^11.12.0"
+    "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){

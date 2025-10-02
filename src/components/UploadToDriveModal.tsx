@@ -1,4 +1,3 @@
-// src/components/UploadToDriveModal.tsx
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
@@ -23,8 +22,7 @@ const UploadToDriveModal: React.FC<UploadToDriveModalProps> = ({ isOpen, onClose
     if (isOpen && uploadStatus === 'idle') {
       handleUpload();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, uploadStatus]);
 
   const handleUpload = async () => {
     setUploadStatus('uploading');
@@ -41,9 +39,7 @@ const UploadToDriveModal: React.FC<UploadToDriveModalProps> = ({ isOpen, onClose
   };
   
   const handleConfirmAndClose = () => {
-    if (driveLink) {
-        onUploadComplete(driveLink);
-    }
+    if (driveLink) onUploadComplete(driveLink);
     onClose();
   }
 
@@ -54,9 +50,7 @@ const UploadToDriveModal: React.FC<UploadToDriveModalProps> = ({ isOpen, onClose
           <div className="text-center">
             <Spinner size="lg" />
             <p className="mt-4 text-gray-700">Загрузка в Google Drive...</p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-              <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>
             <p className="text-sm font-bold">{Math.round(progress)}%</p>
           </div>
         );
@@ -76,8 +70,7 @@ const UploadToDriveModal: React.FC<UploadToDriveModalProps> = ({ isOpen, onClose
             <p className="text-sm text-gray-600 bg-red-100 p-2 rounded">{error}</p>
           </div>
         );
-      default:
-        return null;
+      default: return null;
     }
   };
 
@@ -90,14 +83,10 @@ const UploadToDriveModal: React.FC<UploadToDriveModalProps> = ({ isOpen, onClose
             <p className="text-sm text-gray-600">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
         </div>
       </div>
-      <div className="my-6 min-h-[120px] flex items-center justify-center">
-        {renderContent()}
-      </div>
+      <div className="my-6 min-h-[120px] flex items-center justify-center">{renderContent()}</div>
       <div className="flex justify-end gap-2">
         {uploadStatus === 'error' && <button onClick={handleUpload} className="btn-secondary">Попробовать снова</button>}
-        <button onClick={handleConfirmAndClose} className="btn-primary">
-            {uploadStatus === 'success' ? 'Прикрепить и закрыть' : 'Закрыть'}
-        </button>
+        <button onClick={handleConfirmAndClose} className="btn-primary">{uploadStatus === 'success' ? 'Прикрепить и закрыть' : 'Закрыть'}</button>
       </div>
     </Modal>
   );

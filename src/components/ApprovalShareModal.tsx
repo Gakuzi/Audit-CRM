@@ -1,28 +1,38 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { FaCopy, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
-import { Project, Week } from '../types';
+import { Project, Week, ContactPerson } from '../types';
 
 interface ApprovalShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: Project;
-  week: Week | null;
+  week?: Week | null;
+  contact?: ContactPerson | null;
 }
 
-const ApprovalShareModal: React.FC<ApprovalShareModalProps> = ({ isOpen, onClose, project, week }) => {
+const ApprovalShareModal: React.FC<ApprovalShareModalProps> = ({ isOpen, onClose, project, week, contact }) => {
     const [copied, setCopied] = useState(false);
     
-    if (!week) return null;
+    if (!project || (!week && !contact)) return null;
 
-    const projectUrl = `${window.location.origin}${window.location.pathname}#/${project.id}`;
+    // Generate link and text based on context (week approval or contact invite)
+    const isContactInvite = !!contact;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/${project.id}${isContactInvite ? `?contactId=${contact.id}`: ''}`;
+    
+    const shareText = isContactInvite ?
+`Здравствуйте, ${contact.name}!
 
-    const shareText = `Здравствуйте!
+Это персональная ссылка для доступа к аудиторскому проекту «${project.name}».
+Используйте ее для общения с аудитором, комментирования и согласования этапов.
 
-Прошу вас согласовать этап аудита «${week.title}» в проекте «${project.name}».
-
+${shareUrl}`
+:
+`Здравствуйте!
+Прошу вас согласовать этап аудита «${week?.title}» в проекте «${project.name}».
 Ссылка для просмотра и согласования:
-${projectUrl}`;
+${shareUrl}`;
+
 
     const handleCopy = () => {
         navigator.clipboard.writeText(shareText).then(() => {
@@ -31,13 +41,15 @@ ${projectUrl}`;
         });
     };
     
+    const telegramText = isContactInvite ? `Здравствуйте, ${contact.name}!\n\nПерсональная ссылка для доступа к аудиторскому проекту «${project.name}».` : `Здравствуйте!\n\nПрошу вас согласовать этап аудита «${week?.title}» в проекте «${project.name}».`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(projectUrl)}&text=${encodeURIComponent(`Здравствуйте!\n\nПрошу вас согласовать этап аудита «${week.title}» в проекте «${project.name}».`)}`;
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(telegramText)}`;
+    const modalTitle = isContactInvite ? `Пригласить: ${contact.name}` : "Поделиться для согласования";
 
 
     return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Поделиться для согласования">
-        <p className="text-sm text-gray-600 mb-4">Этап отправлен на согласование. Отправьте ссылку заказчику для утверждения.</p>
+    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
+        <p className="text-sm text-gray-600 mb-4">{isContactInvite ? "Отправьте эту персональную ссылку контакту. По ней он получит гостевой доступ к проекту." : "Отправьте ссылку заказчику для утверждения."}</p>
         
         <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Текст сообщения:</label>
@@ -46,7 +58,7 @@ ${projectUrl}`;
                     readOnly 
                     value={shareText} 
                     className="w-full p-2 border rounded bg-gray-100 resize-none"
-                    rows={6}
+                    rows={8}
                 />
                 <button 
                     onClick={handleCopy}

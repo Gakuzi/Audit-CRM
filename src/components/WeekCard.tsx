@@ -23,6 +23,7 @@ interface WeekCardProps {
   onUpdateRequest: () => void;
   onGenerateReport: () => void;
   onSentForApproval: (week: Week) => void;
+  onUpdateTask: (weekId: string, updatedTask: PlanItem) => void;
 }
 
 const statusConfig: { [key in Week['status']]: { label: string; color: string; } } = {
@@ -33,7 +34,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, profile, providerToken, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, profile, providerToken, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval, onUpdateTask }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -145,10 +146,10 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 pr-4">
-                <h2 className="text-xl font-bold text-gray-800 truncate">{week.title}</h2>
+            <div className="flex-1 pr-4 min-w-0">
+                <h2 className="text-xl font-bold text-gray-800 break-words">{week.title}</h2>
                  <div className="text-sm text-gray-500 mt-1">
-                    <div className={`prose prose-sm max-w-none ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
+                    <div className={`prose prose-sm max-w-none break-words ${!isDescriptionExpanded && descriptionNeedsTruncation ? 'line-clamp-3' : ''}`}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{week.description || "Нет описания."}</ReactMarkdown>
                     </div>
                     {descriptionNeedsTruncation && (
@@ -173,7 +174,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                 </button>
             </div>
         </div>
-        <div className="flex items-center justify-between text-sm text-gray-600 mb-2 flex-wrap gap-2">
+        <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
            <div className="flex items-center gap-2">
                 <FaCalendarAlt/>
                 <span>{new Date(week.start_date + 'T00:00:00').toLocaleDateString()} - {new Date(week.end_date + 'T00:00:00').toLocaleDateString()}</span>
@@ -209,27 +210,29 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                 )}
             </div>
         </div>
-        <WeekStats week={week} />
       </header>
 
       {isExpanded && (
         <div className="p-4 bg-gray-50/50">
+            <WeekStats week={week} />
             {week.rejection_comment && week.status === 'rejected' && (
-                <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
+                <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800">
                     <p className="font-bold">Причина отклонения:</p>
                     <p>{week.rejection_comment}</p>
                 </div>
             )}
             
-            <DayPlanView 
-                week={week}
-                onUpdatePlan={onUpdatePlan}
-                onTaskSelect={onTaskSelect}
-                isAuditor={isAuditor}
-                onUpdateTask={handleUpdateTask}
-                profile={profile}
-                providerToken={providerToken}
-            />
+            <div className="mt-4">
+              <DayPlanView 
+                  week={week}
+                  onUpdatePlan={onUpdatePlan}
+                  onTaskSelect={onTaskSelect}
+                  isAuditor={isAuditor}
+                  onUpdateTask={(updatedTask) => onUpdateTask(week.id, updatedTask)}
+                  profile={profile}
+                  providerToken={providerToken}
+              />
+            </div>
             
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
                 <div className="flex items-center gap-2">

@@ -24,31 +24,37 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSave, onClose }) => {
     const [savedChunkCount, setSavedChunkCount] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
 
-    const getMicrophonePermission = async () => {
-        if ("MediaRecorder" in window) {
-            try {
-                const streamData = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                setPermission(true);
-                setStream(streamData);
-            } catch (err) {
-                alert(err instanceof Error ? err.message : "An unknown error occurred");
+    useEffect(() => {
+        const getMicrophonePermission = async () => {
+            if ("MediaRecorder" in window) {
+                try {
+                    const streamData = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    setPermission(true);
+                    setStream(streamData);
+                } catch (err) {
+                    alert(err instanceof Error ? err.message : "An unknown error occurred");
+                    onClose();
+                }
+            } else {
+                alert("The MediaRecorder API is not supported in your browser.");
                 onClose();
             }
-        } else {
-            alert("The MediaRecorder API is not supported in your browser.");
-            onClose();
+        };
+
+        getMicrophonePermission();
+
+        return () => {
+            if (timerInterval.current) clearInterval(timerInterval.current);
+            releaseWakeLock();
+            stream?.getTracks().forEach(track => track.stop());
         }
-    };
-    
+    }, []);
+
     const acquireWakeLock = async () => {
         if ('wakeLock' in navigator) {
             try {
                 wakeLock.current = await navigator.wakeLock.request('screen');
                 setWakeLockFailed(false);
-                wakeLock.current.addEventListener('release', () => {
-                    console.log('Wake Lock was released');
-                });
-                console.log('Wake Lock is active!');
             } catch (err: any) {
                 console.error(`Wake Lock failed: ${err.name}, ${err.message}`);
                 setWakeLockFailed(true);
@@ -62,15 +68,6 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSave, onClose }) => {
             wakeLock.current = null;
         }
     };
-
-    useEffect(() => {
-        getMicrophonePermission();
-        return () => {
-            if (timerInterval.current) clearInterval(timerInterval.current);
-            releaseWakeLock();
-            stream?.getTracks().forEach(track => track.stop());
-        }
-    }, [stream]);
 
     const startRecording = () => {
         if (!stream) return;
@@ -101,79 +98,45 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onSave, onClose }) => {
                 recordedChunks.current.push(finalBlob);
             }
             setIsSaving(true);
-            setTimeout(() => { // Simulate save time & allow UI to update
+            setTimeout(() => { 
                 onSave(recordedChunks.current);
                 onClose();
             }, 500);
         };
 
-        mediaRecorder.current.start(1000); // Trigger data available every second
+        mediaRecorder.current.start(1000);
 
         setRecordingTime(0);
-        timerInterval.current = window.setInterval(() => {
-            setRecordingTime(prev => prev + 1);
-        }, 1000);
+        timerInterval.current = window.setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     };
 
     const stopRecording = () => {
-        if (mediaRecorder.current) {
-            mediaRecorder.current.stop();
-        }
+        if (mediaRecorder.current) mediaRecorder.current.stop();
         releaseWakeLock();
         setIsRecording(false);
         if(timerInterval.current) clearInterval(timerInterval.current);
     };
     
-    const formatTime = (time: number) => {
-        const minutes = Math.floor(time / 60).toString().padStart(2, '0');
-        const seconds = (time % 60).toString().padStart(2, '0');
-        return `${minutes}:${seconds}`;
-    }
+    const formatTime = (time: number) => `${Math.floor(time / 60).toString().padStart(2, '0')}:${(time % 60).toString().padStart(2, '0')}`;
 
-    if (!permission) {
-        return <div className="text-center p-4 bg-yellow-100 text-yellow-800 rounded-md">Запрос доступа к микрофону...</div>
-    }
-    
-    if (isSaving) {
-        return (
-            <div className="flex flex-col items-center justify-center space-y-4 p-4 h-48">
-                <Spinner size="lg" />
-                <p className="text-gray-600">Сохранение записи...</p>
-            </div>
-        );
-    }
+    if (!permission) return <div className="text-center p-4 bg-yellow-100 text-yellow-800 rounded-md">Запрос доступа к микрофону...</div>
+    if (isSaving) return <div className="flex flex-col items-center justify-center space-y-4 p-4 h-48"><Spinner size="lg" /><p>Сохранение...</p></div>;
 
     return (
         <div className="flex flex-col items-center space-y-4 p-4 border rounded-lg">
-            {wakeLockFailed && isRecording && (
-                 <div className="flex items-center gap-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded-md">
-                    <FiAlertTriangle />
-                    <span>Не удалось заблокировать экран. Устройство может уснуть.</span>
-                </div>
-            )}
+            {wakeLockFailed && isRecording && <div className="flex items-center gap-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded-md"><FiAlertTriangle /><span>Экран может погаснуть во время записи.</span></div>}
             <p className="text-2xl font-mono">{formatTime(recordingTime)}</p>
-            {isRecording ? (
-                <button type="button" onClick={stopRecording} className="flex items-center justify-center w-20 h-20 bg-red-500 text-white rounded-full animate-pulse">
-                    <FaStop size={32} />
-                </button>
-            ) : (
-                <button type="button" onClick={startRecording} className="flex items-center justify-center w-20 h-20 bg-red-500 text-white rounded-full hover:bg-red-600">
-                    <FaMicrophone size={32} />
-                </button>
-            )}
+            {isRecording ? 
+                <button type="button" onClick={stopRecording} className="flex items-center justify-center w-20 h-20 bg-red-500 text-white rounded-full animate-pulse"><FaStop size={32} /></button> : 
+                <button type="button" onClick={startRecording} className="flex items-center justify-center w-20 h-20 bg-red-500 text-white rounded-full hover:bg-red-600"><FaMicrophone size={32} /></button>
+            }
             <div className="text-center">
-                <p className="text-sm text-gray-600">
-                    {isRecording ? 'Идет запись...' : 'Нажмите для начала записи'}
-                </p>
+                <p className="text-sm text-gray-600">{isRecording ? 'Идет запись...' : 'Нажмите для начала'}</p>
                 {savedChunkCount > 0 && <p className="text-xs text-blue-600 font-semibold mt-1">Сохранено частей: {savedChunkCount}</p>}
             </div>
              <div className="pt-4 flex justify-center space-x-4">
                 <button type="button" onClick={onClose} className="btn-secondary">Отмена</button>
-                {!isRecording && recordedChunks.current.length > 0 && (
-                     <button type="button" onClick={() => onSave(recordedChunks.current)} className="btn-primary flex items-center gap-2">
-                        <FaSave /> Сохранить
-                    </button>
-                )}
+                {!isRecording && recordedChunks.current.length > 0 && <button type="button" onClick={() => onSave(recordedChunks.current)} className="btn-primary flex items-center gap-2"><FaSave /> Сохранить</button>}
             </div>
         </div>
     );

@@ -106,7 +106,6 @@ export const generateAuditPlan = async (
     
     parsed.weeks.forEach((week: any) => {
         if (week.plan) {
-            // FIX: Cast `day` to a known shape to access `tasks`.
             Object.values(week.plan).forEach((day: unknown) => {
                 const dayPlan = day as { tasks: PlanItem[] };
                 if (dayPlan.tasks && Array.isArray(dayPlan.tasks)) {
@@ -135,7 +134,6 @@ const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reje
     reader.readAsDataURL(blob);
 });
 
-// Fix: Add missing recognizeTextFromImage function.
 export const recognizeTextFromImage = async (base64ImageData: string): Promise<string> => {
   const imagePart = {
     inlineData: {
@@ -155,15 +153,9 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
   return response.text ?? '';
 };
 
-// Fix: Add missing processInterviewAudio function.
 export const processInterviewAudio = async (
   interviewContext: string
 ): Promise<string> => {
-    // Note: The standard generateContent API does not support direct audio file inputs.
-    // This function simulates the analysis by using a text prompt based on the interview context.
-    // A production implementation would typically use a Speech-to-Text service first,
-    // then send the resulting transcript to the Gemini API for analysis.
-
     const prompt = `
         Представь, что ты - ассистент аудитора. Тебе предоставлен контекст интервью.
         Твоя задача - проанализировать этот контекст и сгенерировать краткую сводку, основные выводы и ключевые моменты, которые могли бы обсуждаться.
@@ -359,7 +351,6 @@ export const generateStagePlan = async (
     const finalJsonText = jsonMatch ? jsonMatch[1] : jsonText;
     const parsedPlan = JSON.parse(finalJsonText);
 
-    // FIX: Cast `day` to a known shape to access `tasks`.
     Object.values(parsedPlan).forEach((day: unknown) => {
         const dayPlan = day as { tasks: PlanItem[] };
         if (dayPlan.tasks && Array.isArray(dayPlan.tasks)) {
@@ -507,8 +498,6 @@ const formatChatHistory = (events: Event[]): string => {
 
 export const continueConversation = async (task: PlanItem, events: Event[]): Promise<string> => {
     const processedEvents = await _processEventsWithFileContent(events);
-    // Fix: Cast processedEvents to Event[] to satisfy formatChatHistory's type requirement.
-    // The underlying structure is compatible for what the function needs.
     const history = formatChatHistory(processedEvents as Event[]);
 
     const prompt = `
@@ -534,8 +523,6 @@ export const continueConversation = async (task: PlanItem, events: Event[]): Pro
 export const summarizeAndContinue = async (task: PlanItem, events: Event[]): Promise<string> => {
     const processedEvents = await _processEventsWithFileContent(events);
     
-    // Fix: Cast processedEvents to Event[] to satisfy formatChatHistory's type requirement.
-    // The underlying structure is compatible for what the function needs.
     const history = formatChatHistory(processedEvents as Event[]);
     
     const prompt = `

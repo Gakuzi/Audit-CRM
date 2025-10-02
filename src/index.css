@@ -2,88 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
-.input {
-    @apply border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500;
-}
+@layer components {
+  .input {
+      @apply border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-full;
+  }
 
-.btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors;
-}
+  .btn-primary {
+      @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors;
+  }
 
-.btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors;
-}
+  .btn-secondary {
+      @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors;
+  }
+  
+  .action-btn {
+      @apply p-2 text-gray-500 rounded-full hover:bg-gray-100 disabled:text-gray-300 disabled:cursor-not-allowed;
+  }
+  .action-btn:hover:not(:disabled) {
+      @apply text-blue-600;
+  }
 
-.action-btn {
-    @apply p-2 text-gray-500 rounded-full hover:bg-gray-100 disabled:text-gray-300 disabled:cursor-not-allowed;
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
 }
-.action-btn:hover:not(:disabled) {
-    @apply text-blue-600;
-}
-
 
 /* Slide in animation for task detail view */
 @keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
-
 .slide-in-right {
   animation: slideInRight 0.3s ease-out forwards;
 }
 
-
-/* Styles for Markdown rendering */
-.prose {
-    @apply text-gray-700 max-w-none;
+/* Highlight for quoted event scroll */
+@keyframes highlight-bg {
+  0% { background-color: #e0e7ff; } /* indigo-200 */
+  100% { background-color: transparent; }
 }
-.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-    @apply font-bold mt-6 mb-3 text-gray-800;
+.highlight {
+  animation: highlight-bg 1.5s ease-in-out;
 }
-.prose h1 { @apply text-2xl border-b pb-2; }
-.prose h2 { @apply text-xl border-b pb-2; }
-.prose h3 { @apply text-lg; }
-.prose h4 { @apply text-base; }
-.prose p { @apply my-4 leading-relaxed; }
-.prose a { @apply text-blue-600 hover:underline; }
-.prose ul, .prose ol { @apply my-4 pl-6; }
-.prose ul { @apply list-disc; }
-.prose ol { @apply list-decimal; }
-.prose li { @apply my-2; }
-.prose li > p { @apply my-0; }
-.prose ul > li.task-list-item { @apply list-none pl-0 ml-0; }
-.prose ul > li.task-list-item label { @apply flex items-center gap-3; }
-.prose ul > li.task-list-item .task-list-item-checkbox { @apply w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-default; }
-.prose blockquote { @apply my-4 pl-4 border-l-4 border-gray-300 text-gray-600 italic; }
-.prose code { @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded-sm text-sm font-mono; }
-.prose pre { @apply bg-gray-800 text-white p-4 rounded-md overflow-x-auto my-4 text-sm; }
-.prose pre code { @apply bg-transparent text-inherit p-0; }
-.prose hr { @apply my-6 border-gray-200; }
-.prose table { @apply my-6 w-full border-collapse border border-gray-300; }
-.prose th, .prose td { @apply border border-gray-300 px-4 py-2; }
-.prose th { @apply bg-gray-100 font-semibold; }
-.prose strong { @apply font-bold; }
-.prose em { @apply italic; }
-
-/* Inverted prose styles for dark backgrounds */
-.prose-invert { @apply text-gray-200; }
-.prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4, .prose-invert strong { @apply text-white; }
-.prose-invert a { @apply text-blue-300; }
-.prose-invert blockquote { @apply border-gray-500 text-gray-300; }
-.prose-invert code { @apply text-white bg-gray-700; }
 
 /* --- SWIPE STYLES --- */
 .swipe-container {
     @apply relative overflow-hidden rounded-md;
 }
 .swipe-content {
-    @apply w-full bg-white relative z-10;
+    @apply w-full relative z-10;
 }
 .swipe-actions-left, .swipe-actions-right {
     @apply absolute top-0 h-full flex z-0;
@@ -96,6 +63,7 @@
 }
 .swipe-action.red { @apply bg-red-500; }
 .swipe-action.blue { @apply bg-blue-500; }
+.swipe-action.green { @apply bg-green-500; }
 
 
 /* Hide swipe actions on non-touch devices */
@@ -107,130 +75,33 @@
 
 /* --- PRINT STYLES --- */
 @media print {
-    /* Page setup and counters */
     @page {
         size: A4;
         margin: 2cm;
-
         @bottom-right {
             content: "Страница " counter(page);
-            font-family: Arial, sans-serif;
             font-size: 9pt;
             color: #666;
         }
     }
-    
-    body {
-        counter-reset: page;
-    }
-
-    /* Hide on-screen elements */
-    .no-print {
-        display: none !important;
-    }
-
-    /* Show only the print container */
-    body * {
-        visibility: hidden;
-    }
-
-    .print-container, .print-container * {
-        visibility: visible;
-    }
-
-    .print-container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        padding: 0 1cm;
-    }
-    
-    /* Typography */
-    .print-container {
-        font-family: Georgia, 'Times New Roman', Times, serif;
-        font-size: 12pt;
-        line-height: 1.5;
-        color: #000;
-    }
-    
-    /* Title Block */
-    .print-title-block {
-        text-align: center;
-        margin-bottom: 2cm;
-    }
-    .print-title-block h1 {
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        font-size: 22pt;
-        font-weight: bold;
-        margin-bottom: 1.5cm;
-    }
-    .print-title-block h2, .print-title-block .stage-name {
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        font-size: 14pt;
-        font-weight: normal;
-        margin: 0.5cm 0;
-    }
-    .print-title-block .details {
-        margin-top: 4cm;
-        display: table;
-        width: 100%;
-        font-size: 11pt;
-        text-align: left;
-    }
-    .print-title-block .details div {
-        display: table-row;
-    }
-    .print-title-block .details p {
-        display: table-cell;
-        padding: 8px 10px;
-        font-size: 11pt;
-    }
-    .print-title-block .details p:first-child {
-        font-weight: bold;
-        width: 40%;
-    }
-
-    /* Report Content */
-    .print-content {
-        margin-top: 1cm;
-    }
-    .print-content h1, .print-content h2, .print-content h3, .print-content h4 {
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        font-weight: bold;
-        color: #333;
-        margin-top: 1.5em;
-        margin-bottom: 0.7em;
-        break-after: avoid;
-        break-inside: avoid;
-    }
+    body { counter-reset: page; }
+    .no-print { display: none !important; }
+    body * { visibility: hidden; }
+    .print-container, .print-container * { visibility: visible; }
+    .print-container { position: absolute; left: 0; top: 0; width: 100%; padding: 0 1cm; }
+    .print-container { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+    .print-title-block { text-align: center; margin-bottom: 2cm; }
+    .print-title-block h1 { font-size: 22pt; font-weight: bold; margin-bottom: 1.5cm; }
+    .print-title-block h2 { font-size: 14pt; font-weight: normal; margin: 0.5cm 0; }
+    .print-title-block .details { margin-top: 4cm; display: table; width: 100%; font-size: 11pt; text-align: left; }
+    .print-title-block .details div { display: table-row; }
+    .print-title-block .details p { display: table-cell; padding: 8px 10px; }
+    .print-title-block .details p:first-child { font-weight: bold; width: 40%; }
+    .print-content h1, .print-content h2, .print-content h3 { font-weight: bold; color: #333; margin-top: 1.5em; margin-bottom: 0.7em; break-after: avoid; }
     .print-content h1 { font-size: 18pt; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
     .print-content h2 { font-size: 16pt; }
     .print-content h3 { font-size: 14pt; }
-    .print-content h4 { font-size: 12pt; }
-    .print-content p, .print-content li {
-        text-align: justify;
-    }
-    .print-content ul, .print-content ol {
-        padding-left: 2em;
-    }
-    .print-content a {
-        color: #000;
-        text-decoration: none;
-    }
-    .print-content pre, .print-content code {
-        font-family: 'Courier New', Courier, monospace;
-        background-color: #f4f4f4;
-        padding: 2px 4px;
-        border: 1px solid #ddd;
-        border-radius: 3px;
-        font-size: 10pt;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-    }
-    .print-content blockquote {
-        border-left: 4px solid #ccc;
-        padding-left: 1em;
-        color: #666;
-    }
+    .print-content p, .print-content li { text-align: justify; }
+    .print-content a { color: #000; text-decoration: none; }
+    .print-content pre, .print-content code { background-color: #f4f4f4; border: 1px solid #ddd; font-size: 10pt; white-space: pre-wrap; word-wrap: break-word; }
 }

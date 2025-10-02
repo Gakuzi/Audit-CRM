@@ -1,4 +1,3 @@
-// src/components/TaskDetailView.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
@@ -73,8 +72,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
 
     const handleUpdateEvent = async (newContent: string) => {
         if (!eventToEdit) return;
-        const { data, error } = await supabase.from('events').update({ content: newContent }).eq('id', eventToEdit.id).select('*, parent:events!parent_event_id(content, author_email)').single();
-        if (error) throw error;
+        const { data } = await supabase.from('events').update({ content: newContent }).eq('id', eventToEdit.id).select('*, parent:events!parent_event_id(content, author_email)').single();
         setEvents(current => current.map(e => e.id === eventToEdit.id ? data as Event : e));
         setEventToEdit(null);
     };
@@ -100,12 +98,12 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             <div className="flex justify-end p-2 md:p-4"><button onClick={onClose} className="p-2 text-white bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full"><FaTimes size={20} /></button></div>
             <div className="flex-1 flex flex-col lg:flex-row bg-white m-2 md:m-4 mt-0 rounded-lg shadow-xl overflow-hidden min-h-0">
                 <TaskSidebar task={context.item} events={events} project={project} isAuditor={isAuditor} isGuest={isGuest} onAddSubTask={() => { setPreselectedSubTaskType(undefined); setIsAddSubTaskModalOpen(true); }} onNewAiEvent={(e) => handleNewEvent(e as Event, true)} isDescriptionExpanded={isDescriptionExpanded} onToggleDescription={() => setIsDescriptionExpanded(prev => !prev)} />
-                <div className="flex-1 flex flex-col min-w-0">
+                <div className="flex-1 flex flex-col min-w-0 min-h-0">
                     <main ref={eventFeedRef} className="flex-1 overflow-y-auto p-4">
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
                             events.length > 0 ? (
                                 <div className="divide-y divide-gray-200">
-                                    {events.map(event => <EventItem key={event.id} event={event} onReply={setQuotedEvent} onQuoteClick={(id) => { setExpandedEventId(id); setTimeout(() => { document.getElementById(`event-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }} onDelete={(user?.id === event.user_id || isAuditor) ? () => setEventToDelete(event) : undefined} onEdit={(user?.id === event.user_id) ? () => setEventToEdit(event) : undefined} isExpanded={event.id === expandedEventId} onToggleExpand={() => setExpandedEventId(p => p === event.id ? null : event.id)} />)}
+                                    {events.map(event => <EventItem key={event.id} event={event} onReply={setQuotedEvent} onQuoteClick={(id) => { setExpandedEventId(id); document.getElementById(`event-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} onDelete={(user?.id === event.user_id || isAuditor) ? () => setEventToDelete(event) : undefined} onEdit={(user?.id === event.user_id) ? () => setEventToEdit(event) : undefined} isExpanded={event.id === expandedEventId} onToggleExpand={() => setExpandedEventId(p => p === event.id ? null : event.id)} />)}
                                 </div>
                             ) : <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет.</p>
                         )}

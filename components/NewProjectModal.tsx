@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import Modal from './ui/Modal';
@@ -7,7 +8,7 @@ import { supabase } from '../services/supabaseClient';
 import { generateAuditPlan } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
 // Fix: Use relative path for type import.
-import { ApprovalPeriod } from '../types';
+import { ApprovalPeriod, ApprovalPeriodType } from '../types';
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -20,7 +21,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
-  const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>('weekly');
+  // Fix: Initialize state with a valid ApprovalPeriod object.
+  const [approvalPeriod, setApprovalPeriod] = useState<ApprovalPeriod>({ type: 'weekly', dayOfWeek: 1 });
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [error, setError] = useState('');
@@ -41,12 +43,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
             throw new Error('Дата окончания не может быть раньше даты начала.');
         }
 
-        const durationInDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-        const durationInWeeks = Math.ceil(durationInDays / 7);
-
         // 1. Generate plan with AI
         setStatusText('Генерация плана аудита с помощью AI...');
-        const generatedData = await generateAuditPlan(name, description, startDate, endDate || end.toISOString().split('T')[0], durationInWeeks, approvalPeriod);
+        // Fix: Remove durationInWeeks argument and pass the approvalPeriod object.
+        const generatedData = await generateAuditPlan(name, description, startDate, endDate || end.toISOString().split('T')[0], approvalPeriod);
 
         // 2. Insert project into Supabase
         setStatusText('Сохранение проекта...');
@@ -100,12 +100,22 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
       setDescription('');
       setStartDate(new Date().toISOString().split('T')[0]);
       setEndDate('');
-      setApprovalPeriod('weekly');
+      // Fix: Reset state to a valid ApprovalPeriod object.
+      setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
       setError('');
       setLoading(false);
       setStatusText('');
       onClose();
   }
+
+  // Fix: Add handler for changing the approval period type.
+  const handlePeriodTypeChange = (type: ApprovalPeriodType) => {
+      if (type === 'weekly') {
+          setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
+      } else if (type === 'daily') {
+          setApprovalPeriod({ type: 'daily', interval: 1 });
+      }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Создать новый план аудита">
@@ -135,12 +145,50 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
                 <input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full mt-1 input" min={startDate} disabled={loading}/>
             </div>
         </div>
+        {/* Fix: Replace simple select with a detailed UI for ApprovalPeriod. */}
         <div>
-          <label htmlFor="approvalPeriod" className="block text-sm font-medium text-gray-700">Период отчетности</label>
-          <select id="approvalPeriod" value={approvalPeriod} onChange={(e) => setApprovalPeriod(e.target.value as ApprovalPeriod)} className="w-full mt-1 input bg-white" disabled={loading}>
-            <option value="weekly">Еженедельно</option>
-            <option value="monthly">Ежемесячно</option>
-          </select>
+            <label className="block text-sm font-medium text-gray-700">Период отчетности</label>
+            <div className="mt-1 grid grid-cols-2 gap-2 items-center">
+                <select 
+                    value={approvalPeriod.type} 
+                    onChange={e => handlePeriodTypeChange(e.target.value as ApprovalPeriodType)} 
+                    className="input bg-white"
+                    disabled={loading}
+                >
+                    <option value="weekly">Еженедельно</option>
+                    <option value="daily">Каждые N дней</option>
+                </select>
+                {approvalPeriod.type === 'weekly' && (
+                    <select 
+                        value={approvalPeriod.dayOfWeek}
+                        onChange={e => setApprovalPeriod({ ...approvalPeriod, dayOfWeek: parseInt(e.target.value) })}
+                        className="input bg-white"
+                        disabled={loading}
+                    >
+                        <option value={1}>по понедельникам</option>
+                        <option value={2}>по вторникам</option>
+                        <option value={3}>по средам</option>
+                        <option value={4}>по четвергам</option>
+                        <option value={5}>по пятницам</option>
+                        <option value={6}>по субботам</option>
+                        <option value={0}>по воскресеньям</option>
+                    </select>
+                )}
+                {approvalPeriod.type === 'daily' && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm">Каждые</span>
+                        <input 
+                            type="number"
+                            min="1"
+                            value={approvalPeriod.interval}
+                            onChange={e => setApprovalPeriod({ ...approvalPeriod, interval: parseInt(e.target.value) || 1 })}
+                            className="input w-16"
+                            disabled={loading}
+                        />
+                        <span className="text-sm">дн.</span>
+                    </div>
+                )}
+            </div>
         </div>
         <p className="text-xs text-gray-500">План аудита будет автоматически сгенерирован с помощью AI на основе введенных данных.</p>
         <div className="pt-2 flex justify-end">

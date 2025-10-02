@@ -31,7 +31,7 @@ export const useSwipe = ({
         const handleTouchStart = (e: TouchEvent) => {
             if (isAnimating) return;
             startX.current = e.touches[0].clientX;
-            currentX.current = e.touches[0].clientX; // Reset currentX
+            currentX.current = e.touches[0].clientX;
             isSwiping.current = true;
             element.style.transition = 'none';
         };
@@ -41,23 +41,13 @@ export const useSwipe = ({
             currentX.current = e.touches[0].clientX;
             const deltaX = currentX.current - startX.current;
             
-            // Swiping right (revealing left content)
-            if (deltaX > 0) {
+            if (deltaX > 0) { // Swiping right
                 const newTranslateX = isRevealed === 'right' ? deltaX - rightRevealWidth : deltaX;
-                if (leftRevealWidth > 0) {
-                    setTranslateX(Math.min(newTranslateX, leftRevealWidth + 20)); // Allow overswipe
-                } else {
-                    setTranslateX(Math.min(newTranslateX, threshold + 20));
-                }
+                setTranslateX(leftRevealWidth > 0 ? Math.min(newTranslateX, leftRevealWidth + 20) : Math.min(newTranslateX, threshold + 20));
             } 
-            // Swiping left (revealing right content)
-            else if (deltaX < 0) {
+            else if (deltaX < 0) { // Swiping left
                 const newTranslateX = isRevealed === 'left' ? deltaX + leftRevealWidth : deltaX;
-                 if (rightRevealWidth > 0) {
-                    setTranslateX(Math.max(newTranslateX, -rightRevealWidth - 20)); // Allow overswipe
-                } else {
-                    setTranslateX(Math.max(newTranslateX, -threshold - 20));
-                }
+                setTranslateX(rightRevealWidth > 0 ? Math.max(newTranslateX, -rightRevealWidth - 20) : Math.max(newTranslateX, -threshold - 20));
             }
         };
 
@@ -70,30 +60,24 @@ export const useSwipe = ({
             setIsAnimating(true);
             setTimeout(() => setIsAnimating(false), 300);
 
-            // Check for right swipe
-            if (deltaX > threshold) {
-                if (leftRevealWidth > 0) {
-                    setTranslateX(leftRevealWidth);
-                    setIsRevealed('left');
-                } else {
+            if (deltaX > threshold) { // Right swipe
+                if (leftRevealWidth > 0 && !isRevealed) {
                     onSwipeRightAction?.();
-                    setTranslateX(0); // Animate back after action
-                    setIsRevealed(false);
                 }
+                setTranslateX(0);
+                setIsRevealed(false);
             } 
-            // Check for left swipe
-            else if (deltaX < -threshold) {
+            else if (deltaX < -threshold) { // Left swipe
                 if (rightRevealWidth > 0) {
                     setTranslateX(-rightRevealWidth);
                     setIsRevealed('right');
                 } else {
                     onSwipeLeftAction?.();
-                    setTranslateX(0); // Animate back after action
+                    setTranslateX(0);
                     setIsRevealed(false);
                 }
             } 
-            // No swipe action, return to original state
-            else {
+            else { // No action, return to original state
                 setTranslateX(isRevealed === 'left' ? leftRevealWidth : isRevealed === 'right' ? -rightRevealWidth : 0);
             }
         };
@@ -122,7 +106,7 @@ export const useSwipe = ({
     
     const style: CSSProperties = {
         transform: `translateX(${translateX}px)`,
-        touchAction: 'pan-y', // Prioritize vertical scroll
+        touchAction: 'pan-y',
     };
 
     return { ref: elementRef, style, isRevealed };

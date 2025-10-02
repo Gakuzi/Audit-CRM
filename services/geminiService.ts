@@ -1,3 +1,4 @@
+
 // Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI, Type } from "@google/genai";
 import { Project, Week, Event, Plan, ApprovalPeriod } from '../types';
@@ -11,9 +12,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const taskSchemaDescriptionForPrompt = `
 Каждая задача в массиве 'tasks' должна быть JSON-объектом со следующими полями:
 - "id": string (оставь пустым, будет заполнено программно)
-- "content": string (подробное описание задачи)
+- "title": string (КРАТКОЕ, емкое название задачи, до 10 слов)
+- "description": string (ОПЦИОНАЛЬНОЕ, подробное описание задачи, если требуется)
 - "completed": boolean (всегда false по умолчанию)
-- "type": string (ОБЯЗАТЕЛЬНО один из: 'task', 'meeting', 'interview', 'doc_review', 'observation')
+- "type": string (ОБЯЗАТЕЛЬНО один из: 'task', 'meeting', 'interview', 'doc_review', 'observation', 'process_analysis')
 - "data": object (необязательное поле для дополнительной информации)
 
 Правила для поля "data":
@@ -35,29 +37,49 @@ const planSchema = {
   description: "JSON-объект, представляющий план. Ключи - даты в формате 'YYYY-MM-DD'. Значения - объекты с ключом 'tasks', содержащим массив задач. Структура задач должна строго соответствовать инструкции в промпте."
 };
 
+// Fix: Add helper function to describe the approval period for the AI prompt.
+const describeApprovalPeriod = (period: ApprovalPeriod): string => {
+    if (period.type === 'daily') {
+        if (period.interval === 1) return 'ежедневно';
+        return `каждые ${period.interval} дня`;
+    }
+    if (period.type === 'weekly') {
+        const days = ['воскресеньям', 'понедельникам', 'вторникам', 'средам', 'четвергам', 'пятницам', 'субботам'];
+        const dayName = days[period.dayOfWeek || 0];
+        return `каждую неделю по ${dayName}`;
+    }
+    return 'еженедельно'; // fallback
+}
 
+// Fix: Update function signature to use ApprovalPeriod object and remove durationInWeeks.
 export const generateAuditPlan = async (
   projectName: string,
   projectDescription: string,
   startDate: string,
   endDate: string,
-  durationInWeeks: number,
-  approvalPeriod: string
+  approvalPeriod: ApprovalPeriod
 ): Promise<{ weeks: { title: string, description: string, plan: any, start_date: string, end_date: string }[] }> => {
 
+  // Fix: Use helper function to create a description for the AI.
+  const approvalDescription = describeApprovalPeriod(approvalPeriod);
+
+  // Fix: Update the prompt to be more robust and remove deprecated parameters.
   const prompt = `
     Создай детальный план аудита для проекта.
-    Название проекта: "${projectName}"
-    Описание/цели: "${projectDescription}"
-    Даты проведения: с ${startDate} по ${endDate}.
-    Общая продолжительность: ${durationInWeeks} недель.
-    Период отчетности: ${approvalPeriod === 'weekly' ? 'Еженедельно' : 'Ежемесячно'}.
 
-    План должен быть разбит на ${durationInWeeks} этапов (недель).
-    Для каждого этапа (недели):
-    1. Придумай краткое, емкое название (например, "Этап 1: Сбор и анализ документации") и подробное описание целей этого этапа.
-    2. Определи точные даты начала и окончания. Первая неделя начинается ${startDate}. Каждая неделя длится 7 дней. Даты должны быть последовательными от этапа к этапу, без пропусков.
-    3. Составь ежедневный план задач на рабочие дни (с понедельника по пятницу). **Субботу и воскресенье следует оставлять свободными.** Не планируй никаких задач на выходные дни. План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks', содержащим массив задач на этот день.
+    **Информация о проекте:**
+    - Название: "${projectName}"
+    - Описание/цели: "${projectDescription}"
+    - Даты проведения: с ${startDate} по ${endDate}.
+    - Период отчетности: ${approvalDescription}.
+
+    **Твоя задача:**
+    1.  **Разбить проект на этапы.** Разбей весь период проекта на последовательные этапы (недели/периоды), которые соответствуют указанному "Периоду отчетности". Дата окончания каждого этапа должна совпадать с днем отчетности. Даты начала и окончания каждого этапа должны быть точными и идти друг за другом без пропусков.
+    2.  **Спланировать каждый этап.** Для каждого этапа придумай краткое, емкое название и подробное описание целей.
+    3.  **Составить ежедневный план задач.** Для каждого этапа составь план задач на **рабочие дни (понедельник-пятница)**.
+        - **ВАЖНО: Субботу и воскресенье следует оставлять свободными.** Не планируй никаких задач на выходные дни.
+        - План должен быть в формате JSON объекта, где ключи - это даты в формате 'YYYY-MM-DD', а значения - это объекты с ключом 'tasks'.
+        - Задачи в рамках этапа должны быть распределены последовательно по рабочим дням, не пропуская их.
 
     **СТРОГАЯ СХЕМА ДЛЯ ЗАДАЧ:**
     ${taskSchemaDescriptionForPrompt}

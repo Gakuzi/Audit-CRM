@@ -67,14 +67,16 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
 
   const handleUpdatePlan = async (weekId: string, newPlan: Plan) => {
     const { error } = await supabase.from('weeks').update({ plan: newPlan }).eq('id', weekId);
-    if (error) alert('Ошибка обновления плана: ' + error.message);
-    else fetchWeeks(false);
+    if (error) {
+      alert('Ошибка обновления плана: ' + error.message);
+      fetchWeeks(false); // Revert on error
+    }
   };
 
-  const handleUpdateTask = (weekId: string, updatedTask: PlanItem) => {
+  const handleUpdateTask = async (weekId: string, updatedTask: PlanItem) => {
     const week = weeks.find(w => w.id === weekId);
     if (!week) return;
-    const newPlan = JSON.parse(JSON.stringify(week.plan));
+    const newPlan = JSON.parse(JSON.stringify(week.plan || {}));
     const findAndUpdate = (tasks: PlanItem[]): boolean => {
         for (let i = 0; i < tasks.length; i++) {
             if (tasks[i].id === updatedTask.id) { tasks[i] = updatedTask; return true; }
@@ -83,8 +85,12 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
         return false;
     }
     for (const date in newPlan) {
-        if (newPlan[date].tasks && findAndUpdate(newPlan[date].tasks)) {
-            handleUpdatePlan(weekId, newPlan);
+        if (newPlan[date]?.tasks && findAndUpdate(newPlan[date].tasks)) {
+            // Optimistic update
+            setWeeks(currentWeeks => currentWeeks.map(w => w.id === weekId ? { ...w, plan: newPlan } : w));
+            // Persist change
+            await handleUpdatePlan(weekId, newPlan);
+            
             if (selectedTaskForDetail?.item.id === updatedTask.id) {
                 setSelectedTaskForDetail(prev => prev ? {...prev, item: updatedTask} : null);
             }
@@ -132,7 +138,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
   return (
     <div>
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <button onClick={onBack} className="flex items-center text-blue-600 hover:underline"><FaArrowLeft className="mr-2" /> Назад ко всем проектам</button>
+        <div>{/* Этот div служит для выравнивания правого блока */}</div>
         {isAuditor && (
             <div className="flex items-center space-x-2">
                 <button onClick={() => setIsAddWeekModalOpen(true)} className="flex items-center btn-primary"><FaPlus className="mr-2" /> Добавить этап</button>
@@ -157,6 +163,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
                 onUpdateRequest={() => fetchWeeks(false)} 
                 onGenerateReport={() => handleOpenReport(week)} 
                 onSentForApproval={setWeekToShareForApproval} 
+                onUpdateTask={handleUpdateTask}
             /> 
         ))}
         {weeks.length === 0 && (<div className="text-center py-16 bg-white rounded-lg shadow-md"><h3 className="text-xl font-semibold text-gray-700">Этапы аудита еще не созданы</h3>{isAuditor && <p className="text-gray-500 mt-2">Добавьте первый этап.</p>}</div>)}
@@ -169,7 +176,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
        <ConfirmationModal isOpen={!!weekToDelete} onClose={() => setWeekToDelete(null)} onConfirm={handleDeleteWeek} title="Удалить этап?" message={`Вы уверены, что хотите удалить этап "${weekToDelete?.title}"?`} />
 
        {selectedWeekForReport && isAuditor && <AiReportModal isOpen={isAiReportModalOpen} onClose={() => setSelectedWeekForReport(null)} week={selectedWeekForReport} project={project} auditor={profile} company={companyForReport} providerToken={providerToken} onUpdate={() => fetchWeeks(false)} />}
-       {weekToShareForApproval && <ApprovalShareModal isOpen={!!weekToShareForApproval} onClose={() => setWeekToShareForApproval(null)} week={weekToShareForApproval} project={project} />}
+       {weekToShareForApproval && <ApprovalShareModal isOpen={!!weekToShareForApproval} onClose={() => setWeekToShareForApproval(null)} week={weekToShareForApproval} project={project} contact={null} />}
     </div>
   );
 };

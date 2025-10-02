@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-// Fix: Correct import path for types from within src/services
 import { Project, PlanItem, Event, ContactPerson, Week } from '../types';
 
-// These are your public Supabase keys.
-// Security is handled by Supabase Row Level Security (RLS) policies.
 const supabaseUrl = 'https://bwwyovaeqnfqqxjmfkir.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3d3lvdmFlcW5mcXF4am1ma2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNTU0NTUsImV4cCI6MjA3NDczMTQ1NX0.4Uav7prtONWCIYVEzxlc29f4mkJZJtuVC9gkMmjnYqg';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+        fetch: fetch,
+    },
+});
 
 const formatPhoneNumberForLink = (phone: string | undefined): string => {
     if (!phone) return '';
@@ -22,7 +23,6 @@ const formatPhoneNumberForLink = (phone: string | undefined): string => {
 };
 
 const sendTelegramNotification = async (project: Project, message: string, inline_keyboard: any[][]) => {
-    // 1. Fetch auditor's profile to get Telegram credentials
     const { data: auditorProfile, error: profileError } = await supabase
       .from('profiles')
       .select('telegram_bot_token, telegram_chat_id')
@@ -31,147 +31,60 @@ const sendTelegramNotification = async (project: Project, message: string, inlin
   
     if (profileError || !auditorProfile || !auditorProfile.telegram_bot_token || !auditorProfile.telegram_chat_id) {
       console.warn('Could not send Telegram notification: Auditor profile or credentials not found.');
-      return; // Fail silently without blocking UI
+      return;
     }
 
-    // 2. Send the message via Telegram Bot API
     const { telegram_bot_token, telegram_chat_id } = auditorProfile;
     const url = `https://api.telegram.org/bot${telegram_bot_token}/sendMessage`;
 
     try {
-        const response = await fetch(url, {
+        await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: telegram_chat_id,
             text: message.trim(),
             parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: inline_keyboard
-            }
+            reply_markup: { inline_keyboard: inline_keyboard }
           }),
         });
-    
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error(`Telegram API error: ${errorData.description}`);
-        } else {
-          console.log('Telegram notification sent successfully.');
-        }
     } catch(e) {
         console.error('Failed to fetch Telegram API', e);
     }
 };
 
 export const sendGuestStatusChangeNotification = async (project: Project, week: Week, newStatus: string, authorName: string, rejectionReason: string | null, baseUrl: string) => {
-    try {
-        const statusLabels = {
-            approved: 'Согласовано ✅',
-            rejected: 'Отклонено ❌'
-        };
-        const statusLabel = (statusLabels as any)[newStatus] || newStatus;
+    const statusLabels: Record<string, string> = { approved: 'Согласовано ✅', rejected: 'Отклонено ❌' };
+    const statusLabel = statusLabels[newStatus] || newStatus;
 
-        const message = `
-*Изменение статуса в проекте "${project.name}"*
-
-*Этап:* ${week.title}
-*Новый статус:* *${statusLabel}*
-*Кем:* ${authorName}
-${rejectionReason ? `\n*Причина отклонения:*\n${rejectionReason}` : ''}
-        `;
-
-        const projectUrl = `${baseUrl}#/${project.id}`;
-        const inline_keyboard = [[{ text: 'Перейти к проекту', url: projectUrl }]];
-        
-        await sendTelegramNotification(project, message, inline_keyboard);
-
-    } catch (error) {
-        console.error('Failed to send guest status change notification:', error);
-    }
+    const message = `*Изменение статуса в проекте "${project.name}"*\n\n*Этап:* ${week.title}\n*Новый статус:* *${statusLabel}*\n*Кем:* ${authorName}${rejectionReason ? `\n\n*Причина отклонения:*\n${rejectionReason}` : ''}`;
+    const projectUrl = `${baseUrl}#/${project.id}`;
+    await sendTelegramNotification(project, message, [[{ text: 'Перейти к проекту', url: projectUrl }]]);
 };
 
 
 export const sendGuestEventNotification = async (project: Project, task: PlanItem, event: Event, baseUrl: string) => {
-  try {
-    const { data: companyProfile } = await supabase
-        .from('company_profiles')
-        .select('contacts')
-        .eq('project_id', project.id)
-        .single();
-    
-    const priorityContact = companyProfile?.contacts?.find((c: ContactPerson) => c.priority_contact_method);
+    const { data: companyProfile } = await supabase.from('company_profiles').select('contacts').eq('project_id', project.id).single();
+    const priorityContact = (companyProfile?.contacts as ContactPerson[])?.find(c => c.priority_contact_method);
 
-    const inline_keyboard = [];
-    
-    const commentUrl = `${baseUrl}#/${project.id}?taskId=${task.id}`;
-    inline_keyboard.push([{ text: 'Перейти к комментарию', url: commentUrl }]);
+    const inline_keyboard = [[{ text: 'Перейти к комментарию', url: `${baseUrl}#/${project.id}?taskId=${task.id}` }]];
 
     if (priorityContact) {
-      let priorityUrl = '';
-      let priorityText = '';
-      const method = priorityContact.priority_contact_method;
-
-      if (method === 'telegram' && priorityContact.telegram) {
-            priorityUrl = `https://t.me/${priorityContact.telegram.replace('@', '')}`;
-            priorityText = `Связаться (Telegram)`;
-      } else if (method === 'whatsapp' && (priorityContact.whatsapp || priorityContact.phone)) {
-          const formattedWhatsapp = formatPhoneNumberForLink(priorityContact.whatsapp || priorityContact.phone);
-          if (formattedWhatsapp) {
-            priorityUrl = `https://wa.me/${formattedWhatsapp}`;
-            priorityText = `Связаться (WhatsApp)`;
-          }
-      } else if (method === 'email' && priorityContact.email) {
-          priorityUrl = `mailto:${priorityContact.email}`;
-          priorityText = `Связаться (Email)`;
-      } else if (method === 'phone' && priorityContact.phone) {
-          priorityUrl = `tel:${priorityContact.phone}`;
-          priorityText = `Связаться (Телефон)`;
-      }
-
-      if (priorityUrl) {
-          inline_keyboard.push([{ text: `${priorityText}: ${priorityContact.name}`, url: priorityUrl }]);
-      }
+      let url = '', text = '';
+      const { priority_contact_method, telegram, whatsapp, phone, email, name } = priorityContact;
+      if (priority_contact_method === 'telegram' && telegram) { url = `https://t.me/${telegram.replace('@', '')}`; text = 'Связаться (Telegram)'; }
+      else if (priority_contact_method === 'whatsapp' && (whatsapp || phone)) { url = `https://wa.me/${formatPhoneNumberForLink(whatsapp || phone)}`; text = 'Связаться (WhatsApp)'; }
+      else if (priority_contact_method === 'email' && email) { url = `mailto:${email}`; text = `Связаться (Email)`; }
+      else if (priority_contact_method === 'phone' && phone) { url = `tel:${phone}`; text = `Связаться (Телефон)`; }
+      if (url) inline_keyboard.push([{ text: `${text}: ${name}`, url }]);
     }
-
-    const message = `
-*Новый комментарий в проекте "${project.name}"*
-
-*От:* ${event.author_email}
-*Задача:* ${task.title}
-
-*Сообщение:*
-${event.content}
-    `;
-
-    await sendTelegramNotification(project, message, inline_keyboard);
-
-  } catch (error) {
-    console.error('Failed to send Telegram notification:', error);
-  }
+    await sendTelegramNotification(project, `*Новый комментарий в проекте "${project.name}"*\n\n*От:* ${event.author_email}\n*Задача:* ${task.title}\n\n*Сообщение:*\n${event.content}`, inline_keyboard);
 };
 
 
 export const sendGuestSubTaskNotification = async (project: Project, parentTask: PlanItem, newSubTask: PlanItem, baseUrl: string) => {
-    try {
-        const subTaskTypeName = newSubTask.type === 'meeting' ? 'Запрос на встречу' : 'Новая подзадача';
-        const guestName = localStorage.getItem('guestName') || 'Гость';
-
-        const message = `
-*${subTaskTypeName} в проекте "${project.name}"*
-
-*От:* ${guestName}
-*В рамках задачи:* ${parentTask.title}
-*Название:* ${newSubTask.title}
-
-*Описание:*
-${newSubTask.description || 'Нет описания'}
-        `;
-        
-        const taskUrl = `${baseUrl}#/${project.id}?taskId=${parentTask.id}`;
-        const inline_keyboard = [[{ text: 'Перейти к задаче', url: taskUrl }]];
-
-        await sendTelegramNotification(project, message, inline_keyboard);
-    } catch (error) {
-        console.error('Failed to send guest sub-task notification:', error);
-    }
+    const typeName = newSubTask.type === 'meeting' ? 'Запрос на встречу' : 'Новая подзадача';
+    const guestName = localStorage.getItem('guestName') || 'Гость';
+    const message = `*${typeName} в проекте "${project.name}"*\n\n*От:* ${guestName}\n*В рамках задачи:* ${parentTask.title}\n*Название:* ${newSubTask.title}\n\n*Описание:*\n${newSubTask.description || 'Нет описания'}`;
+    await sendTelegramNotification(project, message, [[{ text: 'Перейти к задаче', url: `${baseUrl}#/${project.id}?taskId=${parentTask.id}` }]]);
 };
