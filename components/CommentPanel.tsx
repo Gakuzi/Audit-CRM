@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -130,7 +131,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                     </div>
                  )}
                 {/* FIX: Pass all required props to AddEventForm, including isGuest, project, and task. */}
-                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} task={task} isGuest={isGuest} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
+                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} providerToken={null} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} isGuest={isGuest} onAddSubTaskRequest={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
             </div>
 
             {/* FIX: Pass all required props to AddMeetingModal, including project and task. */}
