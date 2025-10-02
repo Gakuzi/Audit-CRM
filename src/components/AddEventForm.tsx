@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event, Project, PlanItem, PlanItemType } from '../types';
+import { Event, Project, PlanItemType } from '../types';
 import { FaTimes, FaPaperclip, FaVideo, FaMicrophone, FaCamera, FaPlus } from 'react-icons/fa';
 import AudioRecorderModal from './AudioRecorderModal';
 
