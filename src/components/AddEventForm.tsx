@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { Event, Project, PlanItem, PlanItemType } from '../types';
+import { Event, Project, PlanItem } from '../types';
 import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane } from 'react-icons/fa';
 import { FILE_SIZE_LIMIT } from '../constants';
 import UploadToDriveModal from './UploadToDriveModal';

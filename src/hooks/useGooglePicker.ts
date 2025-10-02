@@ -12,7 +12,6 @@ interface GooglePickerConfig {
     onSelect: (files: any[]) => void;
 }
 
-let pickerApiLoaded = false;
 let gapiLoaded = false;
 
 export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: GooglePickerConfig) => {
@@ -20,7 +19,7 @@ export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: Goo
 
     const loadGapi = useCallback(() => {
         if (gapiLoaded) {
-            gapi.load('picker', { 'callback': () => { pickerApiLoaded = true; setIsPickerReady(true); } });
+            gapi.load('picker', { 'callback': () => { setIsPickerReady(true); } });
             return;
         }
 
@@ -28,7 +27,7 @@ export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: Goo
         script.src = 'https://apis.google.com/js/api.js';
         script.onload = () => {
             gapiLoaded = true;
-            gapi.load('picker', { 'callback': () => { pickerApiLoaded = true; setIsPickerReady(true); } });
+            gapi.load('picker', { 'callback': () => { setIsPickerReady(true); } });
         };
         document.body.appendChild(script);
     }, []);
