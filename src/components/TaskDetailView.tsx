@@ -60,8 +60,27 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         }
     }, [events, loading]);
     
-    const handleNewEvent = (newEvent: Event) => {
+    const handleNewEvent = (_newEvent: Event) => {
         onEventCountChange(context.weekId, context.item.id, 1);
+    };
+
+    const handleNewAiEvent = async (eventPayload: Partial<Event>) => {
+        const fullPayload = {
+            project_id: context.projectId,
+            week_id: context.weekId,
+            task_id: context.item.id,
+            user_id: user ? user.id : null,
+            author_email: 'AI Ассистент',
+            ...eventPayload,
+        };
+
+        const { error } = await supabase.from('events').insert(fullPayload);
+
+        if (error) {
+            alert("Ошибка создания AI события: " + error.message);
+        } else {
+            onEventCountChange(context.weekId, context.item.id, 1);
+        }
     };
 
     const handleUpdateEvent = async (content: string) => {
@@ -119,7 +138,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                       setAddSubTaskType('task');
                       setIsAddEventModalOpen(true);
                   }} 
-                  onNewAiEvent={handleNewEvent} 
+                  onNewAiEvent={handleNewAiEvent} 
                   isDescriptionExpanded={isDescriptionExpanded} 
                   onToggleDescription={() => setIsDescriptionExpanded(!isDescriptionExpanded)} 
                 />
@@ -149,7 +168,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         <AddEventForm 
                           user={user} 
                           providerToken={providerToken} 
-                          context={context} 
+                          context={{ ...context, taskId: context.item.id }} 
                           quotedEvent={quotedEvent} 
                           onClearQuote={() => setQuotedEvent(null)} 
                           onNewEvent={handleNewEvent} 

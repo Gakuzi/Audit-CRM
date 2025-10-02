@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -87,17 +85,16 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         };
     }, [context.taskId, fetchEventsAndProject]);
 
-    const handleReply = (event: Event) => {
+    const handleReply = () => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
     };
 
-    const handleQuoteClick = (eventId: string) => {
+    const handleQuoteClick = () => {
         // Quote click functionality is not implemented in this simplified panel.
     };
 
     const isGuest = !user;
-    const isAuditor = !!user && !!project && user.id === project.user_id;
 
     return (
         <aside className="bg-white rounded-lg shadow-md p-4 sticky top-6 h-[calc(100vh-3rem)] flex flex-col">
