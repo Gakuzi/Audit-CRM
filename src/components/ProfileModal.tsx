@@ -4,7 +4,7 @@ import Modal from './ui/Modal';
 import { supabase } from '../services/supabaseClient';
 import { Profile } from '../types';
 import { Spinner } from './ui/Spinner';
-import { FaQuestionCircle } from 'react-icons/fa';
+import { FaQuestionCircle, FaGoogle } from 'react-icons/fa';
 import * as googleApiService from '../services/googleApiService';
 
 interface ProfileModalProps {
@@ -41,7 +41,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
             setCalendars(calendarList.map(c => ({ id: c.id, summary: c.summary })));
         } catch (error) {
             console.error("Failed to fetch Google Calendars:", error);
-            // Could alert user here if needed
         } finally {
             setCalendarsLoading(false);
         }
@@ -98,6 +97,20 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
       }
   };
 
+  const handleLinkGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
+      },
+    });
+    if (error) {
+      alert('Ошибка подключения Google: ' + error.message);
+    }
+  };
+
+  const isEmailProvider = user.app_metadata.provider === 'email';
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Настройки профиля">
       {loading ? <Spinner /> : (
@@ -125,30 +138,35 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
             
              <div className="pt-4 mt-4 border-t">
                  <h3 className="text-lg font-semibold text-gray-800">Интеграции</h3>
+                {isEmailProvider && !providerToken ? (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">Подключите ваш Google аккаунт, чтобы использовать все возможности интеграции (Календарь, Документы, Диск).</p>
+                        <button type="button" onClick={handleLinkGoogle} className="mt-2 w-full flex justify-center items-center gap-2 py-2 px-4 btn-secondary">
+                            <FaGoogle /> Подключить Google
+                        </button>
+                    </div>
+                ) : (
                  <div className="mt-2">
                     <label htmlFor="google_calendar_id" className="block text-sm font-medium text-gray-700">Google Calendar</label>
-                    {providerToken ? (
-                        <div className="flex items-center gap-2 mt-1">
-                            <select
-                                id="google_calendar_id"
-                                name="google_calendar_id"
-                                value={profile.google_calendar_id || ''}
-                                onChange={handleChange}
-                                className="w-full input"
-                                disabled={loading || calendarsLoading}
-                            >
-                                <option value="">{calendarsLoading ? 'Загрузка...' : 'Не выбрано'}</option>
-                                {calendars.map(cal => (
-                                    <option key={cal.id} value={cal.id}>{cal.summary}</option>
-                                ))}
-                            </select>
-                            <button type="button" onClick={handleCreateCalendar} className="btn-secondary" disabled={loading || calendarsLoading}>Создать</button>
-                        </div>
-                    ) : (
-                        <input id="google_calendar_id" name="google_calendar_id" type="text" value={profile.google_calendar_id || ''} onChange={handleChange} className="w-full mt-1 input" placeholder="primary или your.email@gmail.com" />
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                        <select
+                            id="google_calendar_id"
+                            name="google_calendar_id"
+                            value={profile.google_calendar_id || ''}
+                            onChange={handleChange}
+                            className="w-full input"
+                            disabled={loading || calendarsLoading}
+                        >
+                            <option value="">{calendarsLoading ? 'Загрузка...' : 'Не выбрано'}</option>
+                            {calendars.map(cal => (
+                                <option key={cal.id} value={cal.id}>{cal.summary}</option>
+                            ))}
+                        </select>
+                        <button type="button" onClick={handleCreateCalendar} className="btn-secondary" disabled={loading || calendarsLoading}>Создать</button>
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">Выберите календарь для синхронизации встреч.</p>
                  </div>
+                )}
             </div>
 
             <div className="pt-4 mt-4 border-t">
