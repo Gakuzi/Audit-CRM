@@ -1,156 +1,109 @@
-import { useState, useEffect, useCallback } from 'react';
+// src/App.tsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabaseClient';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import AuditView from './components/AuditView';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
-import { Project, CompanyProfile, ContactPerson, Profile } from './types';
+import { Project, CompanyProfile, Profile, ContactPerson } from './types';
 
 function App() {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [providerToken, setProviderToken] = useState<string | null>(null);
+
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
+  
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
   const [identifiedGuest, setIdentifiedGuest] = useState<ContactPerson | null>(null);
   const [initialTaskId, setInitialTaskId] = useState<string | null>(null);
 
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-
-  const findContactInProfile = (profile: CompanyProfile, contactId: string): ContactPerson | null => {
-    return profile.contacts?.find(c => c.id === contactId) || null;
-  };
-
-  const handleGuestIdentification = useCallback(async (projectId: string, contactId: string | null) => {
-    const { data: profile, error } = await supabase
-        .from('company_profiles')
-        .select('*')
-        .eq('project_id', projectId)
-        .single();
-
-    if (error || !profile) {
-        console.error("Could not fetch company profile for guest ID.", error);
-        localStorage.removeItem('guestSessionToken');
-        localStorage.removeItem('guestContactId');
-        localStorage.removeItem('guestProjectId');
-        localStorage.removeItem('guestName');
-        setIdentifiedGuest(null);
-        return;
+  const fetchProfile = useCallback(async (user: User | null) => {
+    if (!user) {
+      setProfile(null);
+      return;
     }
-
-    let foundContact: ContactPerson | null = null;
-    if (contactId) { // From URL param
-        foundContact = findContactInProfile(profile, contactId);
-        if (foundContact) {
-            const token = crypto.randomUUID();
-            localStorage.setItem('guestSessionToken', token);
-            localStorage.setItem('guestContactId', contactId);
-            localStorage.setItem('guestProjectId', projectId);
-        }
-    } else { // From localStorage
-        const storedContactId = localStorage.getItem('guestContactId');
-        const storedProjectId = localStorage.getItem('guestProjectId');
-        if (storedContactId && storedProjectId === projectId) {
-            foundContact = findContactInProfile(profile, storedContactId);
-        }
-    }
-    
-    if (foundContact) {
-        setIdentifiedGuest(foundContact);
-        localStorage.setItem('guestName', foundContact.name);
-    } else {
-        localStorage.removeItem('guestSessionToken');
-        localStorage.removeItem('guestContactId');
-        localStorage.removeItem('guestProjectId');
-        localStorage.removeItem('guestName');
-        setIdentifiedGuest(null);
-    }
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (error && error.code !== 'PGRST116') console.error('Error fetching profile:', error);
+    else setProfile(data);
   }, []);
-  
+
   useEffect(() => {
-    const fetchSessionAndProfile = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+    const handleSession = (session: Session | null) => {
+        setSession(session);
         setUser(session?.user ?? null);
-        if (session?.user) {
-            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-            setProfile(profileData);
-        }
-    };
-    fetchSessionAndProfile();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setIsLoginModalOpen(false);
-        setIsGuest(false);
-        setIdentifiedGuest(null);
-        localStorage.removeItem('guestSessionToken');
-        localStorage.removeItem('guestContactId');
-        localStorage.removeItem('guestProjectId');
-        localStorage.removeItem('guestName');
-        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const handleHashChange = async () => {
-        const hash = window.location.hash.replace('#/', '');
-        const [projectId, query] = hash.split('?');
-        const params = new URLSearchParams(query);
-        const contactId = params.get('contactId');
-        const taskId = params.get('taskId');
-        setInitialTaskId(taskId);
-
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (projectId) {
-            if (!session) {
-                setIsGuest(true);
-                await handleGuestIdentification(projectId, contactId);
-            } else {
-                setIsGuest(false);
+        setProviderToken(session?.provider_token ?? null);
+        fetchProfile(session?.user ?? null);
+        if (session?.user) setIsLoginModalOpen(false);
+        else {
+            const guestSession = localStorage.getItem('guestSessionToken');
+            if (!guestSession) {
+                localStorage.removeItem('identifiedGuest');
                 setIdentifiedGuest(null);
             }
+        }
+    }
 
-            const { data: projectData } = await supabase.from('projects').select('*').eq('id', projectId).single();
-            if (projectData) {
-              setSelectedProject(projectData);
+    supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const handleHashChange = useCallback(async () => {
+      const hash = window.location.hash.replace('#/', '');
+      const [projectId, queryParams] = hash.split('?');
+      const params = new URLSearchParams(queryParams);
+      const contactId = params.get('contactId');
+      const taskId = params.get('taskId');
+
+      if (taskId) setInitialTaskId(taskId);
+      else setInitialTaskId(null);
+
+      if (projectId) {
+          const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
+          if (data) {
+              setSelectedProject(data);
               const { data: companyData } = await supabase.from('company_profiles').select('*').eq('project_id', projectId).single();
               setCompanyProfile(companyData);
-            } else {
-              window.location.hash = '';
-            }
-        } else {
-            setSelectedProject(null);
-            setCompanyProfile(null);
-            setIsGuest(false);
-            setIdentifiedGuest(null);
-            setInitialTaskId(null);
-        }
-    };
 
+              // Guest identification logic
+              if (contactId && companyData?.contacts) {
+                  const guest = companyData.contacts.find((c: ContactPerson) => c.id === contactId);
+                  if (guest) {
+                      setIdentifiedGuest(guest);
+                      localStorage.setItem('identifiedGuest', JSON.stringify(guest));
+                      const guestSessionToken = crypto.randomUUID();
+                      localStorage.setItem('guestSessionToken', guestSessionToken);
+                  }
+              } else if (!user) {
+                  const storedGuest = localStorage.getItem('identifiedGuest');
+                  if (storedGuest) setIdentifiedGuest(JSON.parse(storedGuest));
+              }
+          } else {
+              if (error && error.code !== 'PGRST116') console.error('Project not found error:', error.message);
+              window.location.hash = '';
+          }
+      } else {
+          setSelectedProject(null);
+          setCompanyProfile(null);
+          setIdentifiedGuest(null);
+          localStorage.removeItem('identifiedGuest');
+      }
+  }, [user]);
+
+  useEffect(() => {
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange();
-
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [handleGuestIdentification]);
+  }, [handleHashChange]);
 
-
-  const handleSelectProject = (project: Project) => {
-    window.location.hash = `/${project.id}`;
-  };
-
-  const handleBackToDashboard = () => {
-    window.location.hash = '';
-  };
+  const handleBackToDashboard = () => { window.location.hash = ''; };
   
   const handleSignOut = async () => {
       await supabase.auth.signOut();
@@ -159,12 +112,13 @@ function App() {
   };
   
   const isAuditor = !!user && !!selectedProject && user.id === selectedProject.user_id;
+  const isGuest = !user;
 
   return (
     <div className="bg-gray-100 min-h-screen">
       <Header 
-        user={user}
-        profile={profile} 
+        user={user} 
+        profile={profile}
         project={selectedProject}
         companyProfile={companyProfile}
         isAuditor={isAuditor}
@@ -179,29 +133,22 @@ function App() {
           <AuditView 
             project={selectedProject} 
             user={user} 
+            profile={profile}
+            providerToken={providerToken}
             onBack={handleBackToDashboard}
             isAuditor={isAuditor}
             isGuest={isGuest}
             initialTaskId={initialTaskId}
           />
         ) : (
-          // Fix: Use 'handleSelectProject' handler for the 'onSelectProject' prop.
-          <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={() => setIsLoginModalOpen(true)} />
+          <Dashboard user={user} onSelectProject={(p) => window.location.hash = `/${p.id}`} onLoginRequest={() => setIsLoginModalOpen(true)} />
         )}
       </main>
 
-      <LoginModal 
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      />
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 
       {user && (
-          <ProfileModal
-            isOpen={isProfileModalOpen}
-            onClose={() => setIsProfileModalOpen(false)}
-            user={user}
-            onSignOut={handleSignOut}
-          />
+          <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} user={user} onSignOut={handleSignOut} />
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+// src/components/TaskDetailView.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
@@ -15,6 +16,7 @@ interface TaskDetailViewProps {
   isOpen: boolean;
   onClose: () => void;
   user: User | null;
+  providerToken: string | null;
   context: { item: PlanItem; weekId: string; projectId: string; };
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
   onUpdateTask: (weekId: string, updatedTask: PlanItem) => void;
@@ -23,7 +25,7 @@ interface TaskDetailViewProps {
   onSubTaskAdded: (parentTask: PlanItem, newSubTask: PlanItem) => void;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, onUpdateTask, isGuest, project, onSubTaskAdded }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, providerToken, context, onEventCountChange, onUpdateTask, isGuest, project, onSubTaskAdded }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddSubTaskModalOpen, setIsAddSubTaskModalOpen] = useState(false);
@@ -35,21 +37,12 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [preselectedSubTaskType, setPreselectedSubTaskType] = useState<PlanItem['type'] | undefined>(undefined);
 
-
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
         if (showLoading) setLoading(true);
-        const { data, error } = await supabase
-            .from('events')
-            .select('*, parent:events!parent_event_id(content, author_email)')
-            .eq('task_id', context.item.id)
-            .order('created_at', { ascending: true });
-        
-        if (error) {
-            console.error("Error fetching events:", error);
-        } else {
-            setEvents(data || []);
-        }
+        const { data, error } = await supabase.from('events').select('*, parent:events!parent_event_id(content, author_email)').eq('task_id', context.item.id).order('created_at', { ascending: true });
+        if (error) console.error("Error fetching events:", error);
+        else setEvents(data || []);
         if (showLoading) setLoading(false);
     }, [context]);
 
@@ -58,181 +51,73 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
             fetchEvents();
             setIsDescriptionExpanded(false);
         } else {
-            setEvents([]);
-            setLoading(true);
-            setExpandedEventId(null);
+            setEvents([]); setLoading(true); setExpandedEventId(null);
         }
     }, [isOpen, fetchEvents]);
 
     const handleNewEvent = (newEvent: Event, isAiAssistant = false) => {
-        const alreadyExists = events.some(e => e.id === newEvent.id);
-        if (!alreadyExists) {
-            setEvents(currentEvents => [...currentEvents, newEvent]);
-            if (!isAiAssistant) { 
-                onEventCountChange(context.weekId, context.item.id, 1);
-            }
-            if (isGuest && !isAiAssistant) {
-                sendGuestEventNotification(project, context.item, newEvent, window.location.origin);
-            }
+        if (!events.some(e => e.id === newEvent.id)) {
+            setEvents(current => [...current, newEvent]);
+            if (!isAiAssistant) onEventCountChange(context.weekId, context.item.id, 1);
+            if (isGuest && !isAiAssistant) sendGuestEventNotification(project, context.item, newEvent, window.location.origin);
         }
     };
 
     const handleDeleteEvent = async () => {
         if (!eventToDelete) return;
-        const { error } = await supabase.from('events').delete().eq('id', eventToDelete.id);
-        if (error) {
-            alert('Ошибка удаления: ' + error.message);
-        } else {
-            setEvents(currentEvents => currentEvents.filter(e => e.id !== eventToDelete.id));
-            onEventCountChange(context.weekId, context.item.id, -1);
-            setEventToDelete(null);
-        }
+        await supabase.from('events').delete().eq('id', eventToDelete.id);
+        setEvents(current => current.filter(e => e.id !== eventToDelete.id));
+        onEventCountChange(context.weekId, context.item.id, -1);
+        setEventToDelete(null);
     };
 
     const handleUpdateEvent = async (newContent: string) => {
         if (!eventToEdit) return;
         const { data, error } = await supabase.from('events').update({ content: newContent }).eq('id', eventToEdit.id).select('*, parent:events!parent_event_id(content, author_email)').single();
-        if (error) {
-            throw error;
-        } else {
-            setEvents(currentEvents => currentEvents.map(e => e.id === eventToEdit.id ? data as Event : e));
-            setEventToEdit(null);
-        }
+        if (error) throw error;
+        setEvents(current => current.map(e => e.id === eventToEdit.id ? data as Event : e));
+        setEventToEdit(null);
     };
 
     const handleAddSubTask = (newSubTask: PlanItem) => {
-        const updatedTask = {
-            ...context.item,
-            sub_tasks: [...(context.item.sub_tasks || []), newSubTask],
-        };
-        onUpdateTask(context.weekId, updatedTask);
+        onUpdateTask(context.weekId, { ...context.item, sub_tasks: [...(context.item.sub_tasks || []), newSubTask] });
         onSubTaskAdded(context.item, newSubTask);
     };
 
     useEffect(() => {
         if (!context) return;
-        const channel = supabase.channel(`public:events:task_id=eq.${context.item.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, 
-                () => fetchEvents(false)
-            ).subscribe();
+        const channel = supabase.channel(`public:events:task_id=eq.${context.item.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `task_id=eq.${context.item.id}` }, () => fetchEvents(false)).subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [context, fetchEvents]);
     
-    useEffect(() => {
-        if (eventFeedRef.current) {
-            eventFeedRef.current.scrollTop = eventFeedRef.current.scrollHeight;
-        }
-    }, [events]);
-    
-    const handleQuoteClick = (eventId: string) => {
-        setExpandedEventId(eventId);
-        setTimeout(() => {
-            const element = document.getElementById(`event-${eventId}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                element.classList.add('highlight');
-                setTimeout(() => element.classList.remove('highlight'), 1500);
-            }
-        }, 100);
-    };
+    useEffect(() => { eventFeedRef.current?.scrollTo({ top: eventFeedRef.current.scrollHeight, behavior: 'smooth' }); }, [events]);
     
     const isAuditor = !!user && user.id === project.user_id;
-
     if (!isOpen || !context) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex flex-col slide-in-right">
-            <style>{`.highlight { background-color: #eef2ff; transition: background-color 0.5s ease-in-out; }`}</style>
-            
-            <div className="flex justify-end p-2 md:p-4">
-                <button onClick={onClose} className="p-2 text-white bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full">
-                    <FaTimes size={20} />
-                </button>
-            </div>
-
+            <div className="flex justify-end p-2 md:p-4"><button onClick={onClose} className="p-2 text-white bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full"><FaTimes size={20} /></button></div>
             <div className="flex-1 flex flex-col lg:flex-row bg-white m-2 md:m-4 mt-0 rounded-lg shadow-xl overflow-hidden min-h-0">
-                <TaskSidebar
-                    task={context.item}
-                    events={events}
-                    project={project}
-                    isAuditor={isAuditor}
-                    isGuest={isGuest}
-                    onAddSubTask={() => { setPreselectedSubTaskType(undefined); setIsAddSubTaskModalOpen(true); }}
-                    onNewAiEvent={(event) => handleNewEvent(event as Event, true)}
-                    isDescriptionExpanded={isDescriptionExpanded}
-                    onToggleDescription={() => setIsDescriptionExpanded(prev => !prev)}
-                />
-
+                <TaskSidebar task={context.item} events={events} project={project} isAuditor={isAuditor} isGuest={isGuest} onAddSubTask={() => { setPreselectedSubTaskType(undefined); setIsAddSubTaskModalOpen(true); }} onNewAiEvent={(e) => handleNewEvent(e as Event, true)} isDescriptionExpanded={isDescriptionExpanded} onToggleDescription={() => setIsDescriptionExpanded(prev => !prev)} />
                 <div className="flex-1 flex flex-col min-w-0">
                     <main ref={eventFeedRef} className="flex-1 overflow-y-auto p-4">
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
                             events.length > 0 ? (
                                 <div className="divide-y divide-gray-200">
-                                    {events.map(event => (
-                                        <EventItem 
-                                            key={event.id} 
-                                            event={event} 
-                                            onReply={setQuotedEvent}
-                                            onQuoteClick={handleQuoteClick}
-                                            onDelete={(user?.id === event.user_id || isAuditor) ? () => setEventToDelete(event) : undefined}
-                                            onEdit={(user?.id === event.user_id) ? () => setEventToEdit(event) : undefined}
-                                            isExpanded={event.id === expandedEventId}
-                                            onToggleExpand={() => setExpandedEventId(prevId => prevId === event.id ? null : event.id)}
-                                        />
-                                    ))}
+                                    {events.map(event => <EventItem key={event.id} event={event} onReply={setQuotedEvent} onQuoteClick={(id) => { setExpandedEventId(id); setTimeout(() => { document.getElementById(`event-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }} onDelete={(user?.id === event.user_id || isAuditor) ? () => setEventToDelete(event) : undefined} onEdit={(user?.id === event.user_id) ? () => setEventToEdit(event) : undefined} isExpanded={event.id === expandedEventId} onToggleExpand={() => setExpandedEventId(p => p === event.id ? null : event.id)} />)}
                                 </div>
-                            ) : (
-                                <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет. Начните обсуждение!</p>
-                            )
+                            ) : <p className="text-sm text-gray-500 text-center pt-8">Событий пока нет.</p>
                         )}
                     </main>
-
                     <footer className="p-4 bg-gray-50 border-t">
-                        {(isAuditor || isGuest) ? (
-                            <AddEventForm 
-                                user={user} 
-                                context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }} 
-                                quotedEvent={quotedEvent}
-                                onClearQuote={() => setQuotedEvent(null)}
-                                onNewEvent={(e) => handleNewEvent(e, false)}
-                                project={project}
-                                isGuest={isGuest}
-                                onAddSubTaskRequest={(type) => { setPreselectedSubTaskType(type); setIsAddSubTaskModalOpen(true); }}
-                            />
-                        ) : (
-                            <p className="text-sm text-center text-gray-500">Войдите, чтобы участвовать в обсуждении.</p>
-                        )}
+                        {(isAuditor || isGuest) ? <AddEventForm user={user} providerToken={providerToken} context={{ weekId: context.weekId, taskId: context.item.id, projectId: context.projectId }} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} isGuest={isGuest} onAddSubTaskRequest={(type) => { setPreselectedSubTaskType(type); setIsAddSubTaskModalOpen(true); }} /> : <p className="text-sm text-center text-gray-500">Войдите для участия в обсуждении.</p>}
                     </footer>
                 </div>
             </div>
-
-            <AddEventModal
-                isOpen={isAddSubTaskModalOpen}
-                onClose={() => setIsAddSubTaskModalOpen(false)}
-                user={user}
-                onAddSubTask={handleAddSubTask}
-                parentItem={context.item}
-                parentEvent={quotedEvent}
-                isGuest={isGuest}
-                preselectedType={preselectedSubTaskType}
-            />
-            
-            <ConfirmationModal
-                isOpen={!!eventToDelete}
-                onClose={() => setEventToDelete(null)}
-                onConfirm={handleDeleteEvent}
-                title="Удалить событие?"
-                message={`Вы уверены? Действие необратимо.`}
-            />
-
-            {eventToEdit && (
-                <EditEventModal
-                    isOpen={!!eventToEdit}
-                    onClose={() => setEventToEdit(null)}
-                    event={eventToEdit}
-                    onUpdate={handleUpdateEvent}
-                />
-            )}
+            <AddEventModal isOpen={isAddSubTaskModalOpen} onClose={() => setIsAddSubTaskModalOpen(false)} user={user} onAddSubTask={handleAddSubTask} parentItem={context.item} parentEvent={quotedEvent} isGuest={isGuest} preselectedType={preselectedSubTaskType} />
+            <ConfirmationModal isOpen={!!eventToDelete} onClose={() => setEventToDelete(null)} onConfirm={handleDeleteEvent} title="Удалить событие?" message="Вы уверены?" />
+            {eventToEdit && <EditEventModal isOpen={!!eventToEdit} onClose={() => setEventToEdit(null)} event={eventToEdit} onUpdate={handleUpdateEvent} />}
         </div>
     );
 };

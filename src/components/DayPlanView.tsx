@@ -1,5 +1,6 @@
+// src/components/DayPlanView.tsx
 import React, { useState } from 'react';
-import { Week, Plan, PlanItem } from '../types';
+import { Week, Plan, PlanItem, Project } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
@@ -12,9 +13,11 @@ interface DayPlanViewProps {
     onUpdatePlan: (plan: Plan) => void;
     onTaskSelect: (item: PlanItem) => void;
     isAuditor: boolean;
+    project: Project; // Added for context
+    providerToken: string | null; // Added for Google API calls
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, project, providerToken }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [itemToEdit, setItemToEdit] = useState<PlanItem | null>(null);
@@ -24,33 +27,16 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
     const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
     const canToggleComplete = isAuditor && (week.status === 'approved' || week.status === 'completed');
 
-    const handleAddTaskClick = (date: string) => {
-        setSelectedDate(date);
-        setIsAddItemModalOpen(true);
-    };
-
-    const handleDeleteDay = (date: string) => {
-        if (window.confirm(`Вы уверены, что хотите удалить ${date} и все задачи в этот день?`)) {
-            const newPlan = { ...week.plan };
-            delete newPlan[date];
-            onUpdatePlan(newPlan);
-        }
-    }
-    
     const handleUpdateItem = (updatedItem: PlanItem) => {
         const newPlan = { ...week.plan };
-        let found = false;
         for (const date in newPlan) {
             const day = newPlan[date];
             const itemIndex = day.tasks.findIndex(t => t.id === updatedItem.id);
             if (itemIndex > -1) {
                 day.tasks[itemIndex] = updatedItem;
-                found = true;
+                onUpdatePlan(newPlan);
                 break;
             }
-        }
-        if (found) {
-            onUpdatePlan(newPlan);
         }
         setItemToEdit(null);
     }
@@ -66,25 +52,16 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
     
     const handleToggleComplete = (taskId: string) => {
         if (!canToggleComplete) return;
-
-        const newPlan = JSON.parse(JSON.stringify(week.plan)); // Deep copy
-        let taskFound = false;
-
+        const newPlan = JSON.parse(JSON.stringify(week.plan));
         for (const date in newPlan) {
-            const day = newPlan[date];
-            const task = day.tasks.find((t: PlanItem) => t.id === taskId);
+            const task = newPlan[date].tasks.find((t: PlanItem) => t.id === taskId);
             if (task) {
                 task.completed = !task.completed;
-                taskFound = true;
-                break;
+                onUpdatePlan(newPlan);
+                return;
             }
         }
-
-        if (taskFound) {
-            onUpdatePlan(newPlan);
-        }
     };
-
 
     const sortedDates = Object.keys(week.plan).sort();
 
@@ -94,7 +71,6 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                 const dayPlan = week.plan[date];
                 const dayDate = new Date(date + 'T00:00:00');
                 const dayName = DAY_NAMES[(dayDate.getDay() + 6) % 7];
-                
                 return (
                     <div key={date} className="bg-gray-50 rounded-lg p-3">
                         <div className="flex justify-between items-center mb-3">
@@ -102,54 +78,18 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                 <h4 className="font-bold">{dayName}</h4>
                                 <p className="text-sm text-gray-500">{dayDate.toLocaleDateString('ru-RU')}</p>
                             </div>
-                            {canEditPlan && (
-                                <button onClick={() => handleDeleteDay(date)} className="p-1 text-gray-400 hover:text-red-500"><FaTrash size={12}/></button>
-                            )}
+                            {canEditPlan && <button onClick={() => { const p = { ...week.plan }; delete p[date]; onUpdatePlan(p); }} className="p-1 text-gray-400 hover:text-red-500"><FaTrash size={12}/></button>}
                         </div>
                         <div className="space-y-2">
-                            {dayPlan?.tasks?.map(item => (
-                                <PlanItemCard 
-                                    key={item.id} 
-                                    item={item} 
-                                    onSelect={() => onTaskSelect(item)}
-                                    onEdit={canEditPlan ? () => setItemToEdit(item) : undefined}
-                                    onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined}
-                                    onToggleComplete={canToggleComplete ? () => handleToggleComplete(item.id) : undefined}
-                                />
-                            ))}
-                            {canAddTask && (
-                                <button onClick={() => handleAddTaskClick(date)} className="w-full text-sm flex items-center justify-center p-2 border-2 border-dashed rounded-md text-gray-500 hover:bg-gray-100 hover:border-gray-400">
-                                    <FaPlus className="mr-2" size={12}/> Добавить
-                                </button>
-                            )}
+                            {dayPlan?.tasks?.map(item => <PlanItemCard key={item.id} item={item} onSelect={() => onTaskSelect(item)} onEdit={canEditPlan ? () => setItemToEdit(item) : undefined} onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined} onToggleComplete={canToggleComplete ? () => handleToggleComplete(item.id) : undefined} />)}
+                            {canAddTask && <button onClick={() => { setSelectedDate(date); setIsAddItemModalOpen(true); }} className="w-full text-sm flex items-center justify-center p-2 border-2 border-dashed rounded-md text-gray-500 hover:bg-gray-100 hover:border-gray-400"><FaPlus className="mr-2" size={12}/> Добавить</button>}
                         </div>
                     </div>
                 );
             })}
-             {isAddItemModalOpen && (
-                <AddPlanItemModal
-                    isOpen={isAddItemModalOpen}
-                    onClose={() => setIsAddItemModalOpen(false)}
-                    onUpdatePlan={onUpdatePlan}
-                    week={week}
-                    date={selectedDate}
-                />
-            )}
-            {itemToEdit && (
-                <EditPlanItemModal 
-                    isOpen={!!itemToEdit}
-                    onClose={() => setItemToEdit(null)}
-                    item={itemToEdit}
-                    onUpdateItem={handleUpdateItem}
-                />
-            )}
-             <ConfirmationModal 
-                isOpen={!!itemToDelete}
-                onClose={() => setItemToDelete(null)}
-                onConfirm={handleDeleteItem}
-                title="Удалить задачу?"
-                message="Вы уверены, что хотите удалить эту задачу из плана?"
-             />
+             {isAddItemModalOpen && <AddPlanItemModal isOpen={isAddItemModalOpen} onClose={() => setIsAddItemModalOpen(false)} onUpdatePlan={onUpdatePlan} week={week} date={selectedDate} project={project} providerToken={providerToken} />}
+             {itemToEdit && <EditPlanItemModal isOpen={!!itemToEdit} onClose={() => setItemToEdit(null)} item={itemToEdit} onUpdateItem={handleUpdateItem} project={project} providerToken={providerToken} />}
+             <ConfirmationModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={handleDeleteItem} title="Удалить задачу?" message="Вы уверены?" />
         </div>
     );
 };
