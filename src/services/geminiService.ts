@@ -496,15 +496,13 @@ const formatChatHistory = (events: Event[]): string => {
         .join('\n');
 };
 
-export const continueConversation = async (task: PlanItem, events: Event[]): Promise<string> => {
+export const continueConversation = async (task: PlanItem, events: Event[], userQuery: string): Promise<string> => {
     const processedEvents = await _processEventsWithFileContent(events);
     const history = formatChatHistory(processedEvents as Event[]);
 
     const prompt = `
         Ты — AI-ассистент в системе аудита. Ведется обсуждение задачи.
-        Твоя задача — осмысленно продолжить диалог, основываясь на всей истории переписки и контексте задачи.
-        Последнее сообщение в истории — от пользователя, который отвечает на твое предыдущее сообщение.
-        Ответь ему по существу, будь краток и полезен.
+        Твоя задача — осмысленно ответить на последний вопрос пользователя, основываясь на всей истории переписки и контексте задачи.
 
         **Контекст задачи:**
         - Название: ${task.title}
@@ -512,6 +510,7 @@ export const continueConversation = async (task: PlanItem, events: Event[]): Pro
 
         **История диалога:**
         ${history}
+        User (${userQuery.split(':')[0]}): ${userQuery.split(':')[1]}
 
         Твой ответ:
     `;

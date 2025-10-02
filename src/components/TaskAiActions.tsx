@@ -3,6 +3,7 @@ import { PlanItem, Event } from '../types';
 import * as geminiService from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
 import { FaBrain, FaQuestion, FaListUl, FaComments, FaSitemap } from 'react-icons/fa';
+import ManualToolModal from './ManualToolModal';
 
 type AiTool = 'questions' | 'agenda' | 'summary' | 'checklist' | 'mindmap' | 'flowchart' | 'continue' | 'summarize-and-continue';
 
@@ -12,8 +13,15 @@ const TaskAiActions: React.FC<{
   onNewEvent: (event: Partial<Event>) => void;
 }> = ({ task, events, onNewEvent }) => {
   const [loading, setLoading] = useState<AiTool | null>(null);
+  const [isContinueModalOpen, setIsContinueModalOpen] = useState(false);
 
   const handleAiAction = async (tool: AiTool) => {
+    // Fix: The 'continue' action requires user input, so we open a modal instead of calling the service directly.
+    if (tool === 'continue') {
+        setIsContinueModalOpen(true);
+        return;
+    }
+
     setLoading(tool);
     try {
       let content = '';
@@ -26,17 +34,34 @@ const TaskAiActions: React.FC<{
         case 'checklist': content = await geminiService.generateDocReviewChecklist(taskContext); break;
         case 'mindmap': content = await geminiService.generateMindMapFromEvents(taskContext, events); break;
         case 'flowchart': content = await geminiService.generateProcessFlowchart(taskContext, events); break;
-        case 'continue': content = await geminiService.continueConversation(task, events); break;
         case 'summarize-and-continue': content = await geminiService.summarizeAndContinue(task, events); break;
       }
       
       if (content) {
-        onNewEvent({ type: 'comment', content, author_email: 'AI Ассистент' });
+        onNewEvent({ type: 'comment', content });
       }
     } catch (error: any) {
       alert(`AI Error: ${error.message}`);
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleContinueSubmit = async (userQuery: string) => {
+    setLoading('continue');
+    try {
+      // The service expects a query like "author:message". We'll try to find the last user's name.
+      const lastUserEvent = [...events].reverse().find(e => e.author_email !== 'AI Ассистент');
+      const author = lastUserEvent?.author_email || 'User';
+      const formattedQuery = `${author}:${userQuery}`;
+      const content = await geminiService.continueConversation(task, events, formattedQuery);
+      if (content) {
+        onNewEvent({ type: 'comment', content });
+      }
+    } catch (error: any) {
+        alert(`AI Error: ${error.message}`);
+    } finally {
+        setLoading(null);
     }
   };
 
@@ -61,14 +86,27 @@ const TaskAiActions: React.FC<{
   }
 
   return (
-    <div className="flex flex-col gap-1 p-1">
-      {finalTools.map(t => (
-        <button key={t.tool} onClick={t.action} disabled={!!loading} className="w-full text-left flex items-center p-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50">
-          <div className="w-6 text-center">{loading === t.tool ? <Spinner size="sm"/> : t.icon}</div>
-          <span className="ml-2">{t.label}</span>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="flex flex-col gap-1 p-1">
+        {finalTools.map(t => (
+          <button key={t.tool} onClick={t.action} disabled={!!loading} className="w-full text-left flex items-center p-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50">
+            <div className="w-6 text-center">{loading === t.tool ? <Spinner size="sm"/> : t.icon}</div>
+            <span className="ml-2">{t.label}</span>
+          </button>
+        ))}
+      </div>
+      <ManualToolModal
+            isOpen={isContinueModalOpen}
+            onClose={() => setIsContinueModalOpen(false)}
+            onSubmit={handleContinueSubmit}
+            config={{
+                title: 'Продолжить диалог с AI',
+                label: 'Ваш вопрос или сообщение:',
+                placeholder: 'Например, "Какие риски ты видишь в этом процессе?"',
+                actionLabel: 'Отправить',
+            }}
+        />
+    </>
   );
 };
 export default TaskAiActions;
