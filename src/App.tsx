@@ -33,6 +33,9 @@ function App() {
     if (error || !profile) {
         console.error("Could not fetch company profile for guest ID.", error);
         localStorage.removeItem('guestSessionToken');
+        localStorage.removeItem('guestContactId');
+        localStorage.removeItem('guestProjectId');
+        localStorage.removeItem('guestName');
         setIdentifiedGuest(null);
         return;
     }
@@ -58,7 +61,11 @@ function App() {
         setIdentifiedGuest(foundContact);
         localStorage.setItem('guestName', foundContact.name);
     } else {
-        localStorage.clear();
+        // This clear is for when guest identification fails, but it's safer to be specific.
+        localStorage.removeItem('guestSessionToken');
+        localStorage.removeItem('guestContactId');
+        localStorage.removeItem('guestProjectId');
+        localStorage.removeItem('guestName');
         setIdentifiedGuest(null);
     }
   }, []);
@@ -70,7 +77,12 @@ function App() {
         setIsLoginModalOpen(false);
         setIsGuest(false);
         setIdentifiedGuest(null);
-        localStorage.clear();
+        // FIX: Only remove guest-related items, not the entire localStorage
+        // which contains the user's auth session.
+        localStorage.removeItem('guestSessionToken');
+        localStorage.removeItem('guestContactId');
+        localStorage.removeItem('guestProjectId');
+        localStorage.removeItem('guestName');
       }
       // Guest status is handled by hash change
     });
