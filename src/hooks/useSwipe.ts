@@ -94,8 +94,7 @@ export const useSwipe = ({
             } 
             // No swipe action, return to original state
             else {
-                setTranslateX(0);
-                setIsRevealed(false);
+                setTranslateX(isRevealed === 'left' ? leftRevealWidth : isRevealed === 'right' ? -rightRevealWidth : 0);
             }
         };
         
@@ -123,6 +122,7 @@ export const useSwipe = ({
     
     const style: CSSProperties = {
         transform: `translateX(${translateX}px)`,
+        touchAction: 'pan-y', // Prioritize vertical scroll
     };
 
     return { ref: elementRef, style, isRevealed };

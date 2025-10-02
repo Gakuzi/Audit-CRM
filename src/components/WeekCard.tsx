@@ -227,7 +227,6 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                 onTaskSelect={onTaskSelect}
                 isAuditor={isAuditor}
                 onUpdateTask={handleUpdateTask}
-                project={project}
                 profile={profile}
                 providerToken={providerToken}
             />

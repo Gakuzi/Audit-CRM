@@ -3,6 +3,7 @@ import { PlanItem } from '../types';
 import { FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaClock, FaEdit, FaTrash, FaWhatsapp, FaTelegramPlane, FaUser, FaSitemap } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useSwipe } from '../hooks/useSwipe';
 
 interface PlanItemCardProps {
   item: PlanItem;
@@ -13,6 +14,14 @@ interface PlanItemCardProps {
 
 const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onDelete }) => {
   
+  const hasActions = onEdit && onDelete;
+
+  const { ref, style } = useSwipe({
+    onSwipeLeftAction: onDelete,
+    rightRevealWidth: hasActions ? 128 : 0, // Width for two buttons
+    threshold: 60,
+  });
+
   const getIcon = () => {
     switch(item.type) {
       case 'task': return <FaTasks className="text-gray-500" />;
@@ -64,61 +73,64 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, onSelect, onEdit, onD
 
 
   return (
-    <div 
-      onClick={onSelect}
-      className={`p-2.5 rounded-md shadow-sm border cursor-pointer hover:bg-blue-50 transition-colors group relative ${item.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
-    >
-        {(onEdit || onDelete) && (
-             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-white bg-opacity-70 rounded-md">
-                {onEdit && <button onClick={(e) => handleActionClick(e, onEdit)} className="p-1.5 text-gray-500 hover:text-blue-600"><FaEdit size={12} /></button>}
-                {onDelete && <button onClick={(e) => handleActionClick(e, onDelete)} className="p-1.5 text-gray-500 hover:text-red-600"><FaTrash size={12} /></button>}
-            </div>
-        )}
-
-      <div className="flex justify-between items-start gap-2">
-        <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-        <div className="flex-1 pr-6">
-            <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-500' : ''}`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
-            </div>
-            {item.data?.agenda && 
-                <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
-                    <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
-                </div>
-            }
-            
-            {(item.type === 'meeting' || item.type === 'interview') && item.data?.time && (
-                <div className="flex items-center text-xs text-gray-500 mt-1">
-                    <FaClock className="mr-1.5" />
-                    <span>{item.data.time}</span>
-                    {item.type === 'meeting' && item.data.location && <span className="ml-1">, {item.data.location}</span>}
-                </div>
-            )}
-             {item.type === 'interview' && item.data?.interviewee && (
-                <div className="flex items-center text-xs text-gray-500 mt-1">
-                    <FaUser className="mr-1.5" />
-                    <span>{item.data.interviewee}</span>
-                </div>
-            )}
-
-        </div>
-        <div className="flex items-center space-x-1 text-gray-400 mt-1 flex-shrink-0">
-             <FaRegCommentDots />
-             <span className="text-xs font-medium">{item.event_count || 0}</span>
-        </div>
-      </div>
-      {renderMeetingInvites()}
-      {item.sub_tasks && item.sub_tasks.length > 0 && (
-          <div className="mt-2 pt-2 border-t">
-              <div className="flex justify-between items-center text-xs text-gray-500">
-                  <span className="flex items-center gap-1.5"><FaTasks size={10} /> {item.sub_tasks.filter(t => t.completed).length}/{item.sub_tasks.length}</span>
-                  <span>{Math.round(subTaskProgress)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                  <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${subTaskProgress}%` }}></div>
-              </div>
+    <div className="swipe-container">
+       {hasActions && (
+          <div className="swipe-actions-right">
+            <button onClick={(e) => handleActionClick(e, onEdit)} className="swipe-action blue"><FaEdit/></button>
+            <button onClick={(e) => handleActionClick(e, onDelete)} className="swipe-action red"><FaTrash/></button>
           </div>
-      )}
+        )}
+      <div 
+        ref={ref}
+        style={style}
+        onClick={onSelect}
+        className={`swipe-content p-2.5 rounded-md shadow-sm border cursor-pointer transition-colors group relative ${item.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+      >
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex-shrink-0 mt-1">{getIcon()}</div>
+            <div className="flex-1 pr-6">
+                <div className={`text-sm text-gray-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-gray-500' : ''}`}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
+                </div>
+                {item.data?.agenda && 
+                    <div className="text-xs text-gray-500 mt-1 italic prose prose-xs max-w-none">
+                        <ReactMarkdown children={`**Повестка:** ${item.data.agenda}`} />
+                    </div>
+                }
+                
+                {(item.type === 'meeting' || item.type === 'interview') && item.data?.time && (
+                    <div className="flex items-center text-xs text-gray-500 mt-1">
+                        <FaClock className="mr-1.5" />
+                        <span>{item.data.time}</span>
+                        {item.type === 'meeting' && item.data.location && <span className="ml-1">, {item.data.location}</span>}
+                    </div>
+                )}
+                 {item.type === 'interview' && item.data?.interviewee && (
+                    <div className="flex items-center text-xs text-gray-500 mt-1">
+                        <FaUser className="mr-1.5" />
+                        <span>{item.data.interviewee}</span>
+                    </div>
+                )}
+
+            </div>
+            <div className="flex items-center space-x-1 text-gray-400 mt-1 flex-shrink-0">
+                 <FaRegCommentDots />
+                 <span className="text-xs font-medium">{item.event_count || 0}</span>
+            </div>
+          </div>
+          {renderMeetingInvites()}
+          {item.sub_tasks && item.sub_tasks.length > 0 && (
+              <div className="mt-2 pt-2 border-t">
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                      <span className="flex items-center gap-1.5"><FaTasks size={10} /> {item.sub_tasks.filter(t => t.completed).length}/{item.sub_tasks.length}</span>
+                      <span>{Math.round(subTaskProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                      <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${subTaskProgress}%` }}></div>
+                  </div>
+              </div>
+          )}
+      </div>
     </div>
   );
 };

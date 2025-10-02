@@ -78,6 +78,25 @@
 .prose-invert blockquote { @apply border-gray-500 text-gray-300; }
 .prose-invert code { @apply text-white bg-gray-700; }
 
+/* --- SWIPE STYLES --- */
+.swipe-container {
+    @apply relative overflow-hidden rounded-md;
+}
+.swipe-content {
+    @apply w-full bg-white relative z-10;
+}
+.swipe-actions-left, .swipe-actions-right {
+    @apply absolute top-0 h-full flex z-0;
+}
+.swipe-actions-left { @apply left-0; }
+.swipe-actions-right { @apply right-0; }
+
+.swipe-action {
+    @apply h-full w-16 flex items-center justify-center text-white text-xl;
+}
+.swipe-action.red { @apply bg-red-500; }
+.swipe-action.blue { @apply bg-blue-500; }
+
 
 /* Hide swipe actions on non-touch devices */
 @media (hover: hover) and (pointer: fine) {
