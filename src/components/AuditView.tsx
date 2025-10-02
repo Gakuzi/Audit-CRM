@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-// Fix: Import FaPlus icon to resolve 'Cannot find name' error.
 import { FaArrowLeft, FaCog, FaPlus } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
@@ -224,19 +222,16 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor,
         </button>
         <div className="flex items-center space-x-2">
           {isAuditor && (
-             <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 btn-secondary"><FaCog/></button>
+            <>
+              <button onClick={() => setIsAddWeekModalOpen(true)} className="flex items-center btn-primary">
+                  <FaPlus className="mr-2" /> Добавить этап
+              </button>
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 btn-secondary leading-none"><FaCog/></button>
+            </>
           )}
         </div>
       </div>
       
-      {isAuditor && (
-        <div className="flex justify-end mb-6">
-            <button onClick={() => setIsAddWeekModalOpen(true)} className="flex items-center btn-primary">
-                <FaPlus className="mr-2" /> Добавить этап
-            </button>
-        </div>
-      )}
-
       <div className="space-y-6">
         {weeks.map(week => (
             <WeekCard 

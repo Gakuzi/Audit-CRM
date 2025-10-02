@@ -6,10 +6,11 @@ import Dashboard from './components/Dashboard';
 import AuditView from './components/AuditView';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
-import { Project, CompanyProfile, ContactPerson } from './types';
+import { Project, CompanyProfile, ContactPerson, Profile } from './types';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -61,7 +62,6 @@ function App() {
         setIdentifiedGuest(foundContact);
         localStorage.setItem('guestName', foundContact.name);
     } else {
-        // This clear is for when guest identification fails, but it's safer to be specific.
         localStorage.removeItem('guestSessionToken');
         localStorage.removeItem('guestContactId');
         localStorage.removeItem('guestProjectId');
@@ -71,20 +71,31 @@ function App() {
   }, []);
   
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const fetchSessionAndProfile = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+        if (session?.user) {
+            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+            setProfile(profileData);
+        }
+    };
+    fetchSessionAndProfile();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         setIsLoginModalOpen(false);
         setIsGuest(false);
         setIdentifiedGuest(null);
-        // FIX: Only remove guest-related items, not the entire localStorage
-        // which contains the user's auth session.
         localStorage.removeItem('guestSessionToken');
         localStorage.removeItem('guestContactId');
         localStorage.removeItem('guestProjectId');
         localStorage.removeItem('guestName');
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        setProfile(profileData);
+      } else {
+        setProfile(null);
       }
-      // Guest status is handled by hash change
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -152,7 +163,8 @@ function App() {
   return (
     <div className="bg-gray-100 min-h-screen">
       <Header 
-        user={user} 
+        user={user}
+        profile={profile} 
         project={selectedProject}
         companyProfile={companyProfile}
         isAuditor={isAuditor}
@@ -173,6 +185,7 @@ function App() {
             initialTaskId={initialTaskId}
           />
         ) : (
+          // Fix: Use 'handleSelectProject' handler for the 'onSelectProject' prop.
           <Dashboard user={user} onSelectProject={handleSelectProject} onLoginRequest={() => setIsLoginModalOpen(true)} />
         )}
       </main>
