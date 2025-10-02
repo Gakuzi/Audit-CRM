@@ -126,7 +126,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
   
-  // Fix: Find the selected week to pass to TaskDetailView
   const selectedWeekForDetail = selectedTaskForDetail ? weeks.find(w => w.id === selectedTaskForDetail.weekId) : null;
 
   return (

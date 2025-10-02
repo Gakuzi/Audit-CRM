@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-// Fix: Import Week type
 import { Event, PlanItem, Project, CompanyProfile, Week } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
@@ -27,7 +26,6 @@ interface TaskDetailViewProps {
   isGuest: boolean;
   project: Project;
   onSubTaskAdded: (parentTask: PlanItem, newSubTask: PlanItem) => void;
-  // Fix: Add week prop
   week: Week | null;
 }
 
@@ -42,7 +40,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const contacts = companyProfile?.contacts || [];
-    // Fix: Remove simplified week object, as the full object is now passed via props.
 
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
@@ -62,7 +59,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         const fullPayload = { project_id: context.projectId, week_id: context.weekId, task_id: context.item.id, user_id: user ? user.id : null, author_email: 'AI Ассистент', ...eventPayload };
         const { data, error } = await supabase.from('events').insert(fullPayload).select().single();
         if (error) { alert("Ошибка создания AI события: " + error.message); } 
-        // Fix: Call the correct local handler `handleNewEvent` instead of the undefined `onNewEvent`.
         else if (data) { handleNewEvent(data as Event); }
     };
 
@@ -101,7 +97,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
 
     if (!isOpen || !context) return null;
     
-    // Fix: Use the `week` prop to correctly determine the status.
     const canToggleSubtaskComplete = isAuditor && week?.status === 'approved';
 
     return (
