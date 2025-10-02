@@ -37,10 +37,10 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
 
     const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files) return;
-        // Fix: Explicitly cast to File[] to resolve type inference issues.
-        const selectedFiles = Array.from(event.target.files) as File[];
+        const selectedFiles = Array.from(event.target.files);
         
-        selectedFiles.forEach(file => {
+        // Fix: Explicitly type 'file' as 'File' to resolve type inference issue.
+        selectedFiles.forEach((file: File) => {
             if (file.size > FILE_SIZE_LIMIT) {
                 if (providerToken) {
                     setLargeFileToUpload(file);
