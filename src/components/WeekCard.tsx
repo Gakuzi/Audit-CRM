@@ -10,7 +10,6 @@ import WeekHistoryFeed from './WeekHistoryFeed';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ConfirmationModal from './ConfirmationModal';
-import ApprovalShareModal from './ApprovalShareModal';
 
 interface WeekCardProps {
   week: Week;

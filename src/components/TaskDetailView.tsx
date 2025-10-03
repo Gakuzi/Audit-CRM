@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, PlanItem, Project, CompanyProfile, Week, ContactPerson } from '../types';
+import { Event, PlanItem, Project, CompanyProfile, Week } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -63,7 +63,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         }
     }, [events, loading]);
     
-    const handleNewEvent = (newEvent: Event) => {
+    const handleNewEvent = () => {
         onEventCountChange(context.weekId, context.item.id, 1);
     };
 
@@ -174,7 +174,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         )}
                     </main>
                     <footer className="flex-shrink-0 p-4 bg-slate-50 border-t lg:border-l">
-                        <AddEventForm user={user} providerToken={providerToken} context={context} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} contacts={contacts} isGuest={isGuest} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} onContactsUpdate={onContactsUpdate} />
+                        <AddEventForm user={user} providerToken={providerToken} context={{...context, taskId: context.item.id}} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} contacts={contacts} isGuest={isGuest} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} onContactsUpdate={onContactsUpdate} />
                     </footer>
                 </div>
             </div>

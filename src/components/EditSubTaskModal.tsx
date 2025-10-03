@@ -1,7 +1,6 @@
 // src/components/EditSubTaskModal.tsx
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { Spinner } from './ui/Spinner';
 import { PlanItem, ContactPerson, Project } from '../types';
 import AddContactModal from './AddContactModal';
 import { FaTimes } from 'react-icons/fa';
@@ -18,7 +17,6 @@ interface EditSubTaskModalProps {
 
 const EditSubTaskModal: React.FC<EditSubTaskModalProps> = ({ isOpen, onClose, subTask, onUpdate, contacts, project, onContactsUpdate }) => {
   const [editedTask, setEditedTask] = useState<PlanItem>(subTask);
-  const [loading, setLoading] = useState(false);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
 
   useEffect(() => {

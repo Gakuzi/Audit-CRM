@@ -1,6 +1,6 @@
 import React from 'react';
 import { Event, ContactPerson } from '../types';
-import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip, FaImage } from 'react-icons/fa';
+import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 

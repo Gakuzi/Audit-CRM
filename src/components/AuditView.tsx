@@ -1,7 +1,7 @@
 // src/components/AuditView.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
-import { Project, Week, Plan, PlanItem, Profile, CompanyProfile, ContactPerson } from '../types';
+import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase, sendGuestSubTaskNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { FaCog, FaPlus, FaUsers } from 'react-icons/fa';

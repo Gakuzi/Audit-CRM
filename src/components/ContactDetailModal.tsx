@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from './ui/Modal';
-import { ContactPerson, Project, HistoryItem, Event, Week, PlanItem } from '../types';
+import { ContactPerson, Project, HistoryItem, Event, PlanItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { FaPhone, FaEnvelope, FaWhatsapp, FaTelegramPlane, FaUser, FaRegCommentDots, FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaSitemap } from 'react-icons/fa';
@@ -65,7 +65,7 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({ isOpen, onClose
             (weeks || []).forEach((week: { plan: any }) => {
                 if (!week.plan) return;
                 for (const date in week.plan) {
-                    (week.plan[date]?.tasks || []).forEach(task => {
+                    (week.plan[date]?.tasks || []).forEach((task: PlanItem) => {
                         allTasksMap.set(task.id, task.title);
                         if (task.data?.contact_ids?.includes(contact.id)) {
                             allItems.push({
