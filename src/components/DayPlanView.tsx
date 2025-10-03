@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';

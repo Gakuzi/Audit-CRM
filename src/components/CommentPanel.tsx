@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, Plan, PlanItem, Project } from '../types';
+import { Event, Plan, PlanItem, Project, CompanyProfile } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -21,6 +21,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     const [projectId, setProjectId] = useState<string | null>(null);
     const [project, setProject] = useState<Project | null>(null);
     const [task, setTask] = useState<PlanItem | null>(null);
+    const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
 
     const fetchEventsAndProject = useCallback(async () => {
         setLoading(true);
@@ -61,11 +62,20 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
             setTask(foundTask || {id: context.taskId, title: context.taskContent, completed: false, type: 'task'});
             
             if(fetchedProjectId) {
-                const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', fetchedProjectId).single();
-                if (projectError) {
-                    console.error("Error fetching project:", projectError);
+                const projectPromise = supabase.from('projects').select('*').eq('id', fetchedProjectId).single();
+                const companyProfilePromise = supabase.from('company_profiles').select('*').eq('project_id', fetchedProjectId).single();
+                const [projectResult, companyProfileResult] = await Promise.all([projectPromise, companyProfilePromise]);
+
+                if (projectResult.error) {
+                     console.error("Error fetching project:", projectResult.error);
                 } else {
-                    setProject(projectData);
+                     setProject(projectResult.data);
+                }
+
+                if (companyProfileResult.error && companyProfileResult.error.code !== 'PGRST116') {
+                    console.error("Error fetching company profile:", companyProfileResult.error);
+                } else {
+                    setCompanyProfile(companyProfileResult.data);
                 }
             }
         }
@@ -85,12 +95,12 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         };
     }, [context.taskId, fetchEventsAndProject]);
 
-    const handleReply = () => {
+    const handleReply = (event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
     };
 
-    const handleQuoteClick = () => {
+    const handleQuoteClick = (eventId: string) => {
         // Quote click functionality is not implemented in this simplified panel.
     };
 
@@ -110,7 +120,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {events.map(event => <EventItem key={event.id} event={event} onReply={handleReply} onQuoteClick={handleQuoteClick} isExpanded={false} onToggleExpand={()=>{}} />)}
+                            {events.map(event => <EventItem key={event.id} event={event} contacts={companyProfile?.contacts || []} onReply={handleReply} onQuoteClick={handleQuoteClick} isExpanded={false} onToggleExpand={()=>{}} />)}
                         </div>
                     ) : (
                         <p className="text-sm text-gray-500 text-center pt-8">Комментариев пока нет. Начните обсуждение!</p>
@@ -126,8 +136,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                         </button>
                     </div>
                  )}
-                {/* Fix: Call fetchEventsAndProject on new event to refresh the list. */}
-                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} providerToken={null} context={{...context, projectId, item: task}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={fetchEventsAndProject} project={project} isGuest={isGuest} onAddSubTaskRequest={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
+                {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} providerToken={null} context={{...context, projectId, item: task}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} contacts={companyProfile?.contacts || []} isGuest={isGuest} onAddSubTaskRequest={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
             </div>
 
             {(user || isGuest) && projectId && project && task && (

@@ -53,13 +53,13 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     useEffect(() => { if (isOpen) { fetchEvents(); setIsDescriptionExpanded(false); } }, [isOpen, fetchEvents]);
     useEffect(() => { if (!loading && feedRef.current) { feedRef.current.scrollTop = feedRef.current.scrollHeight; } }, [events, loading]);
     
-    const handleNewEvent = (newEvent: Event) => { onEventCountChange(context.weekId, context.item.id, 1); };
+    const handleNewEvent = () => { onEventCountChange(context.weekId, context.item.id, 1); };
 
     const handleNewAiEvent = async (eventPayload: Partial<Event>) => {
         const fullPayload = { project_id: context.projectId, week_id: context.weekId, task_id: context.item.id, user_id: user ? user.id : null, author_email: 'AI Ассистент', ...eventPayload };
         const { data, error } = await supabase.from('events').insert(fullPayload).select().single();
         if (error) { alert("Ошибка создания AI события: " + error.message); } 
-        else if (data) { handleNewEvent(data as Event); }
+        else if (data) { handleNewEvent(); }
     };
 
     const handleUpdateEvent = async (content: string) => { if (!eventToEdit) return; const { error } = await supabase.from('events').update({ content }).eq('id', eventToEdit.id); if (error) throw error; };
@@ -139,7 +139,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         )}
                     </main>
                     <footer className="flex-shrink-0 p-2 bg-gray-50 border-t lg:border-l">
-                        <AddEventForm user={user} providerToken={providerToken} context={context} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} contacts={contacts} isGuest={isGuest} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} />
+                        <AddEventForm user={user} providerToken={providerToken} context={{...context, taskId: context.item.id}} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} contacts={contacts} isGuest={isGuest} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} />
                     </footer>
                 </div>
             </div>
