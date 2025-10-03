@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import Modal from './ui/Modal';
-import { PlanItem, PlanItemType, ContactPerson } from '../types';
+import { PlanItem, PlanItemType, ContactPerson, Project } from '../types';
 import { Spinner } from './ui/Spinner';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap, FaTimes } from 'react-icons/fa';
+import AddContactModal from './AddContactModal';
 
 interface AddEventModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAddSubTask: (subTask: PlanItem) => void;
     contacts: ContactPerson[];
+    project: Project;
+    onContactsUpdate: () => void;
 }
 
 const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] = [
@@ -20,10 +23,11 @@ const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] 
     { type: 'process_analysis', name: 'Анализ процесса', icon: <FaSitemap size={24} className="mb-2 text-teal-600" /> },
 ];
 
-const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSubTask, contacts }) => {
+const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSubTask, contacts, project, onContactsUpdate }) => {
     const [step, setStep] = useState<'select' | 'form'>('select');
     const [itemType, setItemType] = useState<PlanItemType | null>(null);
     const [loading, setLoading] = useState(false);
+    const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
 
     // Form states
     const [title, setTitle] = useState('');
@@ -43,6 +47,10 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
     }
     
     const handleContactToggle = (contactId: string) => {
+      if (contactId === '__add_new__') {
+        setIsAddContactModalOpen(true);
+        return;
+      }
       setContactIds(prev => prev.includes(contactId) ? prev.filter(id => id !== contactId) : [...prev, contactId]);
     };
 
@@ -84,8 +92,9 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
                  <div>
                     <label className="label">Участники (опционально)</label>
                     <select onChange={e => handleContactToggle(e.target.value)} className="input" value="">
-                        <option value="" disabled>-- Выберите участников --</option>
+                        <option value="" disabled>-- Выберите или добавьте --</option>
                         {contacts.filter(c => !contactIds.includes(c.id)).map(c => <option key={c.id} value={c.id}>{c.name} ({c.role})</option>)}
+                        <option value="__add_new__" className="font-bold text-blue-600">+ Добавить новый контакт</option>
                     </select>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {selectedContacts.map(c => <div key={c.id} className="flex items-center gap-2 bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded-full">{c.name}<button type="button" onClick={() => handleContactToggle(c.id)}><FaTimes size={10}/></button></div>)}
@@ -102,6 +111,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
     }
     
     return (
+      <>
         <Modal isOpen={isOpen} onClose={handleClose} title="Добавить подзадачу">
             {step === 'select' ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -116,6 +126,17 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onAddSub
                 renderForm()
             )}
         </Modal>
+        <AddContactModal
+            isOpen={isAddContactModalOpen}
+            onClose={() => setIsAddContactModalOpen(false)}
+            project={project}
+            onContactAdded={(newContact) => {
+                onContactsUpdate();
+                handleContactToggle(newContact.id);
+                setIsAddContactModalOpen(false);
+            }}
+        />
+      </>
     )
 };
 

@@ -7,6 +7,7 @@ import AuditView from './components/AuditView';
 import LoginModal from './components/LoginModal';
 import ProfileModal from './components/ProfileModal';
 import { Project, CompanyProfile, Profile, ContactPerson } from './types';
+import ContactDetailModal from './components/ContactDetailModal';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -23,6 +24,8 @@ function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [identifiedGuest, setIdentifiedGuest] = useState<ContactPerson | null>(null);
   const [initialTaskId, setInitialTaskId] = useState<string | null>(null);
+  
+  const [selectedContactForDetail, setSelectedContactForDetail] = useState<ContactPerson | null>(null);
 
   const fetchProfile = useCallback(async (userToFetch: User | null) => {
     if (userToFetch) {
@@ -54,11 +57,18 @@ function App() {
 
     return () => sessionResponse.data.subscription.unsubscribe();
   }, [fetchProfile]);
+  
+  const handleOpenContact = useCallback((contactId: string) => {
+    if (companyProfile) {
+        const contact = companyProfile.contacts.find(c => c.id === contactId);
+        if (contact) {
+            setSelectedContactForDetail(contact);
+        }
+    }
+  }, [companyProfile]);
 
   useEffect(() => {
     const handleHashChange = async () => {
-        // If it's an OAuth redirect, ignore it and let Supabase handle it.
-        // It will set the session and then remove the hash, triggering hashchange again.
         if (window.location.hash.includes('access_token=') && window.location.hash.includes('provider_token=')) {
             return; 
         }
@@ -141,7 +151,7 @@ function App() {
   const isAuditor = !!user && !!selectedProject && user.id === selectedProject.user_id;
 
   return (
-    <div className="bg-gray-100 min-h-screen">
+    <div className="bg-slate-100 min-h-screen">
       <Header 
         user={user}
         profile={profile}
@@ -153,6 +163,7 @@ function App() {
         onLogin={() => handleLoginRequest('signIn')}
         onProfile={() => setIsProfileModalOpen(true)}
         onBack={handleBackToDashboard}
+        onContactSelect={handleOpenContact}
       />
       <main className="container mx-auto p-4 md:p-6">
         {selectedProject ? (
@@ -165,6 +176,7 @@ function App() {
             isAuditor={isAuditor}
             isGuest={isGuest}
             initialTaskId={initialTaskId}
+            onContactClick={handleOpenContact}
           />
         ) : (
           <Dashboard user={user} onSelectProject={(p) => window.location.hash = `/${p.id}`} onLoginRequest={handleLoginRequest} />
@@ -186,6 +198,17 @@ function App() {
             providerToken={providerToken}
           />
       )}
+
+      <ContactDetailModal 
+            isOpen={!!selectedContactForDetail}
+            onClose={() => setSelectedContactForDetail(null)}
+            contact={selectedContactForDetail}
+            project={selectedProject}
+            onTaskSelect={(taskId) => {
+                setSelectedContactForDetail(null);
+                window.location.hash = `#/${selectedProject?.id}?taskId=${taskId}`;
+            }}
+        />
     </div>
   );
 }

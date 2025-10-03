@@ -5,7 +5,6 @@ import { User } from '@supabase/supabase-js';
 import { Spinner } from './ui/Spinner';
 import { Project, PlanItem } from '../types';
 
-
 interface AddMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,29 +47,25 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({ isOpen, onClose, cont
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Запланировать встречу">
+        <Modal
+            isOpen={isOpen}
+            onClose={handleClose}
+            title="Запланировать встречу"
+            footer={<>
+                <button type="button" onClick={handleClose} className="btn-secondary">Отмена</button>
+                <button type="submit" form="add-meeting-form" disabled={loading} className="btn-primary w-40 flex justify-center">
+                    {loading ? <Spinner size="sm" color="border-white" /> : 'Назначить встречу'}
+                </button>
+            </>}
+        >
             <p className="text-sm text-gray-500 mb-2">По задаче:</p>
-            <p className="text-sm font-semibold bg-gray-100 p-2 rounded-md mb-4">{task.title}</p>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-sm font-semibold bg-slate-100 p-2 rounded-md mb-4">{task.title}</p>
+            <form id="add-meeting-form" onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label htmlFor="meetingContent" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="meetingContent" className="label">
                         Опишите цель встречи или задайте вопрос
                     </label>
-                    <textarea
-                        id="meetingContent"
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"
-                        rows={4}
-                        required
-                        autoFocus
-                    />
-                </div>
-                <div className="flex justify-end pt-2">
-                     <button type="button" onClick={handleClose} className="mr-2 px-4 py-2 bg-gray-200 rounded-md">Отмена</button>
-                     <button type="submit" disabled={loading} className="w-40 flex justify-center py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300">
-                        {loading ? <Spinner size="sm" color="border-white" /> : 'Назначить встречу'}
-                     </button>
+                    <textarea id="meetingContent" value={content} onChange={(e) => setContent(e.target.value)} className="input" rows={4} required autoFocus />
                 </div>
             </form>
         </Modal>

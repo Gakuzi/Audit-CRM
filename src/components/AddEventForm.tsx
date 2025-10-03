@@ -9,6 +9,7 @@ import UploadToDriveModal from './UploadToDriveModal';
 import AttachLinkModal from './AttachLinkModal';
 import AudioRecorderModal from './AudioRecorderModal';
 import { useGooglePicker } from '../hooks/useGooglePicker';
+import AddContactModal from './AddContactModal';
 
 interface AddEventFormProps {
   user: User | null;
@@ -21,19 +22,21 @@ interface AddEventFormProps {
   contacts: ContactPerson[];
   isGuest: boolean;
   onAddSubTaskRequest: () => void;
+  onContactsUpdate: () => void;
 }
 
 const sanitizeFileName = (fileName: string): string => {
     return fileName.replace(/[^a-zA-Z0-9_.-]/g, '_').substring(0, 100);
 };
 
-const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, contacts, isGuest, onAddSubTaskRequest }) => {
+const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, contacts, isGuest, onAddSubTaskRequest, onContactsUpdate }) => {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [filesToAttach, setFilesToAttach] = useState<File[]>([]);
     const [contactIds, setContactIds] = useState<string[]>([]);
     const [isContactSelectorOpen, setIsContactSelectorOpen] = useState(false);
+    const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
     
     const [fileForDrive, setFileForDrive] = useState<File | null>(null);
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -132,7 +135,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
     const handleAttachLink = (url: string) => { setContent(prev => `${prev}\n[Ссылка](${url})`.trim()); }
 
     const ActionButton = ({ icon, label, action, disabled = false }: { icon: React.ReactNode, label: string, action: () => void, disabled?: boolean }) => (
-        <button type="button" onClick={() => { if (!disabled) { action(); setIsActionMenuOpen(false); } }} className="action-button" disabled={disabled}>
+        <button type="button" onClick={() => { if (!disabled) { action(); setIsActionMenuOpen(false); } }} className="w-full text-left flex items-center p-2 rounded-md text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={disabled}>
             {icon} <span className="ml-3">{label}</span>
         </button>
     );
@@ -144,12 +147,12 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             <input type="file" multiple ref={fileInputRef} onChange={handleFilesSelected} className="hidden" />
             <input type="file" accept="image/*" capture="environment" ref={imageInputRef} onChange={handleFilesSelected} className="hidden" />
 
-            <div className="bg-white p-2 rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
+            <div className="bg-white p-2 rounded-lg border border-slate-300 focus-within:ring-2 focus-within:ring-blue-500">
                 {quotedEvent && (
-                    <div className="p-2 mb-2 bg-gray-100 rounded-md text-sm relative border-l-4 border-blue-400">
-                        <p className="font-semibold text-gray-700">Ответ на: {quotedEvent.author_email}</p>
-                        <p className="truncate text-gray-600">{quotedEvent.content}</p>
-                        <button onClick={onClearQuote} className="absolute top-1.5 right-1.5 p-1 rounded-full hover:bg-gray-200"><FaTimes size={12}/></button>
+                    <div className="p-2 mb-2 bg-slate-100 rounded-md text-sm relative border-l-4 border-blue-400">
+                        <p className="font-semibold text-slate-700">Ответ на: {quotedEvent.author_email}</p>
+                        <p className="truncate text-slate-600">{quotedEvent.content}</p>
+                        <button onClick={onClearQuote} className="absolute top-1.5 right-1.5 p-1 rounded-full hover:bg-slate-200"><FaTimes size={12}/></button>
                     </div>
                 )}
                 <form onSubmit={handleSubmit} className="flex items-end gap-2">
@@ -167,18 +170,23 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                             </div>
                         )}
                     </div>
-                    <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={1} placeholder="Напишите комментарий..." disabled={loading} className="w-full p-2 border-0 focus:ring-0 resize-none bg-transparent textarea-autogrow" />
+                    <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={1} placeholder="Напишите комментарий..." disabled={loading} className="w-full p-2 border-0 focus:ring-0 resize-none bg-transparent" />
                     <div className="relative">
                          <button type="button" onClick={() => setIsContactSelectorOpen(p => !p)} className="action-btn flex-shrink-0"><FaUserPlus /></button>
                          {isContactSelectorOpen && (
                             <div className="absolute bottom-full right-0 mb-2 w-64 bg-white rounded-lg shadow-lg border z-10 p-2 max-h-60 overflow-y-auto">
-                                <p className="text-xs font-bold text-gray-500 px-2 pb-1">Отметить участников</p>
+                                <p className="text-xs font-bold text-slate-500 px-2 pb-1">Отметить участников</p>
                                 {contacts.map(c => (
-                                    <label key={c.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
-                                        <input type="checkbox" checked={contactIds.includes(c.id)} onChange={() => setContactIds(p => p.includes(c.id) ? p.filter(id => id !== c.id) : [...p, c.id])} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
+                                    <label key={c.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+                                        <input type="checkbox" checked={contactIds.includes(c.id)} onChange={() => setContactIds(p => p.includes(c.id) ? p.filter(id => id !== c.id) : [...p, c.id])} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"/>
                                         <span className="text-sm">{c.name}</span>
                                     </label>
                                 ))}
+                                 <div className="border-t mt-1 pt-1">
+                                    <button onClick={() => { setIsContactSelectorOpen(false); setIsAddContactModalOpen(true); }} className="w-full text-left flex items-center p-2 rounded-md text-sm text-blue-600 hover:bg-slate-100 font-semibold">
+                                        <FaPlus className="mr-2"/> Добавить контакт
+                                    </button>
+                                </div>
                             </div>
                          )}
                     </div>
@@ -189,7 +197,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             </div>
             {(filesToAttach.length > 0 || selectedContacts.length > 0) && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                    {filesToAttach.map((file, i) => <div key={`f-${i}`} className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 text-sm"><span className="truncate max-w-xs">{file.name}</span><button type="button" onClick={() => setFilesToAttach(f => f.filter((_, idx) => idx !== i))}><FaTimes size={12} /></button></div>)}
+                    {filesToAttach.map((file, i) => <div key={`f-${i}`} className="flex items-center gap-2 bg-slate-100 rounded-full px-3 py-1 text-sm"><span className="truncate max-w-xs">{file.name}</span><button type="button" onClick={() => setFilesToAttach(f => f.filter((_, idx) => idx !== i))}><FaTimes size={12} /></button></div>)}
                     {selectedContacts.map(c => <div key={`c-${c.id}`} className="flex items-center gap-2 bg-blue-100 rounded-full px-3 py-1 text-sm"><span className="truncate max-w-xs">{c.name}</span><button type="button" onClick={() => setContactIds(p => p.filter(id => id !== c.id))}><FaTimes size={12} /></button></div>)}
                 </div>
             )}
@@ -197,6 +205,17 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
             {fileForDrive && providerToken && <UploadToDriveModal isOpen={!!fileForDrive} onClose={() => setFileForDrive(null)} file={fileForDrive} providerToken={providerToken} onUploadComplete={link => setContent(p => `${p}\n[${link.name}](${link.url})`)} />}
             <AttachLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} onAttach={handleAttachLink} />
             <AudioRecorderModal isOpen={isAudioModalOpen} onClose={() => setIsAudioModalOpen(false)} onSave={(files) => setFilesToAttach(prev => [...prev, ...files])} />
+            <AddContactModal 
+                isOpen={isAddContactModalOpen}
+                onClose={() => setIsAddContactModalOpen(false)}
+                project={project}
+                onContactAdded={(newContact) => {
+                    onContactsUpdate();
+                    // Automatically select the newly added contact
+                    setContactIds(prev => [...prev, newContact.id]);
+                    setIsAddContactModalOpen(false);
+                }}
+            />
         </div>
     );
 };

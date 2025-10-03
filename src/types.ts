@@ -123,3 +123,13 @@ export interface CompanyProfile {
   contacts: ContactPerson[]; // JSONB
   updated_at: string;
 }
+
+export type HistoryItem = {
+  id: string;
+  type: 'event' | PlanItemType;
+  content: string;
+  date: string;
+  author?: string | null;
+  taskId: string;
+  taskTitle: string;
+};

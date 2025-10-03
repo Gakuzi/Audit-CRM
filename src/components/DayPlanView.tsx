@@ -18,47 +18,65 @@ interface DayPlanViewProps {
     onUpdateTask: (updatedTask: PlanItem) => void;
     profile: Profile | null;
     providerToken: string | null;
+    onContactClick: (contactId: string) => void;
+    onContactsUpdate: () => void;
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, profile, providerToken }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, profile, providerToken, onContactClick, onContactsUpdate }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
-    const [itemToEdit, setItemToEdit] = useState<{ date: string, item: PlanItem } | null>(null);
+    const [itemToEdit, setItemToEdit] = useState<{ date: string; item: PlanItem } | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ date: string; item: PlanItem } | null>(null);
-    const contacts = companyProfile?.contacts || [];
     
-    const canEditPlan = isAuditor && ['draft', 'rejected'].includes(week.status);
-    const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
-    const canToggleComplete = isAuditor && week.status === 'approved';
+    const contacts = companyProfile?.contacts || [];
 
+    const canEditPlan = isAuditor && week.status === 'draft';
+    const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
+    const canToggleComplete = isAuditor && (week.status === 'approved' || week.status === 'completed');
 
     const handleAddTaskClick = (date: string) => {
         setSelectedDate(date);
         setIsAddItemModalOpen(true);
     };
 
-    const handleDeleteDay = (date: string) => {
+    const handleDeleteDay = async (date: string) => {
         if (window.confirm(`Вы уверены, что хотите удалить ${date} и все задачи в этот день?`)) {
+            const dayTasks = week.plan[date]?.tasks || [];
+            
+            if(providerToken && profile?.google_calendar_id) {
+                for(const task of dayTasks) {
+                    if (task.data?.google_calendar_event_id) {
+                        try {
+                            await googleApiService.deleteCalendarEvent(providerToken, profile.google_calendar_id, task.data.google_calendar_event_id);
+                        } catch (error) {
+                            console.error("Failed to delete GCal event:", error);
+                            alert("Не удалось удалить связанное событие в Google Календаре. Возможно, его придется удалить вручную.");
+                        }
+                    }
+                }
+            }
+
             const newPlan = { ...week.plan };
             delete newPlan[date];
             onUpdatePlan(newPlan);
         }
     }
-
-    const handleToggleComplete = (item: PlanItem) => {
-        onUpdateTask({ ...item, completed: !item.completed });
-    };
+    
+    const handleUpdateItem = (updatedItem: PlanItem) => {
+        onUpdateTask(updatedItem);
+        setItemToEdit(null);
+    }
     
     const handleDeleteItem = async () => {
         if (!itemToDelete) return;
         const { date, item } = itemToDelete;
 
-        if (item.type === 'meeting' && item.data?.google_calendar_event_id && providerToken && profile?.google_calendar_id) {
+        if(item.data?.google_calendar_event_id && providerToken && profile?.google_calendar_id) {
             try {
                 await googleApiService.deleteCalendarEvent(providerToken, profile.google_calendar_id, item.data.google_calendar_event_id);
             } catch (error) {
-                console.error("Failed to delete calendar event:", error);
-                alert("Задача удалена, но не удалось удалить событие из Google Календаря.");
+                console.error("Failed to delete GCal event:", error);
+                alert("Не удалось удалить связанное событие в Google Календаре. Возможно, его придется удалить вручную.");
             }
         }
 
@@ -68,11 +86,14 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
         setItemToDelete(null);
     }
 
-    const sortedDates = Object.keys(week.plan).sort();
+    const handleToggleComplete = (itemToToggle: PlanItem) => {
+        const updatedItem = { ...itemToToggle, completed: !itemToToggle.completed };
+        onUpdateTask(updatedItem);
+    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedDates.map(date => {
+            {Object.keys(week.plan).sort().map(date => {
                 const dayPlan = week.plan[date];
                 const dayDate = new Date(date + 'T00:00:00');
                 const dayName = DAY_NAMES[dayDate.getDay()];
@@ -98,6 +119,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                                     onEdit={canEditPlan ? () => setItemToEdit({ date, item }) : undefined}
                                     onDelete={canEditPlan ? () => setItemToDelete({ date, item }) : undefined}
                                     onToggleComplete={canToggleComplete ? () => handleToggleComplete(item) : undefined}
+                                    onContactClick={onContactClick}
                                 />
                             ))}
                             {canAddTask && (
@@ -109,7 +131,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                     </div>
                 );
             })}
-             {isAddItemModalOpen && (
+            {isAddItemModalOpen && (
                 <AddPlanItemModal
                     isOpen={isAddItemModalOpen}
                     onClose={() => setIsAddItemModalOpen(false)}
@@ -119,6 +141,8 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                     profile={profile}
                     providerToken={providerToken}
                     contacts={contacts}
+                    project={week.project_id ? { id: week.project_id } as any : null}
+                    onContactsUpdate={onContactsUpdate}
                 />
             )}
             {itemToEdit && (
@@ -127,19 +151,21 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                     onClose={() => setItemToEdit(null)}
                     item={itemToEdit.item}
                     date={itemToEdit.date}
-                    onUpdateItem={onUpdateTask}
+                    onUpdateItem={handleUpdateItem}
                     profile={profile}
                     providerToken={providerToken}
                     contacts={contacts}
+                    project={week.project_id ? { id: week.project_id } as any : null}
+                    onContactsUpdate={onContactsUpdate}
                 />
             )}
-             <ConfirmationModal 
+            <ConfirmationModal 
                 isOpen={!!itemToDelete}
                 onClose={() => setItemToDelete(null)}
                 onConfirm={handleDeleteItem}
                 title="Удалить задачу?"
                 message="Вы уверены, что хотите удалить эту задачу из плана?"
-             />
+            />
         </div>
     );
 };

@@ -4,7 +4,7 @@ import Modal from './ui/Modal';
 import { supabase } from '../services/supabaseClient';
 import { generateAuditPlan } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
-import { ApprovalPeriod } from '../types';
+import { ApprovalPeriod, ApprovalPeriodType } from '../types';
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -38,49 +38,32 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
             throw new Error('Дата окончания не может быть раньше даты начала.');
         }
 
-        // 1. Generate plan with AI
         setStatusText('Генерация плана аудита с помощью AI...');
         const generatedData = await generateAuditPlan(name, description, startDate, endDate || end.toISOString().split('T')[0], approvalPeriod);
 
-        // 2. Insert project into Supabase
         setStatusText('Сохранение проекта...');
         const { data: projectData, error: projectError } = await supabase
-            .from('projects')
-            .insert({
-                user_id: user.id,
-                name,
-                description,
-                start_date: startDate,
-                end_date: endDate || null,
+            .from('projects').insert({
+                user_id: user.id, name, description,
+                start_date: startDate, end_date: endDate || null,
                 approval_period: approvalPeriod,
-            })
-            .select()
-            .single();
-
+            }).select().single();
         if (projectError) throw projectError;
 
-        // 3. Insert weeks for the new project
         setStatusText('Сохранение этапов и задач...');
         const weeksToInsert = generatedData.weeks.map((week: any) => ({
-            project_id: projectData.id,
-            user_id: user.id,
-            title: week.title,
-            description: week.description,
-            plan: week.plan,
-            status: 'draft',
-            start_date: week.start_date,
-            end_date: week.end_date,
+            project_id: projectData.id, user_id: user.id,
+            title: week.title, description: week.description,
+            plan: week.plan, status: 'draft',
+            start_date: week.start_date, end_date: week.end_date,
         }));
 
         const { error: weeksError } = await supabase.from('weeks').insert(weeksToInsert);
         if (weeksError) {
-             // Rollback project creation if weeks fail
             await supabase.from('projects').delete().eq('id', projectData.id);
             throw weeksError;
         }
-
         handleClose();
-
     } catch (err: any) {
         if (err.message.includes('503') || err.message.toLowerCase().includes('overloaded')) {
             setError('Сервер AI перегружен. Пожалуйста, попробуйте еще раз через несколько минут.');
@@ -94,18 +77,14 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
   };
   
   const handleClose = () => {
-      setName('');
-      setDescription('');
+      setName(''); setDescription('');
       setStartDate(new Date().toISOString().split('T')[0]);
-      setEndDate('');
-      setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
-      setError('');
-      setLoading(false);
-      setStatusText('');
+      setEndDate(''); setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
+      setError(''); setLoading(false); setStatusText('');
       onClose();
   }
 
-  const handlePeriodTypeChange = (type: 'daily' | 'weekly') => {
+  const handlePeriodTypeChange = (type: ApprovalPeriodType) => {
       if (type === 'weekly') {
           setApprovalPeriod({ type: 'weekly', dayOfWeek: 1 });
       } else if (type === 'daily') {
@@ -114,8 +93,18 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Создать новый план аудита">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="Создать новый план аудита"
+        footer={<>
+            <button type="button" onClick={handleClose} disabled={loading} className="btn-secondary">Отмена</button>
+            <button type="submit" form="new-project-form" disabled={loading} className="btn-primary w-32 flex justify-center items-center">
+                {loading ? <Spinner size="sm" /> : 'Создать'}
+            </button>
+        </>}
+    >
+      <form id="new-project-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-600 bg-red-100 p-3 rounded-md text-sm">{error}</p>}
         {loading && (
             <div className="text-center p-4 bg-blue-50 text-blue-700 rounded-md flex items-center justify-center gap-3">
@@ -124,42 +113,32 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
             </div>
         )}
         <div>
-          <label htmlFor="projectName" className="block text-sm font-medium text-gray-700">Название проекта</label>
-          <input id="projectName" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 input" placeholder="Например, 'Аудит финансовой отчетности ООО Ромашка'" required disabled={loading}/>
+          <label htmlFor="projectName" className="label">Название проекта</label>
+          <input id="projectName" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Например, 'Аудит ООО Ромашка'" required disabled={loading}/>
         </div>
         <div>
-          <label htmlFor="projectDesc" className="block text-sm font-medium text-gray-700">Описание / Цели</label>
-          <textarea id="projectDesc" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full mt-1 input" rows={3} placeholder="Опишите основные цели и задачи аудита" required disabled={loading}/>
+          <label htmlFor="projectDesc" className="label">Описание / Цели</label>
+          <textarea id="projectDesc" value={description} onChange={(e) => setDescription(e.target.value)} className="input" rows={3} placeholder="Опишите основные цели и задачи аудита" required disabled={loading}/>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Дата начала</label>
-                <input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full mt-1 input" required disabled={loading}/>
+                <label htmlFor="startDate" className="label">Дата начала</label>
+                <input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" required disabled={loading}/>
             </div>
             <div>
-                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Дата окончания (опционально)</label>
-                <input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full mt-1 input" min={startDate} disabled={loading}/>
+                <label htmlFor="endDate" className="label">Дата окончания (опционально)</label>
+                <input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input" min={startDate} disabled={loading}/>
             </div>
         </div>
         <div>
-            <label className="block text-sm font-medium text-gray-700">Период отчетности</label>
+            <label className="label">Период отчетности</label>
             <div className="mt-1 grid grid-cols-2 gap-2 items-center">
-                <select 
-                    value={approvalPeriod.type} 
-                    onChange={e => handlePeriodTypeChange(e.target.value as 'daily' | 'weekly')} 
-                    className="input bg-white"
-                    disabled={loading}
-                >
+                <select value={approvalPeriod.type} onChange={e => handlePeriodTypeChange(e.target.value as ApprovalPeriodType)} className="input bg-white" disabled={loading}>
                     <option value="weekly">Еженедельно</option>
                     <option value="daily">Каждые N дней</option>
                 </select>
                 {approvalPeriod.type === 'weekly' && (
-                    <select 
-                        value={approvalPeriod.dayOfWeek}
-                        onChange={e => setApprovalPeriod({ ...approvalPeriod, dayOfWeek: parseInt(e.target.value) })}
-                        className="input bg-white"
-                        disabled={loading}
-                    >
+                    <select value={approvalPeriod.dayOfWeek} onChange={e => setApprovalPeriod({ ...approvalPeriod, dayOfWeek: parseInt(e.target.value) })} className="input bg-white" disabled={loading}>
                         <option value={1}>по понедельникам</option>
                         <option value={2}>по вторникам</option>
                         <option value={3}>по средам</option>
@@ -172,26 +151,13 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClose, user
                 {approvalPeriod.type === 'daily' && (
                     <div className="flex items-center gap-2">
                         <span className="text-sm">Каждые</span>
-                        <input 
-                            type="number"
-                            min="1"
-                            value={approvalPeriod.interval}
-                            onChange={e => setApprovalPeriod({ ...approvalPeriod, interval: parseInt(e.target.value) || 1 })}
-                            className="input w-16"
-                            disabled={loading}
-                        />
+                        <input type="number" min="1" value={approvalPeriod.interval} onChange={e => setApprovalPeriod({ ...approvalPeriod, interval: parseInt(e.target.value) || 1 })} className="input w-16" disabled={loading} />
                         <span className="text-sm">дн.</span>
                     </div>
                 )}
             </div>
         </div>
-        <p className="text-xs text-gray-500">План аудита будет автоматически сгенерирован с помощью AI на основе введенных данных.</p>
-        <div className="pt-2 flex justify-end">
-          <button type="button" onClick={handleClose} disabled={loading} className="mr-2 py-2 px-4 btn-secondary">Отмена</button>
-          <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center items-center">
-            {loading ? <Spinner size="sm" /> : 'Создать'}
-          </button>
-        </div>
+        <p className="text-xs text-gray-500 text-center">План аудита будет автоматически сгенерирован с помощью AI на основе введенных данных.</p>
       </form>
     </Modal>
   );

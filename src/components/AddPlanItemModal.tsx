@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { Week, PlanItem, PlanItemType, Profile, ContactPerson } from '../types';
+import { Week, PlanItem, PlanItemType, Profile, ContactPerson, Project } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaClock, FaMapMarkerAlt, FaUsers as FaUsersIcon, FaAlignLeft, FaSitemap, FaTimes } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import * as googleApiService from '../services/googleApiService';
+import AddContactModal from './AddContactModal';
 
 interface AddPlanItemModalProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ interface AddPlanItemModalProps {
   profile: Profile | null;
   providerToken: string | null;
   contacts: ContactPerson[];
+  project: Project | null;
+  onContactsUpdate: () => void;
 }
 
 const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] = [
@@ -25,10 +28,11 @@ const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] 
     { type: 'process_analysis', name: 'Анализ процесса', icon: <FaSitemap size={24} className="mb-2 text-teal-600" /> },
 ];
 
-const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, onUpdatePlan, week, date, profile, providerToken, contacts }) => {
+const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, onUpdatePlan, week, date, profile, providerToken, contacts, project, onContactsUpdate }) => {
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [itemType, setItemType] = useState<PlanItemType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -107,6 +111,10 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   };
   
   const handleContactToggle = (contactId: string) => {
+    if (contactId === '__add_new__') {
+      setIsAddContactModalOpen(true);
+      return;
+    }
     setContactIds(prev => prev.includes(contactId) ? prev.filter(id => id !== contactId) : [...prev, contactId]);
   };
 
@@ -119,28 +127,29 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
       return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Добавьте название" className="gcal-title-input" required autoFocus/>
-            <div className="flex items-center gap-4 text-gray-600">
+            <div className="flex items-center gap-4 text-slate-600">
                 <FaClock size={20} className="flex-shrink-0" />
-                 <input type="date" value={date} className="input bg-gray-100" readOnly disabled />
+                 <input type="date" value={date} className="input bg-slate-100" readOnly disabled />
                  <input type="time" value={time} onChange={e => setTime(e.target.value)} className="input w-32" required={itemType === 'meeting'} />
                  {itemType === 'meeting' && <><span>-</span><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input w-32" required /></>}
             </div>
              {itemType === 'meeting' && 
-                <div className="flex items-center gap-4 text-gray-600"><FaMapMarkerAlt size={20} className="flex-shrink-0" /><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input w-full" placeholder="Место или ссылка на конференцию"/></div>
+                <div className="flex items-center gap-4 text-slate-600"><FaMapMarkerAlt size={20} className="flex-shrink-0" /><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input w-full" placeholder="Место или ссылка на конференцию"/></div>
              }
-             <div className="flex items-start gap-4 text-gray-600">
+             <div className="flex items-start gap-4 text-slate-600">
                 <FaUsersIcon size={20} className="flex-shrink-0 mt-2" />
                 <div className="w-full">
                     <select onChange={e => handleContactToggle(e.target.value)} className="input" value="">
-                        <option value="" disabled>-- Выберите участников --</option>
+                        <option value="" disabled>-- Выберите или добавьте --</option>
                         {contacts.filter(c => !contactIds.includes(c.id)).map(c => <option key={c.id} value={c.id}>{c.name} ({c.role})</option>)}
+                        <option value="__add_new__" className="font-bold text-blue-600">+ Добавить новый контакт</option>
                     </select>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {selectedContacts.map(c => <div key={c.id} className="flex items-center gap-2 bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded-full">{c.name}<button type="button" onClick={() => handleContactToggle(c.id)}><FaTimes size={10}/></button></div>)}
                     </div>
                 </div>
             </div>
-             <div className="flex items-start gap-4 text-gray-600">
+             <div className="flex items-start gap-4 text-slate-600">
                 <FaAlignLeft size={20} className="flex-shrink-0 mt-2" />
                 <textarea value={description} onChange={e => setDescription(e.target.value)} className="input w-full" rows={4} placeholder="Добавьте описание или повестку" />
             </div>
@@ -166,17 +175,32 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   }
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={handleClose} title={itemType === 'meeting' || itemType === 'interview' ? '' : "Добавить событие"} size={itemType === 'meeting' || itemType === 'interview' ? 'lg' : 'md'}>
       {step === 'select' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {eventTypes.map(({ type, name, icon }) => (
-                <button key={type} onClick={() => handleSelectType(type)} className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
+                <button key={type} onClick={() => handleSelectType(type)} className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
                     {icon}<span className="font-semibold text-sm">{name}</span>
                 </button>
             ))}
         </div>
       ) : renderForm()}
     </Modal>
+    {project && (
+      <AddContactModal 
+        isOpen={isAddContactModalOpen}
+        onClose={() => setIsAddContactModalOpen(false)}
+        project={project}
+        onContactAdded={(newContact) => {
+          onContactsUpdate();
+          // Automatically select the newly added contact
+          setContactIds(prev => [...prev, newContact.id]);
+          setIsAddContactModalOpen(false);
+        }}
+      />
+    )}
+    </>
   );
 };
 

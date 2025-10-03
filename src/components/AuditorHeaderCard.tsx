@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Profile } from '../types';
 import { FaUserTie, FaEnvelope, FaPhone, FaWhatsapp, FaTelegramPlane, FaChevronDown } from 'react-icons/fa';
+import { formatPhoneForLink } from '../utils';
 
 interface AuditorHeaderCardProps {
     auditorId: string;
@@ -54,6 +55,17 @@ const AuditorHeaderCard: React.FC<AuditorHeaderCardProps> = ({ auditorId }) => {
 
     const auditorName = profile?.full_name || 'Аудитор';
 
+    const getTelegramLink = () => {
+        const telegram = profile?.telegram || '';
+        if (!telegram) return null;
+        if (telegram.startsWith('@')) {
+            return `https://t.me/${telegram.replace('@', '')}`;
+        }
+        return `https://t.me/+${formatPhoneForLink(telegram)}`;
+    };
+
+    const telegramLink = getTelegramLink();
+
     return (
         <div className="relative">
             <button 
@@ -91,14 +103,14 @@ const AuditorHeaderCard: React.FC<AuditorHeaderCardProps> = ({ auditorId }) => {
                                 {profile.phone}
                             </a>
                         )}
-                         {profile?.whatsapp && (
-                            <a href={`https://wa.me/${profile.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-green-600 hover:underline">
+                         {(profile?.whatsapp || profile?.phone) && (
+                            <a href={`https://wa.me/${formatPhoneForLink(profile.whatsapp || profile.phone)}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-green-600 hover:underline">
                                 <FaWhatsapp className="mr-2" />
                                 Написать в WhatsApp
                             </a>
                         )}
-                         {profile?.telegram && (
-                            <a href={`https://t.me/${profile.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-sky-600 hover:underline">
+                         {telegramLink && (
+                            <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-sky-600 hover:underline">
                                 <FaTelegramPlane className="mr-2" />
                                 Написать в Telegram
                             </a>
