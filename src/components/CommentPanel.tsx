@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, Plan, PlanItem, Project, CompanyProfile } from '../types';
+import { Event, Plan, PlanItem, Project } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -21,7 +21,6 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
     const [projectId, setProjectId] = useState<string | null>(null);
     const [project, setProject] = useState<Project | null>(null);
     const [task, setTask] = useState<PlanItem | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
 
     const fetchEventsAndProject = useCallback(async () => {
         setLoading(true);
@@ -62,20 +61,11 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
             setTask(foundTask || {id: context.taskId, title: context.taskContent, completed: false, type: 'task'});
             
             if(fetchedProjectId) {
-                const projectPromise = supabase.from('projects').select('*').eq('id', fetchedProjectId).single();
-                const companyProfilePromise = supabase.from('company_profiles').select('*').eq('project_id', fetchedProjectId).single();
-                const [projectResult, companyProfileResult] = await Promise.all([projectPromise, companyProfilePromise]);
-
-                if (projectResult.error) {
-                     console.error("Error fetching project:", projectResult.error);
+                const { data: projectData, error: projectError } = await supabase.from('projects').select('*').eq('id', fetchedProjectId).single();
+                if (projectError) {
+                    console.error("Error fetching project:", projectError);
                 } else {
-                     setProject(projectResult.data);
-                }
-
-                if (companyProfileResult.error && companyProfileResult.error.code !== 'PGRST116') {
-                    console.error("Error fetching company profile:", companyProfileResult.error);
-                } else {
-                    setCompanyProfile(companyProfileResult.data);
+                    setProject(projectData);
                 }
             }
         }
@@ -95,12 +85,12 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         };
     }, [context.taskId, fetchEventsAndProject]);
 
-    const handleReply = (_event: Event) => {
+    const handleReply = (event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
     };
 
-    const handleQuoteClick = (_eventId: string) => {
+    const handleQuoteClick = (eventId: string) => {
         // Quote click functionality is not implemented in this simplified panel.
     };
 
