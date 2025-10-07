@@ -64,7 +64,7 @@ export const generateAuditPlan = async (
     **Информация о проекте:**
     - Название: "${projectName}"
     - Описание/цели: "${projectDescription}"
-    - Даты проведения: с ${startDate} по ${endDate}.
+    - Даты проведения: с ${startDate} по ${endDate || 'не указана'}.
     - Период отчетности: ${approvalDescription}.
 
     **Твоя задача:**
