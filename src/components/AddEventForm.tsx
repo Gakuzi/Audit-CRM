@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { Event, Project, PlanItem, ContactPerson } from '../types';
-import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane, FaUserPlus, FaFileAlt } from 'react-icons/fa';
+import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaMicrophone, FaPlus, FaPaperPlane, FaUserPlus, FaFileAlt } from 'react-icons/fa';
 import { FILE_SIZE_LIMIT } from '../constants';
 import * as googleApiService from '../services/googleApiService';
 import UploadToDriveModal from './UploadToDriveModal';
@@ -196,7 +196,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                                 <ActionButton icon={<FaPaperclip />} label="Файл с устройства" action={() => fileInputRef.current?.click()} />
                                 <ActionButton icon={<FaCamera />} label="Сделать фото" action={() => imageInputRef.current?.click()} />
                                 <ActionButton icon={<FaLink />} label="Прикрепить ссылку" action={() => setIsLinkModalOpen(true)} />
-                                <ActionButton icon={<FaVideo />} label="Записать аудио" action={() => setIsAudioModalOpen(true)} />
+                                <ActionButton icon={<FaMicrophone />} label="Записать аудио" action={() => setIsAudioModalOpen(true)} />
                                 {providerToken && <>
                                     <ActionButton icon={<FaGoogleDrive />} label="Файл с Google Drive" action={openPicker} />
                                     <div className="my-1 border-t"></div>
