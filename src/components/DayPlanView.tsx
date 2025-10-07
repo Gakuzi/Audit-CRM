@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Week, Plan, PlanItem, Profile, CompanyProfile, Project } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
@@ -34,6 +34,19 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
     const canEditPlan = isAuditor && week.status === 'draft';
     const canAddTask = isAuditor && (week.status === 'draft' || week.status === 'approved' || week.status === 'pending_approval');
     const canToggleComplete = isAuditor && (week.status === 'approved' || week.status === 'completed');
+
+    useEffect(() => {
+        // Auto-scroll to today's card on mobile
+        if (window.innerWidth < 768) {
+            const today = new Date().toISOString().split('T')[0];
+            const todayElement = document.getElementById(`day-${today}`);
+            if (todayElement) {
+                setTimeout(() => {
+                    todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300); // Small delay to ensure layout is stable
+            }
+        }
+    }, [week.plan]); // Rerun if the plan changes
 
     const handleAddTaskClick = (date: string) => {
         setSelectedDate(date);
@@ -100,7 +113,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                 const dayName = DAY_NAMES[dayDate.getDay()];
                 
                 return (
-                    <div key={date} className="bg-white rounded-lg p-3 shadow-sm">
+                    <div key={date} id={`day-${date}`} className="bg-white rounded-lg p-3 shadow-sm">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <h4 className="font-bold">{dayName}</h4>

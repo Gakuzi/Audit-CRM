@@ -70,7 +70,10 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
               const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
               finalItem = { ...finalItem, data: { ...finalItem.data, google_calendar_event_id: calEvent.id } };
           }
-      } catch (error) { console.error("Failed to sync calendar event:", error); alert("Не удалось синхронизировать событие с Google Календарем."); }
+      } catch (error: any) { 
+          console.error("Failed to sync calendar event:", error); 
+          alert(`Не удалось синхронизировать событие с Google Календарем. Ошибка: ${error.message}`); 
+      }
     }
     onUpdateItem(finalItem);
     setLoading(false);

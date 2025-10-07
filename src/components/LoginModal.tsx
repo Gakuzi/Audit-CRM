@@ -58,7 +58,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, initialMode = 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
+        scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
+        queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+        }
       },
     });
     if (error) setError('Ошибка входа через Google: ' + error.message);

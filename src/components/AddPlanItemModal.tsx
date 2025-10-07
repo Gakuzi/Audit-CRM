@@ -106,9 +106,9 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
             };
             const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
             newItem.data!.google_calendar_event_id = calEvent.id;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create calendar event:", error);
-            alert("Задача создана, но не удалось добавить событие в Google Календарь.");
+            alert(`Задача создана, но не удалось добавить событие в Google Календарь. Ошибка: ${error.message}`);
         }
       }
     } else if (itemType === 'interview') {
