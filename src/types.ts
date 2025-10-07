@@ -109,8 +109,8 @@ export interface ContactPerson {
   id: string; // client-side UUID
   name: string;
   role: string;
-  email: string;
-  phone: string;
+  emails: string[];
+  phones: string[];
   whatsapp?: string;
   telegram?: string;
   priority_contact_method?: 'email' | 'phone' | 'whatsapp' | 'telegram';

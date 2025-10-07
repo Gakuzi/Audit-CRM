@@ -58,11 +58,16 @@ const EditPlanItemModal: React.FC<EditPlanItemModalProps> = ({ isOpen, onClose, 
     if (finalItem.type === 'meeting' && providerToken && profile?.google_calendar_id && finalItem.data?.time && finalItem.data?.endTime) {
       try {
           const linkedContacts = contacts.filter(c => finalItem.data?.contact_ids?.includes(c.id));
+          const attendees = linkedContacts
+            .map(c => c.emails?.[0])
+            .filter((email): email is string => !!email && email.trim() !== '')
+            .map(email => ({ email }));
+
           const eventDetails = {
               summary: finalItem.title, description: finalItem.description || '', location: finalItem.data.location || '',
               start: { dateTime: new Date(`${date}T${finalItem.data.time}`).toISOString(), timeZone: 'Europe/Moscow' },
               end: { dateTime: new Date(`${date}T${finalItem.data.endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
-              attendees: linkedContacts.map(c => ({email: c.email}))
+              attendees,
           };
           if (finalItem.data.google_calendar_event_id) {
               await googleApiService.updateCalendarEvent(providerToken, profile.google_calendar_id, finalItem.data.google_calendar_event_id, eventDetails);

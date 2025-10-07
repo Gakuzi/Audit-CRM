@@ -55,7 +55,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
     
     const { openPicker } = useGooglePicker({
         clientId: '228020662283-kuhv2h4k2t6d3e6i1fudsc918k9a9h2t.apps.googleusercontent.com',
-        developerKey: process.env.API_KEY || '',
+        developerKey: process.env.GOOGLE_API_KEY || '',
         token: providerToken,
         onSelect: onPickerSelect,
     });

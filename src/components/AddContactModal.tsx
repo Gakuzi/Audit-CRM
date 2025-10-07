@@ -4,6 +4,7 @@ import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
 import { supabase } from '../services/supabaseClient';
 import { Project, ContactPerson } from '../types';
+import { FaPlus, FaTrash } from 'react-icons/fa';
 
 interface AddContactModalProps {
   isOpen: boolean;
@@ -15,15 +16,27 @@ interface AddContactModalProps {
 const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, project, onContactAdded }) => {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [emails, setEmails] = useState(['']);
+  const [phones, setPhones] = useState(['']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleClose = () => {
-    setName(''); setRole(''); setEmail(''); setPhone('');
+    setName(''); setRole(''); setEmails(['']); setPhones(['']);
     setError(''); setLoading(false);
     onClose();
+  };
+
+  const handleArrayChange = (setter: React.Dispatch<React.SetStateAction<string[]>>, index: number, value: string) => {
+    setter(prev => prev.map((item, i) => (i === index ? value : item)));
+  };
+
+  const addArrayField = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    setter(prev => [...prev, '']);
+  };
+
+  const removeArrayField = (setter: React.Dispatch<React.SetStateAction<string[]>>, index: number) => {
+    setter(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : ['']);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,8 +58,8 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, proj
         id: crypto.randomUUID(),
         name: name.trim(),
         role: role.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
+        emails: emails.map(e => e.trim()).filter(Boolean),
+        phones: phones.map(p => p.trim()).filter(Boolean),
       };
 
       const existingContacts = companyProfile?.contacts || [];
@@ -96,11 +109,23 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, proj
         </div>
         <div>
           <label className="label">Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
+          {emails.map((email, index) => (
+            <div key={index} className="flex items-center gap-2 mb-2">
+              <input type="email" value={email} onChange={e => handleArrayChange(setEmails, index, e.target.value)} className="input" />
+              <button type="button" onClick={() => removeArrayField(setEmails, index)} className="action-btn text-red-500"><FaTrash /></button>
+            </div>
+          ))}
+          <button type="button" onClick={() => addArrayField(setEmails)} className="text-sm text-blue-600 flex items-center gap-1"><FaPlus size={10} /> Добавить email</button>
         </div>
         <div>
           <label className="label">Телефон</label>
-          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="input" />
+           {phones.map((phone, index) => (
+            <div key={index} className="flex items-center gap-2 mb-2">
+              <input type="tel" value={phone} onChange={e => handleArrayChange(setPhones, index, e.target.value)} className="input" />
+              <button type="button" onClick={() => removeArrayField(setPhones, index)} className="action-btn text-red-500"><FaTrash /></button>
+            </div>
+          ))}
+          <button type="button" onClick={() => addArrayField(setPhones)} className="text-sm text-blue-600 flex items-center gap-1"><FaPlus size={10} /> Добавить телефон</button>
         </div>
       </form>
     </Modal>

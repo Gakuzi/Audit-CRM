@@ -93,7 +93,12 @@ const AddSubTaskModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, onAd
 
     if (itemType === 'meeting') {
       const linkedContacts = contacts.filter(c => contactIds.includes(c.id));
-      newItem.data = { ...newItem.data, time, endTime, location, participants: linkedContacts.map(c => c.email) };
+      const attendees = linkedContacts
+        .map(c => c.emails?.[0])
+        .filter((email): email is string => !!email && email.trim() !== '')
+        .map(email => ({ email }));
+
+      newItem.data = { ...newItem.data, time, endTime, location, participants: attendees.map(a => a.email) };
 
       if (addToCalendar && providerToken && profile?.google_calendar_id && time && endTime) {
         try {
@@ -101,7 +106,7 @@ const AddSubTaskModal: React.FC<AddSubTaskModalProps> = ({ isOpen, onClose, onAd
                 summary: newItem.title, description: newItem.description || '', location,
                 start: { dateTime: new Date(`${date}T${time}`).toISOString(), timeZone: 'Europe/Moscow' },
                 end: { dateTime: new Date(`${date}T${endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
-                attendees: linkedContacts.map(c => ({email: c.email}))
+                attendees,
             };
             const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
             newItem.data!.google_calendar_event_id = calEvent.id;

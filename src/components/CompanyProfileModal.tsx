@@ -41,10 +41,12 @@ const ContactCard: React.FC<{ contact: ContactPerson; onShare: () => void; onSel
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); onShare(); }} title="Поделиться доступом" className="action-btn text-blue-600"><FaShareAlt /></button>
                 </div>
+                 <div className="mt-2 flex items-center flex-wrap gap-x-4 gap-y-1 text-sm">
+                    {contact.emails?.map(email => <a key={email} href={`mailto:${email}`} className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600"><FaEnvelope /> {email}</a>)}
+                    {contact.phones?.map(phone => <a key={phone} href={`tel:${phone}`} className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600"><FaPhone /> {phone}</a>)}
+                </div>
                 <div className="mt-2 flex items-center space-x-3">
-                    {contact.phone && <a href={`tel:${contact.phone}`} className="action-btn" title={contact.phone}><FaPhone /></a>}
-                    {contact.email && <a href={`mailto:${contact.email}`} className="action-btn" title={contact.email}><FaEnvelope /></a>}
-                    {(contact.whatsapp || contact.phone) && <a href={`https://wa.me/${formatPhoneForLink(contact.whatsapp || contact.phone)}`} target="_blank" rel="noopener noreferrer" className="action-btn text-green-500" title="WhatsApp"><FaWhatsapp /></a>}
+                    {(contact.whatsapp || contact.phones?.[0]) && <a href={`https://wa.me/${formatPhoneForLink(contact.whatsapp || contact.phones?.[0])}`} target="_blank" rel="noopener noreferrer" className="action-btn text-green-500" title="WhatsApp"><FaWhatsapp /></a>}
                     {telegramLink && <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="action-btn text-sky-500" title="Telegram"><FaTelegramPlane /></a>}
                 </div>
             </div>
@@ -78,21 +80,63 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
   
   const handleSave = async () => {
       setLoading(true);
-      const profileToSave = { ...profile, project_id: project.id, updated_at: new Date().toISOString() };
+      const profileToSave = { 
+        ...profile, 
+        project_id: project.id, 
+        updated_at: new Date().toISOString(),
+        contacts: (profile.contacts || []).map(contact => ({
+            ...contact,
+            emails: (contact.emails || []).map(e => e.trim()).filter(Boolean),
+            phones: (contact.phones || []).map(p => p.trim()).filter(Boolean),
+        }))
+      };
       const { error } = await supabase.from('company_profiles').upsert(profileToSave, { onConflict: 'project_id'});
       if (error) alert("Ошибка сохранения: " + error.message);
       else setIsEditing(false);
       setLoading(false);
   };
   
-  const handleContactChange = (index: number, field: keyof ContactPerson, value: string) => {
+  const handleContactChange = (index: number, field: keyof Omit<ContactPerson, 'emails' | 'phones'>, value: string) => {
       const newContacts = [...(profile.contacts || [])];
       newContacts[index] = { ...newContacts[index], [field]: value };
       setProfile(prev => ({ ...prev, contacts: newContacts }));
   };
+
+  const handleContactArrayChange = (contactIndex: number, field: 'emails' | 'phones', subIndex: number, value: string) => {
+    const newContacts = [...(profile.contacts || [])];
+    const contact = { ...newContacts[contactIndex] };
+    const newArray = [...(contact[field] || [])];
+    newArray[subIndex] = value;
+    contact[field] = newArray;
+    newContacts[contactIndex] = contact;
+    setProfile(p => ({ ...p, contacts: newContacts }));
+  };
+
+  const addContactArrayField = (contactIndex: number, field: 'emails' | 'phones') => {
+      const newContacts = [...(profile.contacts || [])];
+      const contact = { ...newContacts[contactIndex] };
+      const newArray = [...(contact[field] || []), ''];
+      contact[field] = newArray;
+      newContacts[contactIndex] = contact;
+      setProfile(p => ({ ...p, contacts: newContacts }));
+  };
+
+  const removeContactArrayField = (contactIndex: number, field: 'emails' | 'phones', subIndex: number) => {
+      const newContacts = [...(profile.contacts || [])];
+      const contact = { ...newContacts[contactIndex] };
+      let newArray = [...(contact[field] || [])];
+      if (newArray.length > 1) {
+          newArray.splice(subIndex, 1);
+      } else {
+          newArray = [''];
+      }
+      contact[field] = newArray;
+      newContacts[contactIndex] = contact;
+      setProfile(p => ({ ...p, contacts: newContacts }));
+  };
   
   const addContact = () => {
-      const newContact: ContactPerson = { id: crypto.randomUUID(), name: '', role: '', email: '', phone: '' };
+      const newContact: ContactPerson = { id: crypto.randomUUID(), name: '', role: '', emails: [''], phones: [''] };
       setProfile(prev => ({ ...prev, contacts: [...(prev.contacts || []), newContact] }));
   };
 
@@ -121,11 +165,21 @@ const CompanyProfileModal: React.FC<CompanyProfileModalProps> = ({ isOpen, onClo
                 {(profile.contacts || []).map((contact, index) => (
                     <div key={contact.id} className="p-3 border rounded-md bg-slate-50 relative">
                         <button type="button" onClick={() => removeContact(index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500"><FaTrash size={12}/></button>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-3">
                              <input type="text" placeholder="ФИО" value={contact.name} onChange={e => handleContactChange(index, 'name', e.target.value)} className="input text-sm col-span-2"/>
-                             <input type="text" placeholder="Должность" value={contact.role} onChange={e => handleContactChange(index, 'role', e.target.value)} className="input text-sm"/>
-                             <input type="tel" placeholder="Телефон" value={contact.phone} onChange={e => handleContactChange(index, 'phone', e.target.value)} className="input text-sm"/>
-                             <input type="email" placeholder="Email" value={contact.email} onChange={e => handleContactChange(index, 'email', e.target.value)} className="input text-sm col-span-2"/>
+                             <input type="text" placeholder="Должность" value={contact.role} onChange={e => handleContactChange(index, 'role', e.target.value)} className="input text-sm col-span-2"/>
+                             <div className="col-span-2 space-y-2">
+                                {(contact.emails || ['']).map((email, i) => (
+                                    <div key={i} className="flex items-center gap-2"><input type="email" placeholder="Email" value={email} onChange={e => handleContactArrayChange(index, 'emails', i, e.target.value)} className="input text-sm flex-grow"/><button type="button" onClick={() => removeContactArrayField(index, 'emails', i)} className="action-btn text-red-500"><FaTrash size={10}/></button></div>
+                                ))}
+                                <button type="button" onClick={() => addContactArrayField(index, 'emails')} className="text-xs text-blue-600 flex items-center gap-1"><FaPlus size={10}/> Добавить email</button>
+                             </div>
+                             <div className="col-span-2 space-y-2">
+                                {(contact.phones || ['']).map((phone, i) => (
+                                    <div key={i} className="flex items-center gap-2"><input type="tel" placeholder="Телефон" value={phone} onChange={e => handleContactArrayChange(index, 'phones', i, e.target.value)} className="input text-sm flex-grow"/><button type="button" onClick={() => removeContactArrayField(index, 'phones', i)} className="action-btn text-red-500"><FaTrash size={10}/></button></div>
+                                ))}
+                                <button type="button" onClick={() => addContactArrayField(index, 'phones')} className="text-xs text-blue-600 flex items-center gap-1"><FaPlus size={10}/> Добавить телефон</button>
+                             </div>
                              <input type="text" placeholder="WhatsApp (тел)" value={contact.whatsapp || ''} onChange={e => handleContactChange(index, 'whatsapp', e.target.value)} className="input text-sm" />
                              <input type="text" placeholder="Telegram (@ или тел)" value={contact.telegram || ''} onChange={e => handleContactChange(index, 'telegram', e.target.value)} className="input text-sm" />
                         </div>

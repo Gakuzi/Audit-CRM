@@ -71,11 +71,14 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
 
     if (priorityContact) {
       let url = '', text = '';
-      const { priority_contact_method, telegram, whatsapp, phone, email, name } = priorityContact;
+      const { priority_contact_method, telegram, whatsapp, phones, emails, name } = priorityContact;
+      const primaryPhone = phones?.[0];
+      const primaryEmail = emails?.[0];
+
       if (priority_contact_method === 'telegram' && telegram) { url = `https://t.me/${telegram.replace('@', '')}`; text = 'Связаться (Telegram)'; }
-      else if (priority_contact_method === 'whatsapp' && (whatsapp || phone)) { url = `https://wa.me/${formatPhoneNumberForLink(whatsapp || phone)}`; text = 'Связаться (WhatsApp)'; }
-      else if (priority_contact_method === 'email' && email) { url = `mailto:${email}`; text = `Связаться (Email)`; }
-      else if (priority_contact_method === 'phone' && phone) { url = `tel:${phone}`; text = `Связаться (Телефон)`; }
+      else if (priority_contact_method === 'whatsapp' && (whatsapp || primaryPhone)) { url = `https://wa.me/${formatPhoneNumberForLink(whatsapp || primaryPhone)}`; text = 'Связаться (WhatsApp)'; }
+      else if (priority_contact_method === 'email' && primaryEmail) { url = `mailto:${primaryEmail}`; text = `Связаться (Email)`; }
+      else if (priority_contact_method === 'phone' && primaryPhone) { url = `tel:${primaryPhone}`; text = `Связаться (Телефон)`; }
       if (url) inline_keyboard.push([{ text: `${text}: ${name}`, url }]);
     }
     await sendTelegramNotification(project, `*Новый комментарий в проекте "${project.name}"*\n\n*От:* ${event.author_email}\n*Задача:* ${task.title}\n\n*Сообщение:*\n${event.content}`, inline_keyboard);

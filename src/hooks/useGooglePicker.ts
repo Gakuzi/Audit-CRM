@@ -13,6 +13,7 @@ interface GooglePickerConfig {
 }
 
 let gapiLoaded = false;
+let gapiLoading = false;
 
 export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: GooglePickerConfig) => {
     const [isPickerReady, setIsPickerReady] = useState(false);
@@ -23,12 +24,22 @@ export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: Goo
             return;
         }
 
+        if (gapiLoading) {
+            return;
+        }
+
+        gapiLoading = true;
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.onload = () => {
             gapiLoaded = true;
+            gapiLoading = false;
             gapi.load('picker', { 'callback': () => { setIsPickerReady(true); } });
         };
+        script.onerror = () => {
+            gapiLoading = false;
+            console.error("Failed to load Google API script.");
+        }
         document.body.appendChild(script);
     }, []);
 
@@ -41,6 +52,16 @@ export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: Goo
     const openPicker = useCallback(() => {
         if (!isPickerReady || !token) {
             console.error("Picker is not ready or token is missing.");
+            // Attempt to load GAPI if it failed before
+            if (!gapiLoaded) {
+                loadGapi();
+            }
+            return;
+        }
+        
+        if (!developerKey) {
+            console.error("Google Picker API developer key is missing.");
+            alert("Ошибка конфигурации: отсутствует ключ разработчика Google API.");
             return;
         }
 
@@ -49,7 +70,6 @@ export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: Goo
 
         const picker = new google.picker.PickerBuilder()
             .enableFeature(google.picker.Feature.NAV_HIDDEN)
-            .setAppId(clientId)
             .setOAuthToken(token)
             .addView(view)
             .setDeveloperKey(developerKey)
@@ -58,10 +78,11 @@ export const useGooglePicker = ({ clientId, developerKey, token, onSelect }: Goo
                     onSelect(data[google.picker.Response.DOCUMENTS]);
                 }
             })
+            .setOrigin(window.location.origin)
             .build();
         picker.setVisible(true);
 
-    }, [isPickerReady, token, clientId, developerKey, onSelect]);
+    }, [isPickerReady, token, clientId, developerKey, onSelect, loadGapi]);
 
     return { openPicker, isPickerReady };
 };

@@ -131,13 +131,13 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({ isOpen, onClose
                 <div className="flex-1">
                     <h3 className="text-xl font-bold text-slate-800">{contact.name}</h3>
                     <p className="text-slate-600">{contact.role}</p>
-                    <div className="mt-2 flex items-center flex-wrap gap-x-4 gap-y-1 text-sm">
-                        {contact.email && <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600"><FaEnvelope /> {contact.email}</a>}
-                        {contact.phone && <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600"><FaPhone /> {contact.phone}</a>}
+                    <div className="mt-2 flex flex-col gap-1 text-sm">
+                        {contact.emails?.map(email => <a key={email} href={`mailto:${email}`} className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600"><FaEnvelope /> {email}</a>)}
+                        {contact.phones?.map(phone => <a key={phone} href={`tel:${phone}`} className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600"><FaPhone /> {phone}</a>)}
                     </div>
                 </div>
                 <div className="flex sm:flex-col items-center gap-2 pt-2">
-                     {(contact.whatsapp || contact.phone) && <a href={`https://wa.me/${formatPhoneForLink(contact.whatsapp || contact.phone)}`} target="_blank" rel="noopener noreferrer" className="action-btn text-green-500" title="WhatsApp"><FaWhatsapp /></a>}
+                     {(contact.whatsapp || contact.phones?.[0]) && <a href={`https://wa.me/${formatPhoneForLink(contact.whatsapp || contact.phones?.[0])}`} target="_blank" rel="noopener noreferrer" className="action-btn text-green-500" title="WhatsApp"><FaWhatsapp /></a>}
                      {telegramLink && <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="action-btn text-sky-500" title="Telegram"><FaTelegramPlane /></a>}
                 </div>
             </div>
