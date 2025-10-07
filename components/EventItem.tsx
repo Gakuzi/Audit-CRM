@@ -38,23 +38,23 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
     
     return (
         <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 rounded -mx-4 px-4 transition-colors duration-300">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-xl">{getEventTypeIcon(event.type)}</div>
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-xl">{getEventTypeIcon(event.type)}</div>
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium text-gray-900 truncate">{event.author_email || 'System'}</p>
-                    <p className="text-xs text-gray-500 flex-shrink-0 ml-2">{new Date(event.created_at).toLocaleString('ru-RU')}</p>
+                    <p className="text-sm font-medium text-slate-900 truncate">{event.author_email || 'System'}</p>
+                    <p className="text-xs text-slate-500 flex-shrink-0 ml-2">{new Date(event.created_at).toLocaleString('ru-RU')}</p>
                 </div>
                 
                 <div>
                     {event.parent && event.parent_event_id && (
-                        <div onClick={(e) => { e.stopPropagation(); onQuoteClick(event.parent_event_id!); }} className="mt-2 p-2 border-l-4 border-gray-300 bg-gray-100 text-sm text-gray-600 hover:bg-gray-200 cursor-pointer rounded">
+                        <div onClick={(e) => { e.stopPropagation(); onQuoteClick(event.parent_event_id!); }} className="mt-2 p-2 border-l-4 border-slate-300 bg-slate-100 text-sm text-slate-600 hover:bg-slate-200 cursor-pointer rounded">
                             <p className="font-semibold">{event.parent.author_email}</p>
                             <p className="line-clamp-2">{event.parent.content}</p>
                         </div>
                     )}
 
                     {event.content && (
-                        <div className="mt-2 text-sm text-gray-800 prose prose-sm max-w-none">
+                        <div className="mt-2 text-sm text-slate-800 prose prose-sm max-w-none">
                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{event.content}</ReactMarkdown>
                         </div>
                     )}
@@ -63,9 +63,9 @@ const EventItem: React.FC<EventItemProps> = ({ event, onReply, onQuoteClick, onD
                 </div>
 
                 <div className="mt-2 flex items-center space-x-4">
-                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-gray-500 hover:text-blue-600 font-medium"><FaReply className="mr-1.5" /> Ответить</button>
-                    {onEdit && <button onClick={onEdit} className="flex items-center text-xs text-gray-500 hover:text-green-600 font-medium"><FaEdit className="mr-1.5" /> Редакт.</button>}
-                    {onDelete && <button onClick={onDelete} className="flex items-center text-xs text-gray-500 hover:text-red-600 font-medium"><FaTrash className="mr-1.5" /> Удалить</button>}
+                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-slate-500 hover:text-blue-600 font-medium"><FaReply className="mr-1.5" /> Ответить</button>
+                    {onEdit && <button onClick={onEdit} className="flex items-center text-xs text-slate-500 hover:text-green-600 font-medium"><FaEdit className="mr-1.5" /> Редакт.</button>}
+                    {onDelete && <button onClick={onDelete} className="flex items-center text-xs text-slate-500 hover:text-red-600 font-medium"><FaTrash className="mr-1.5" /> Удалить</button>}
                 </div>
             </div>
         </div>

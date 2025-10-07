@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Week, Plan, PlanItem, Event, Project } from '../types';
 import { FaPlus, FaTrash, FaBrain } from 'react-icons/fa';
@@ -79,29 +77,30 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
     
     const handleGenerateSummary = async (date: string) => {
         const tasksForDay = week.plan[date]?.tasks || [];
-        if (tasksForDay.length === 0) {
-            alert("На этот день нет задач для анализа.");
-            return;
-        }
-
+        
         setSummaryDate(date);
         setIsSummaryModalOpen(true);
         setSummaryLoading(true);
+        setSummaryContent('');
 
         try {
-            const taskIds = tasksForDay.map(t => t.id);
-            const { data: events, error } = await supabase
-                .from('events')
-                .select('*')
-                .in('task_id', taskIds);
+            // Fetch events only if there are tasks to analyze
+            let events: Event[] = [];
+            if (tasksForDay.length > 0) {
+                const taskIds = tasksForDay.map(t => t.id);
+                const { data, error } = await supabase
+                    .from('events')
+                    .select('*')
+                    .in('task_id', taskIds);
+                if (error) throw error;
+                events = data as Event[];
+            }
             
-            if (error) throw error;
-            
-            const summary = await generateDailySummary(date, tasksForDay, events as Event[]);
+            const summary = await generateDailySummary(date, tasksForDay, events);
             setSummaryContent(summary);
 
         } catch (err: any) {
-            setSummaryContent(`Ошибка генерации сводки: ${err.message}`);
+            setSummaryContent(`### Ошибка генерации сводки\n\nНе удалось получить данные от AI. Пожалуйста, попробуйте еще раз.\n\n\`\`\`\n${err.message}\n\`\`\``);
         } finally {
             setSummaryLoading(false);
         }
@@ -125,7 +124,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                 <p className="text-sm text-gray-500">{dayDate.toLocaleDateString('ru-RU')}</p>
                             </div>
                             <div className="flex items-center">
-                                {isAuditor && <button onClick={() => handleGenerateSummary(date)} className="p-1 text-gray-400 hover:text-blue-500 mr-2" title="Сводка дня с AI"><FaBrain size={14}/></button>}
+                                <button onClick={() => handleGenerateSummary(date)} className="p-1 text-gray-400 hover:text-blue-500 mr-2" title="Сводка дня с AI"><FaBrain size={14}/></button>
                                 {canEditPlan && (
                                     <button onClick={() => handleDeleteDay(date)} className="p-1 text-gray-400 hover:text-red-500"><FaTrash size={12}/></button>
                                 )}

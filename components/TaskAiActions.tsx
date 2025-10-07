@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PlanItem, Event } from '../types';
 import * as geminiService from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
-import { FaBrain, FaQuestion, FaListUl, FaComments, FaSitemap } from 'react-icons/fa';
+import { FaBrain, FaQuestion, FaListUl, FaComments, FaSitemap, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import ManualToolModal from './ManualToolModal';
 
 type AiTool = 'questions' | 'agenda' | 'summary' | 'checklist' | 'mindmap' | 'flowchart' | 'continue' | 'summarize-and-continue';
@@ -14,6 +14,7 @@ const TaskAiActions: React.FC<{
 }> = ({ task, events, onNewEvent }) => {
   const [loading, setLoading] = useState<AiTool | null>(null);
   const [isContinueModalOpen, setIsContinueModalOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const handleAiAction = async (tool: AiTool) => {
     if (tool === 'continue') {
@@ -31,8 +32,8 @@ const TaskAiActions: React.FC<{
         case 'agenda': content = await geminiService.generateMeetingAgenda(taskContext); break;
         case 'summary': content = await geminiService.summarizeDiscussion(taskContext, events); break;
         case 'checklist': content = await geminiService.generateDocReviewChecklist(taskContext); break;
-        case 'mindmap': content = await geminiService.generateMindMapFromEvents(taskContext, events); break;
-        case 'flowchart': content = await geminiService.generateProcessFlowchart(taskContext, events); break;
+        case 'mindmap': content = `\`\`\`mermaid\n${await geminiService.generateMindMapFromEvents(taskContext, events)}\n\`\`\``; break;
+        case 'flowchart': content = `\`\`\`mermaid\n${await geminiService.generateProcessFlowchart(taskContext, events)}\n\`\`\``; break;
         case 'summarize-and-continue': content = await geminiService.summarizeAndContinue(task, events); break;
       }
       
@@ -84,19 +85,22 @@ const TaskAiActions: React.FC<{
   }
 
   return (
-    <>
-      <div className="border-t">
-        <h3 className="text-sm font-bold text-gray-500 uppercase p-4 pb-2">Инструменты AI</h3>
-        <div className="flex flex-col gap-1 p-1">
-            {finalTools.map(t => (
-            <button key={t.tool} onClick={t.action} disabled={!!loading} className="w-full text-left flex items-center p-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50">
-                <div className="w-6 text-center">{loading === t.tool ? <Spinner size="sm"/> : t.icon}</div>
-                <span className="ml-2">{t.label}</span>
-            </button>
-            ))}
-        </div>
-      </div>
-       <ManualToolModal
+    <div className="border-t">
+        <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center text-left p-4">
+            <h3 className="text-sm font-bold text-slate-500 uppercase">Инструменты AI</h3>
+            {isExpanded ? <FaChevronUp className="text-slate-400" /> : <FaChevronDown className="text-slate-400" />}
+        </button>
+        {isExpanded && (
+            <div className="flex flex-col gap-1 p-2 pt-0">
+                {finalTools.map(t => (
+                <button key={t.tool} onClick={t.action} disabled={!!loading} className="w-full text-left flex items-center p-2 rounded-md text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50">
+                    <div className="w-6 text-center">{loading === t.tool ? <Spinner size="sm"/> : t.icon}</div>
+                    <span className="ml-2">{t.label}</span>
+                </button>
+                ))}
+            </div>
+        )}
+        <ManualToolModal
             isOpen={isContinueModalOpen}
             onClose={() => setIsContinueModalOpen(false)}
             onSubmit={handleContinueSubmit}
@@ -107,7 +111,7 @@ const TaskAiActions: React.FC<{
                 actionLabel: 'Отправить',
             }}
         />
-    </>
+    </div>
   );
 };
 export default TaskAiActions;

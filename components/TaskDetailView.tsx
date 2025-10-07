@@ -6,7 +6,7 @@ import { Event, PlanItem, Project, CompanyProfile } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import AddSubTaskModal from './AddSubTaskModal';
 import ConfirmationModal from './ConfirmationModal';
 import EditEventModal from './EditEventModal';
@@ -28,12 +28,10 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     const feedRef = useRef<HTMLDivElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
     const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
-    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
     // These states are needed for props but are not fully implemented in this simplified view
     const [project, setProject] = useState<Project | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
-
 
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
@@ -48,7 +46,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
      useEffect(() => {
         if (isOpen && context) {
             supabase.from('projects').select('*').eq('id', context.projectId).single().then(({data}) => setProject(data));
-            supabase.from('company_profiles').select('*').eq('project_id', context.projectId).single().then(({data}) => setCompanyProfile(data));
         }
     }, [isOpen, context]);
 
@@ -56,7 +53,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     useEffect(() => {
         if (isOpen) {
             fetchEvents();
-            setIsDescriptionExpanded(false);
         }
     }, [isOpen, fetchEvents]);
     
@@ -132,21 +128,25 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         <div className="fixed inset-0 bg-black/60 z-40 flex justify-end animate-fade-in" onClick={onClose}>
             <style>{`.highlight { background-color: #eef2ff; transition: background-color 0.5s; } .animate-fade-in { animation: fadeIn 0.3s ease-out; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
             <div className="bg-white h-full w-full max-w-5xl shadow-xl flex flex-col lg:flex-row relative" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="lg:hidden absolute top-2 right-2 z-20 p-2 text-gray-500 hover:text-gray-800 rounded-full bg-white/50 hover:bg-white"><FaTimes size={20} /></button>
-                <TaskSidebar 
-                    task={context.item} 
-                    events={events} 
-                    project={project} 
-                    isAuditor={!!user} 
-                    isGuest={!user} 
-                    onAddSubTask={() => setIsAddEventModalOpen(true)} 
-                    onNewAiEvent={handleNewAiEvent} 
-                    isDescriptionExpanded={isDescriptionExpanded} 
-                    onToggleDescription={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                />
+                
+                {!isSidebarCollapsed && (
+                    <TaskSidebar 
+                        task={context.item} 
+                        events={events} 
+                        project={project} 
+                        isAuditor={!!user} 
+                        isGuest={!user} 
+                        onAddSubTask={() => setIsAddEventModalOpen(true)} 
+                        onNewAiEvent={handleNewAiEvent} 
+                    />
+                )}
+                
                 <div className="flex-1 flex flex-col min-w-0" style={{minHeight: 0}}>
-                    <header className="flex-shrink-0 h-12 lg:border-l flex justify-end items-center pr-4">
-                        <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100 hidden lg:block"><FaTimes size={20} /></button>
+                    <header className={`flex-shrink-0 h-12 ${!isSidebarCollapsed && 'lg:border-l'} flex justify-between items-center pr-4`}>
+                        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-2 ml-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100 hidden lg:block">
+                            {isSidebarCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
+                        </button>
+                        <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100 hidden lg:block"><FaTimes size={20} /></button>
                     </header>
                     <main ref={feedRef} className="flex-1 overflow-y-auto p-4" style={{minHeight: 0}}>
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
@@ -166,7 +166,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                             ) : (<p className="text-sm text-slate-500 text-center pt-8">Событий нет. Начните обсуждение!</p>)
                         )}
                     </main>
-                    <footer className="flex-shrink-0 p-4 bg-slate-50 border-t lg:border-l">
+                    <footer className={`flex-shrink-0 p-4 bg-slate-50 border-t ${!isSidebarCollapsed && 'lg:border-l'}`}>
                         <AddEventForm user={user} providerToken={null} context={{...context, taskId: context.item.id}} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} isGuest={!user} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} />
                     </footer>
                 </div>
