@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
 import { Week, PlanItem, PlanItemType, Profile, ContactPerson, Project } from '../types';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaClock, FaMapMarkerAlt, FaUsers as FaUsersIcon, FaAlignLeft, FaSitemap, FaTimes, FaUserPlus, FaPlus } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaClock, FaMapMarkerAlt, FaUsers as FaUsersIcon, FaAlignLeft, FaSitemap, FaTimes } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import * as googleApiService from '../services/googleApiService';
 import AddContactModal from './AddContactModal';

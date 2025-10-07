@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Modal from './ui/Modal';
 import { PlanItem, PlanItemType, ContactPerson, Project } from '../types';
 import { Spinner } from './ui/Spinner';
-import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap, FaTimes, FaUserPlus, FaPlus } from 'react-icons/fa';
+import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaSitemap, FaTimes } from 'react-icons/fa';
 import AddContactModal from './AddContactModal';
 
 interface AddSubTaskModalProps {
