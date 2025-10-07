@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
-import { FaCamera, FaUpload, FaMicrophone, FaBrain } from 'react-icons/fa';
+import { FaCamera, FaUpload, FaMicrophone } from 'react-icons/fa';
 import { supabase } from '../services/supabaseClient';
 import { recognizeTextFromImage } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
@@ -137,60 +137,16 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
         event.target.value = '';
     }
 
-    const handleAnalyzeAudio = async (audioEvent: Event) => {
-        const audioFile = audioEvent.data?.file_urls?.[0];
-        if (!audioFile) return;
-
-        if (audioFile.url.includes("drive.google.com")) {
-            alert("Анализ файлов из Google Drive пока не поддерживается в этой версии. Загрузите файл напрямую в систему.");
-            return;
-        }
-
-        setLoading(`analyze-${audioEvent.id}`);
-        try {
-            const { error } = await supabase.functions.invoke('transcribe-and-analyze', {
-                body: { audioEvent, task: context.item },
-            });
-
-            if (error) throw error;
-            
-            // Успех! Новый комментарий появится автоматически через real-time подписку.
-
-        } catch (error: any) {
-             alert("Ошибка при вызове функции анализа: " + error.message);
-        } finally {
-            setLoading(null);
-        }
-    }
-    
-    const audioEvents = events.filter(e => e.type === 'interview' && e.data?.file_urls?.some(f => f.type?.startsWith('audio/')));
-
     return (
         <div className="p-4 border-b bg-gray-50">
              <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
              <input type="file" accept="audio/*" ref={audioInputRef} onChange={handleAudioFilesSelected} className="hidden" multiple/>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                  <button onClick={() => imageInputRef.current?.click()} disabled={!!loading} className="btn-secondary flex items-center justify-center gap-2"><FaCamera /> Распознать заметки</button>
                  <button onClick={() => audioInputRef.current?.click()} disabled={!!loading} className="btn-secondary flex items-center justify-center gap-2"><FaUpload /> Загрузить аудио</button>
                  <button onClick={() => setIsRecorderModalOpen(true)} disabled={!!loading} className="btn-secondary flex items-center justify-center gap-2"><FaMicrophone /> Начать запись</button>
             </div>
-            
-             {audioEvents.length > 0 && (
-                <div className="pt-3 border-t">
-                    <h4 className="text-sm font-semibold mb-2">Записи для анализа:</h4>
-                    <div className="space-y-2">
-                    {audioEvents.map(event => (
-                         <div key={event.id} className="flex items-center justify-between p-2 bg-white rounded-md border">
-                            <p className="text-sm truncate pr-2">{event.data?.file_urls?.[0].name}</p>
-                            <button onClick={() => handleAnalyzeAudio(event)} disabled={!!loading} className="btn-primary text-sm px-3 py-1.5 flex items-center gap-2 shrink-0">
-                                {loading === `analyze-${event.id}` ? <Spinner size="sm" /> : <><FaBrain /> Анализ с AI</>}
-                            </button>
-                         </div>
-                    ))}
-                    </div>
-                </div>
-             )}
 
             <AudioRecorderModal
                 isOpen={isRecorderModalOpen}

@@ -153,62 +153,6 @@ export const recognizeTextFromImage = async (base64ImageData: string): Promise<s
   return response.text ?? '';
 };
 
-export const transcribeAndAnalyzeAudio = async (
-  audioEvent: Event,
-  task: PlanItem
-): Promise<string> => {
-  const audioFile = audioEvent.data?.file_urls?.[0];
-  if (!audioFile) {
-    return "Ошибка: Не найден аудиофайл в событии.";
-  }
-
-  const isGoogleDrive = audioFile.url.includes("drive.google.com");
-  const source = isGoogleDrive ? "Google Drive" : "хранилища Supabase";
-
-  const simulationPrompt = `
-        Ты — AI-ассистент аудитора. Тебе предоставлен контекст задачи, по которой была сделана аудиозапись.
-        Твоя задача — сгенерировать ПРИМЕР того, как бы выглядел анализ транскрипции этой аудиозаписи.
-        
-        **Контекст задачи:**
-        - Название: "${task.title}"
-        - Описание: "${task.description || "Нет"}"
-        
-        **Информация о файле:**
-        - Имя файла: "${audioFile.name}"
-        - Источник: ${source}
-
-        **Сгенерируй отчет, который мог бы получиться после анализа РЕАЛЬНОЙ аудиозаписи.**
-        Отчет должен включать:
-        1.  **Краткая сводка:** 1-2 предложения о теме разговора.
-        2.  **Ключевые моменты:** Список из 3-5 самых важных тезисов или фактов.
-        3.  **Выводы и риски:** Какие выводы можно сделать? Есть ли какие-то потенциальные риски?
-        4.  **Дальнейшие шаги:** Какие действия следует предпринять аудитору?
-    `;
-
-  const analysisResponse = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: simulationPrompt,
-  });
-
-  const simulatedAnalysis =
-    analysisResponse.text ?? "Не удалось сгенерировать пример анализа.";
-
-  const finalResponse = `
-### Анализ аудиозаписи: "${audioFile.name}"
-
-**_Это симуляция анализа._** _Для реальной транскрипции аудиофайлов из **${source}** требуется настройка серверного компонента (например, Supabase Edge Function) с интеграцией API для преобразования речи в текст (Speech-to-Text)._
-
----
-
-**Пример результата анализа:**
-
-${simulatedAnalysis}
-    `;
-
-  return finalResponse;
-};
-
-
 const _processEventsWithFileContent = async (events: Event[]) => {
     return Promise.all(events.map(async event => {
         if (!event.data?.file_urls) return event;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Event, ContactPerson } from '../types';
-import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip } from 'react-icons/fa';
+import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip, FaDownload } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -42,10 +42,44 @@ const EventAttachments: React.FC<{ files: { name: string, url: string, type?: st
         {files.map(file => {
             const fileType = file.type || '';
             const isImage = fileType.startsWith('image/');
-            if (isImage) return <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer"><img src={file.url} alt={file.name} className="rounded-lg max-h-48 w-full object-cover border" /></a>;
-            if (fileType.startsWith('audio/')) return <div key={file.url} className="p-2 bg-slate-100 rounded-lg"><p className="text-xs truncate">{file.name}</p><audio src={file.url} controls className="w-full" /></div>;
-            if (fileType.startsWith('video/')) return <div key={file.url} className="col-span-1 sm:col-span-2"><video src={file.url} controls className="rounded-lg w-full max-w-md mx-auto" /></div>;
-            return <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline p-2 bg-slate-100 rounded-lg"><FaPaperclip className="mr-2" /> <span className="truncate">{file.name}</span></a>;
+            if (isImage) return (
+                <a key={file.url} href={file.url} download={file.name} className="relative group block" title={`Скачать ${file.name}`}>
+                    <img src={file.url} alt={file.name} className="rounded-lg max-h-48 w-full object-cover border" />
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FaDownload className="text-white text-2xl" />
+                    </div>
+                </a>
+            );
+            if (fileType.startsWith('audio/')) return (
+                <div key={file.url} className="p-2 bg-slate-100 rounded-lg">
+                    <div className="flex justify-between items-center mb-1">
+                        <p className="text-xs truncate pr-2">{file.name}</p>
+                        <a href={file.url} download={file.name} className="action-btn text-slate-500" title="Скачать">
+                            <FaDownload size={12} />
+                        </a>
+                    </div>
+                    <audio src={file.url} controls className="w-full" />
+                </div>
+            );
+            if (fileType.startsWith('video/')) return (
+                <div key={file.url} className="col-span-1 sm:col-span-2">
+                    <video src={file.url} controls className="rounded-lg w-full max-w-md mx-auto" />
+                    <div className="text-center mt-1">
+                        <a href={file.url} download={file.name} className="text-sm text-blue-600 hover:underline inline-flex items-center gap-2">
+                            <FaDownload /> Скачать видео
+                        </a>
+                    </div>
+                </div>
+            );
+            return (
+                <a key={file.url} href={file.url} download={file.name} className="flex items-center justify-between text-blue-600 p-2 bg-slate-100 rounded-lg group">
+                    <div className="flex items-center gap-2 truncate">
+                        <FaPaperclip />
+                        <span className="truncate group-hover:underline">{file.name}</span>
+                    </div>
+                    <FaDownload className="text-slate-500 flex-shrink-0" />
+                </a>
+            );
         })}
     </div>
 );
