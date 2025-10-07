@@ -37,7 +37,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
   const [isAddWeekModalOpen, setIsAddWeekModalOpen] = useState(false);
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [selectedWeekForReport, setSelectedWeekForReport] = useState<Week | null>(null);
-  const [reportScope, setReportScope] = useState<'week' | 'project' | null>(null);
   const [weekToShareForApproval, setWeekToShareForApproval] = useState<Week | null>(null);
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<{ item: PlanItem; weekId: string; } | null>(null);
   const [weekToDelete, setWeekToDelete] = useState<Week | null>(null);
@@ -197,7 +196,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
 
   const handleOpenReport = (week: Week) => {
       setSelectedWeekForReport(week);
-      setReportScope('week');
       setIsAiReportModalOpen(true);
   }
   

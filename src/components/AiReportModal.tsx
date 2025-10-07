@@ -55,7 +55,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
             fetchAndGenerateReport();
         }
     }, [isOpen, fetchAndGenerateReport]);
-
+    
     const stripMarkdown = (text: string) => {
         return text.replace(/###\s?/g, '').replace(/##\s?/g, '').replace(/#\s?/g, '').replace(/\*\*/g, '*').replace(/(\r\n|\n|\r)/gm, "\n");
     };
@@ -114,7 +114,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
                 </div>
             </div>
             <div className="mt-4 pt-4 border-t flex justify-between items-center no-print">
-                 <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={handleCopy} className="btn-secondary flex items-center gap-2"><FaCopy /> {copied ? 'Готово!' : 'Копировать'}</button>
                     <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaWhatsapp /></a>
                     <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaTelegramPlane /></a>

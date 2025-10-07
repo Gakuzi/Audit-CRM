@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus, Project, Profile, CompanyProfile, ContactPerson } from '../types';
+import { Week, Plan, PlanItem, WeekStatus, Project, Profile, CompanyProfile } from '../types';
 import { supabase, sendGuestStatusChangeNotification } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaMagic, FaCheckCircle, FaCalendarAlt, FaPaperPlane } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
@@ -169,7 +169,7 @@ const WeekCard: React.FC<WeekCardProps> = (props) => {
       {isExpanded && (
         <div className="p-4 bg-gray-50/50">
             {week.rejection_comment && week.status === 'rejected' && (<div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-800"><p className="font-bold">Причина отклонения:</p><p>{week.rejection_comment}</p></div>)}
-            <DayPlanView week={week} onUpdatePlan={onUpdatePlan} onTaskSelect={onTaskSelect} isAuditor={isAuditor} project={project} companyProfile={companyProfile} profile={profile} providerToken={providerToken} onUpdateTask={onUpdateTask} onContactClick={onContactClick} onContactsUpdate={onContactsUpdate}/>
+            <DayPlanView {...props} />
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
                 <div className="flex items-center gap-2">{getActionButtons()}
                     {isAuditor && <button onClick={onGenerateReport} className="btn-secondary bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"><FaMagic/> Отчет по этапу</button>}

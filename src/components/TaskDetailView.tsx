@@ -144,7 +144,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     <TaskSidebar 
                         task={context.item} 
                         events={events} 
-                        project={project} 
                         isAuditor={!!user} 
                         isGuest={isGuest} 
                         onAddSubTask={() => setIsAddSubTaskModalOpen(true)} 
