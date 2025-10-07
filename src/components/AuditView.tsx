@@ -270,6 +270,8 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
             week={selectedWeekForDetail ?? null}
             onContactClick={onContactClick}
             onContactsUpdate={handleContactsUpdate}
+            profile={profile}
+            onUpdatePlan={(plan) => handleUpdatePlan(selectedTaskForDetail!.weekId, plan)}
           />
        )}
 

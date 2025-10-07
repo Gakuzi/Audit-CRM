@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, PlanItem, Project, CompanyProfile, Week } from '../types';
+import { Event, PlanItem, Project, CompanyProfile, Week, Profile, Plan } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -28,9 +28,11 @@ interface TaskDetailViewProps {
   week: Week | null;
   onContactClick: (contactId: string) => void;
   onContactsUpdate: () => void;
+  profile: Profile | null;
+  onUpdatePlan: (plan: Plan) => void;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, providerToken, context, companyProfile, onEventCountChange, onUpdateTask, isAuditor, isGuest, project, onSubTaskAdded, week, onContactClick, onContactsUpdate }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, providerToken, context, companyProfile, onEventCountChange, onUpdateTask, isAuditor, isGuest, project, onSubTaskAdded, week, onContactClick, onContactsUpdate, profile, onUpdatePlan }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
@@ -97,9 +99,22 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         }
     };
     
-    const handleAddSubTask = (subTask: PlanItem) => {
+    const handleAddSubTask = (subTask: PlanItem, date?: string) => {
+        // 1. Add subtask to parent task's sub_tasks array
         const updatedTask = { ...context.item, sub_tasks: [...(context.item.sub_tasks || []), subTask] };
         onUpdateTask(context.weekId, updatedTask);
+    
+        // 2. If the subtask has a date, add it to the main plan view
+        if (date && week) {
+            const newPlan = { ...week.plan };
+            if (!newPlan[date]) {
+                newPlan[date] = { tasks: [] };
+            }
+            // Add the task to the main plan, linking it to the parent
+            newPlan[date].tasks.push({ ...subTask, parent_task_id: context.item.id });
+            onUpdatePlan(newPlan);
+        }
+    
         if (isGuest) {
             onSubTaskAdded(context.item, subTask);
         }
@@ -178,7 +193,19 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     </footer>
                 </div>
             </div>
-            {(isAuditor || isGuest) && <AddSubTaskModal isOpen={isAddEventModalOpen} onClose={() => setIsAddEventModalOpen(false)} onAddSubTask={handleAddSubTask} contacts={contacts} project={project} onContactsUpdate={onContactsUpdate} />}
+            {(isAuditor || isGuest) && (
+              <AddSubTaskModal
+                isOpen={isAddEventModalOpen}
+                onClose={() => setIsAddEventModalOpen(false)}
+                onAddTask={handleAddSubTask}
+                parentTask={context.item}
+                contacts={contacts}
+                project={project}
+                onContactsUpdate={onContactsUpdate}
+                profile={profile}
+                providerToken={providerToken}
+              />
+            )}
             <ConfirmationModal isOpen={!!eventToDelete} onClose={() => setEventToDelete(null)} onConfirm={handleDeleteEvent} title="Удалить событие?" message="Вы уверены?" />
             {eventToEdit && <EditEventModal isOpen={!!eventToEdit} onClose={() => setEventToEdit(null)} event={eventToEdit} onUpdate={handleUpdateEvent} contacts={contacts} onContactsUpdate={onContactsUpdate} project={project} />}
         </div>
