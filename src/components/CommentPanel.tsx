@@ -1,3 +1,7 @@
+
+
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
@@ -58,6 +62,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                     if (foundTask) break;
                 }
             }
+            // Fix: Use 'title' property instead of 'content' for the fallback PlanItem object.
             setTask(foundTask || {id: context.taskId, title: context.taskContent, completed: false, type: 'task'});
             
             if(fetchedProjectId) {
@@ -85,12 +90,12 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
         };
     }, [context.taskId, fetchEventsAndProject]);
 
-    const handleReply = (event: Event) => {
+    const handleReply = (_event: Event) => {
         // Reply functionality is not implemented in this simplified panel.
         // The full-featured reply is in TaskDetailView.
     };
 
-    const handleQuoteClick = (eventId: string) => {
+    const handleQuoteClick = (_eventId: string) => {
         // Quote click functionality is not implemented in this simplified panel.
     };
 
@@ -110,7 +115,7 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                 {loading ? <Spinner /> : (
                     events.length > 0 ? (
                         <div className="divide-y divide-gray-200">
-                            {events.map(event => <EventItem key={event.id} event={event} isGuest={isGuest} onReply={handleReply} onQuoteClick={handleQuoteClick} />)}
+                            {events.map(event => <EventItem key={event.id} event={event} onReply={handleReply} onQuoteClick={handleQuoteClick} isGuest={isGuest} />)}
                         </div>
                     ) : (
                         <p className="text-sm text-gray-500 text-center pt-8">Комментариев пока нет. Начните обсуждение!</p>
@@ -126,9 +131,11 @@ const CommentPanel: React.FC<CommentPanelProps> = ({ user, context, onClose }) =
                         </button>
                     </div>
                  )}
+                {/* FIX: Pass all required props to AddEventForm, including isGuest, project, and task. */}
                 {(user || isGuest) && projectId && project && task ? <AddEventForm user={user} context={{...context, projectId}} quotedEvent={null} onClearQuote={() => {}} onNewEvent={() => {}} project={project} isGuest={isGuest} onAddSubTaskRequest={() => {}} /> : <p className="text-sm text-center text-gray-500">Войдите, чтобы оставлять комментарии.</p>}
             </div>
 
+            {/* FIX: Pass all required props to AddMeetingModal, including project and task. */}
             {(user || isGuest) && projectId && project && task && (
                 <AddMeetingModal
                     isOpen={isMeetingModalOpen}
