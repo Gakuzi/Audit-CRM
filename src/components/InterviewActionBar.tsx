@@ -1,10 +1,9 @@
-
 import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { Event, PlanItem } from '../types';
 import { FaCamera, FaUpload, FaMicrophone, FaBrain } from 'react-icons/fa';
 import { supabase } from '../services/supabaseClient';
-import { recognizeTextFromImage, processInterviewAudio } from '../services/geminiService';
+import { recognizeTextFromImage } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
 import AudioRecorderModal from './AudioRecorderModal';
 import { FILE_SIZE_LIMIT } from '../constants';
@@ -125,7 +124,6 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
         if (!files || files.length === 0) return;
 
         const validFiles: File[] = [];
-        // Fix: Cast items to File to correctly access properties like 'size' and 'name'.
         for (const file of Array.from(files) as File[]) {
             if (file.size > FILE_SIZE_LIMIT) {
                 alert(`Файл "${file.name}" слишком большой. Максимальный размер: ${FILE_SIZE_LIMIT / 1024 / 1024} МБ.`);
@@ -143,19 +141,23 @@ const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, 
         const audioFile = audioEvent.data?.file_urls?.[0];
         if (!audioFile) return;
 
+        if (audioFile.url.includes("drive.google.com")) {
+            alert("Анализ файлов из Google Drive пока не поддерживается в этой версии. Загрузите файл напрямую в систему.");
+            return;
+        }
+
         setLoading(`analyze-${audioEvent.id}`);
         try {
-            const fullContext = `${context.item.title}\n\n${context.item.description || ''}`;
-            const resultText = await processInterviewAudio(fullContext);
-            
-            await createNewEvent({
-                type: 'comment',
-                content: `**Анализ аудиозаписи "${audioFile.name}":**\n\n${resultText}`,
-                parent_event_id: audioEvent.id
+            const { error } = await supabase.functions.invoke('transcribe-and-analyze', {
+                body: { audioEvent, task: context.item },
             });
 
+            if (error) throw error;
+            
+            // Успех! Новый комментарий появится автоматически через real-time подписку.
+
         } catch (error: any) {
-             alert("Ошибка анализа аудио: " + error.message);
+             alert("Ошибка при вызове функции анализа: " + error.message);
         } finally {
             setLoading(null);
         }
