@@ -66,7 +66,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="max-h-[70vh] overflow-y-auto pr-2 print-container">
-                 <div className="print-title-block">
+                 <div className="print-title-block hidden">
                     {scope === 'week' ? (
                         <>
                             <h1>Отчет по этапу аудита</h1>

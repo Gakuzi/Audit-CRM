@@ -445,7 +445,7 @@ ${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content }
 \`\`\`
 
 **ЗАДАЧА:**
-Создай ментальную карту в синтаксисе Mermaid. Карта должна быть логичной и наглядной. Начни с \`mindmap\`.`;
+Создай ментальную карту в синтаксисе Mermaid. Карта должна быть логичной и наглядной. Начни с \`mindmap\`. Верни только код диаграммы в блоке \`\`\`mermaid ... \`\`\`.`;
 
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
@@ -507,7 +507,7 @@ ${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content }
 \`\`\`
 
 **ЗАДАЧА:**
-Создай блок-схему в синтаксисе Mermaid. Схема должна быть простой и логичной. Начни с \`graph TD\`.`;
+Создай блок-схему в синтаксисе Mermaid. Схема должна быть простой и логичной. Начни с \`graph TD\`. Верни только код диаграммы в блоке \`\`\`mermaid ... \`\`\`.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text ?? '';
 };

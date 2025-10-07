@@ -16,7 +16,6 @@ const TaskAiActions: React.FC<{
   const [isContinueModalOpen, setIsContinueModalOpen] = useState(false);
 
   const handleAiAction = async (tool: AiTool) => {
-    // Fix: The 'continue' action requires user input, so we open a modal instead of calling the service directly.
     if (tool === 'continue') {
         setIsContinueModalOpen(true);
         return;
@@ -50,7 +49,6 @@ const TaskAiActions: React.FC<{
   const handleContinueSubmit = async (userQuery: string) => {
     setLoading('continue');
     try {
-      // The service expects a query like "author:message". We'll try to find the last user's name.
       const lastUserEvent = [...events].reverse().find(e => e.author_email !== 'AI Ассистент');
       const author = lastUserEvent?.author_email || 'User';
       const formattedQuery = `${author}:${userQuery}`;
@@ -82,20 +80,23 @@ const TaskAiActions: React.FC<{
   const finalTools = [...availableTools, ...(events.length > 0 ? generalTools : [])];
 
   if (finalTools.length === 0) {
-      return <p className="text-xs text-gray-500 italic p-2">Для этой задачи нет специфичных AI-инструментов.</p>;
+      return null;
   }
 
   return (
     <>
-      <div className="flex flex-col gap-1 p-1">
-        {finalTools.map(t => (
-          <button key={t.tool} onClick={t.action} disabled={!!loading} className="w-full text-left flex items-center p-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50">
-            <div className="w-6 text-center">{loading === t.tool ? <Spinner size="sm"/> : t.icon}</div>
-            <span className="ml-2">{t.label}</span>
-          </button>
-        ))}
+      <div className="border-t">
+        <h3 className="text-sm font-bold text-gray-500 uppercase p-4 pb-2">Инструменты AI</h3>
+        <div className="flex flex-col gap-1 p-1">
+            {finalTools.map(t => (
+            <button key={t.tool} onClick={t.action} disabled={!!loading} className="w-full text-left flex items-center p-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50">
+                <div className="w-6 text-center">{loading === t.tool ? <Spinner size="sm"/> : t.icon}</div>
+                <span className="ml-2">{t.label}</span>
+            </button>
+            ))}
+        </div>
       </div>
-      <ManualToolModal
+       <ManualToolModal
             isOpen={isContinueModalOpen}
             onClose={() => setIsContinueModalOpen(false)}
             onSubmit={handleContinueSubmit}

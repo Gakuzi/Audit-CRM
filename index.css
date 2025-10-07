@@ -4,31 +4,58 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
+:root {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  @apply bg-slate-50 font-sans text-slate-800;
   font-family: 'Inter', sans-serif;
-}
-@supports (font-variation-settings: normal) {
-  html { font-family: 'Inter var', sans-serif; }
-}
-
-body {
-    @apply bg-gray-100;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.input {
-    @apply w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm;
+/* Base component styles for a modern, clean UI */
+@layer components {
+  .input {
+    @apply flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 transition-colors;
+  }
+  
+  textarea.input {
+    @apply h-auto min-h-[80px];
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-10 px-4 py-2;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-white text-slate-900 hover:bg-slate-100 h-10 px-4 py-2 border border-slate-200;
+  }
+
+  .btn-destructive {
+    @apply btn bg-red-600 text-red-50 hover:bg-red-600/90 h-10 px-4 py-2;
+  }
+  
+  .action-btn {
+    @apply h-8 w-8 inline-flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors;
+  }
+  
+  /* Special input for Google Calendar-like modal */
+  .gcal-title-input {
+    @apply w-full text-2xl font-bold border-0 focus:ring-0 p-0 placeholder:text-slate-300 bg-transparent;
+  }
 }
 
-.btn-primary {
-     @apply py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300;
-}
-
-.btn-secondary {
-    @apply py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100;
-}
-
-
-/* Generic Print styles for AI Reports */
+/* Print styles for AI Report */
 @media print {
   body * {
     visibility: hidden;
@@ -41,11 +68,9 @@ body {
     left: 0;
     top: 0;
     width: 100%;
-    max-height: none;
-    overflow: visible;
   }
   .no-print {
-    display: none !important;
+    display: none;
   }
   .print-title-block {
     display: block !important;
@@ -59,9 +84,8 @@ body {
     font-weight: bold;
     color: black;
   }
-   .print-title-block h2.stage-name, .print-title-block h2.project-name, .print-title-block p {
+   .print-title-block .stage-name, .print-title-block .project-name, .print-title-block p {
      font-size: 1.25rem;
-     font-weight: bold;
      margin-bottom: 1rem;
      color: black;
   }
@@ -75,7 +99,6 @@ body {
    .print-title-block .details div p:first-child {
     font-weight: bold;
   }
-
   .prose {
     color: black;
   }
