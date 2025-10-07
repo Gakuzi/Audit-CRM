@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Week, Plan, PlanItem, WeekStatus } from '../types';
+import { Week, Plan, PlanItem, WeekStatus, Project } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FaChevronDown, FaChevronUp, FaEdit, FaTrash, FaPlus, FaBrain, FaCheckCircle, FaCalendarAlt, FaFileAlt, FaPaperPlane } from 'react-icons/fa';
 import DayPlanView from './DayPlanView';
@@ -20,6 +20,7 @@ interface WeekCardProps {
   onDeleteRequest: () => void;
   onUpdateRequest: () => void;
   onGenerateReport: () => void;
+  project: Project;
 }
 
 const statusConfig: { [key in Week['status']]: { label: string; color: string; } } = {
@@ -30,7 +31,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
     completed: { label: 'Завершен', color: 'bg-blue-200 text-blue-800' },
 };
 
-const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport }) => {
+const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, project }) => {
   const isCurrentWeek = () => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -117,7 +118,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTa
         case 'rejected':
              return isAuditor && <button onClick={() => handleStatusChange('draft')} className="btn-secondary">Вернуть в черновик</button>;
         case 'completed':
-             return isAuditor && <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"><FaBrain/> Отчет с AI</button>;
+             return null; // The report button is now shown for approved and completed stages outside this function
         default:
             return null;
     }
@@ -218,11 +219,15 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, onUpdatePlan, onTa
                 onUpdatePlan={onUpdatePlan}
                 onTaskSelect={onTaskSelect}
                 isAuditor={isAuditor}
+                project={project}
             />
             
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                     {getActionButtons()}
+                    {isAuditor && (week.status === 'approved' || week.status === 'completed') && (
+                         <button onClick={onGenerateReport} className="btn-primary bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"><FaBrain/> Отчет с AI</button>
+                    )}
                 </div>
                 {isAuditor && (week.status === 'draft' || week.status === 'approved') && (
                      <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary">

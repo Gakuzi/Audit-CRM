@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaArrowLeft, FaCog, FaShareAlt, FaPlus } from 'react-icons/fa';
+import { FaArrowLeft, FaCog, FaShareAlt, FaPlus, FaFilePdf } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
 import ShareModal from './ShareModal';
@@ -27,6 +27,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
   const [isAddWeekModalOpen, setIsAddWeekModalOpen] = useState(false);
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [selectedWeekForReport, setSelectedWeekForReport] = useState<Week | null>(null);
+  const [reportScope, setReportScope] = useState<'week' | 'project' | null>(null);
 
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<{ item: PlanItem; weekId: string; projectId: string; } | null>(null);
   
@@ -136,8 +137,16 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
 
   const handleOpenReport = (week: Week) => {
       setSelectedWeekForReport(week);
+      setReportScope('week');
       setIsAiReportModalOpen(true);
   }
+  
+  const handleOpenProjectReport = () => {
+    setSelectedWeekForReport(null); // No specific week
+    setReportScope('project');
+    setIsAiReportModalOpen(true);
+  }
+
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
 
@@ -149,6 +158,9 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
           Назад ко всем проектам
         </button>
         <div className="flex items-center space-x-2">
+          {isAuditor && (
+             <button onClick={handleOpenProjectReport} className="flex items-center btn-secondary"><FaFilePdf className="mr-2"/> Общий отчет</button>
+          )}
           {isAuditor && (
              <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 btn-secondary"><FaCog/></button>
           )}
@@ -176,6 +188,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
                 onDeleteRequest={() => setWeekToDelete(week)}
                 onUpdateRequest={() => fetchWeeks(false)}
                 onGenerateReport={() => handleOpenReport(week)}
+                project={project}
             />
           ))}
           {weeks.length === 0 && (
@@ -226,15 +239,17 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
           message={`Вы уверены, что хотите удалить этап "${weekToDelete?.title}" и все связанные с ним задачи?`}
        />
 
-       {selectedWeekForReport && (
+       {isAiReportModalOpen && (
           <AiReportModal
             isOpen={isAiReportModalOpen}
             onClose={() => {
                 setIsAiReportModalOpen(false);
                 setSelectedWeekForReport(null);
+                setReportScope(null);
             }}
             week={selectedWeekForReport}
             project={project}
+            scope={reportScope!}
            />
        )}
 

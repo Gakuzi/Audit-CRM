@@ -1,5 +1,3 @@
-
-
 // Fix: Use the correct import for GoogleGenAI
 import { GoogleGenAI, Type } from "@google/genai";
 // Fix: Add PlanItem to imports for new functions
@@ -52,6 +50,19 @@ const describeApprovalPeriod = (period: ApprovalPeriod): string => {
     }
     return 'еженедельно'; // fallback
 }
+
+const safeJsonParse = (jsonString: string) => {
+    // In case the model still wraps the output in markdown, try to extract it.
+    const jsonMatch = jsonString.match(/```(?:json)?\n([\s\S]*?)\n```/);
+    const finalJsonText = jsonMatch ? jsonMatch[1] : jsonString;
+    try {
+        return JSON.parse(finalJsonText);
+    } catch (e) {
+        console.error("Failed to parse JSON string:", finalJsonText);
+        throw new Error("Invalid JSON format from AI.");
+    }
+}
+
 
 // Fix: Update function signature to use ApprovalPeriod object and remove durationInWeeks.
 export const generateAuditPlan = async (
@@ -135,10 +146,8 @@ export const generateAuditPlan = async (
   });
   
   try {
-    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
-    const parsed = JSON.parse(jsonText);
+    const parsed = safeJsonParse(jsonText);
     
     parsed.weeks.forEach((week: any) => {
         if (week.plan) {
@@ -390,10 +399,8 @@ export const generateStagePlan = async (
   });
 
   try {
-    // Fix: Add nullish coalescing operator to prevent error if response.text is undefined.
-    // Fix: Access the response text directly from the response object
     const jsonText = (response.text ?? '').trim();
-    const parsedPlan = JSON.parse(jsonText);
+    const parsedPlan = safeJsonParse(jsonText);
 
     // Ensure all tasks have a valid client-generated UUID
     Object.values(parsedPlan).forEach((day: any) => {
@@ -589,6 +596,83 @@ export const summarizeAndContinue = async (task: PlanItem, events: Event[]): Pro
         4.  **Рекомендация:** Какой следующий шаг ты предлагаешь сделать?
 
         Используй Markdown для форматирования.
+    `;
+
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateDailySummary = async (date: string, tasks: PlanItem[], events: Event[]): Promise<string> => {
+    const taskTitles = tasks.map(t => `- ${t.title}`).join('\n');
+    const processedEvents = await _processEventsWithFileContent(events);
+
+    const prompt = `
+    Ты — AI-ассистент аудитора. Твоя задача — составить краткую сводку по итогам рабочего дня.
+
+    **Дата:** ${new Date(date + 'T00:00:00').toLocaleDateString('ru-RU')}
+
+    **Задачи на день:**
+    ${taskTitles.length > 0 ? taskTitles : "Задач не было."}
+
+    **События и обсуждения за день (комментарии, файлы):**
+    Проанализируй этот JSON массив событий. Основывай свой анализ ИСКЛЮЧИТЕЛЬНО на предоставленных данных.
+    \`\`\`json
+    ${JSON.stringify(processedEvents.map(e => ({ type: e.type, content: e.content, author: e.author_email, files: e.data?.file_urls?.map(f => f.name) })), null, 2)}
+    \`\`\`
+
+    **ЗАДАЧА: Сформируй краткий отчет (2-3 абзаца) в формате Markdown, отвечая на вопросы:**
+    1.  **Что было сделано?** Опиши ключевые выполненные действия и достигнутые результаты.
+    2.  **Какие возникли проблемы или вопросы?** Укажи на любые трудности или нерешенные моменты.
+    3.  **Каковы дальнейшие шаги?** Предложи, что нужно сделать дальше на основе итогов дня.
+
+    Отчет должен быть лаконичным и по делу.
+    `;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateProjectReport = async (project: Project, weeks: Week[], events: Event[]): Promise<string> => {
+    const processedEvents = await _processEventsWithFileContent(events);
+    const weekSummaries = weeks.map(w => `- **${w.title}** (с ${w.start_date} по ${w.end_date}): Статус - ${w.status}. ${w.description}`).join('\n');
+
+    const prompt = `
+    Ты — ведущий бизнес-аудитор. Тебе поручено подготовить итоговый отчет для руководства по всему проекту аудита.
+    Отчет должен быть структурированным, официальным и содержать стратегические выводы. Используй Markdown.
+
+    **Входные данные для анализа:**
+
+    1.  **Проект:**
+        *   Название: "${project.name}"
+        *   Главные цели: "${project.description}"
+        *   Период проведения: с ${project.start_date} по ${project.end_date || '...'}
+
+    2.  **Этапы проекта:**
+        ${weekSummaries}
+
+    3.  **Полный журнал всех событий по проекту (комментарии, встречи, файлы):**
+        *Проанализируй весь этот JSON массив. Если в объекте файла есть "content", оно содержит либо Data URI изображения, либо текст. Используй это для точных выводов.*
+        \`\`\`json
+        ${JSON.stringify(processedEvents.map(e => ({ week: weeks.find(w => w.id === e.week_id)?.title, task: '...', type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: (f as any).content })) })), null, 2)}
+        \`\`\`
+
+    **ЗАДАЧА: Сформируй комплексный отчет, включающий следующие разделы:**
+
+    ### 1. Исполнительное резюме (Executive Summary)
+    Краткая сводка (1-2 абзаца) о целях аудита, общем прогрессе и самых главных выводах. Это самая важная часть для руководства.
+
+    ### 2. Основные результаты по этапам
+    Проанализируй ход выполнения каждого этапа. Опиши ключевые достижения, находки и результаты, полученные в ходе каждого этапа.
+
+    ### 3. Критические риски и выявленные проблемы
+    Синтезируй информацию из всех обсуждений, файлов и событий. Сформулируй 3-5 наиболее критических рисков или системных проблем, выявленных в ходе всего аудита. Оцени их потенциальное влияние на бизнес.
+
+    ### 4. Стратегические рекомендации
+    На основе всего анализа, дай 3-4 конкретные, высокоуровневые рекомендации для руководства. Рекомендации должны быть направлены на устранение выявленных проблем и улучшение бизнес-процессов.
+
+    ### 5. Заключение
+    Подведи итог проделанной работы и оцени степень достижения первоначальных целей аудита.
+
+    Твой отчет должен быть убедительным и подкрепленным фактами из предоставленных данных.
     `;
 
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });

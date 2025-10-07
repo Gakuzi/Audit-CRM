@@ -1,26 +1,35 @@
 
 
 import React, { useState } from 'react';
-import { Week, Plan, PlanItem } from '../types';
-import { FaPlus, FaTrash } from 'react-icons/fa';
+import { Week, Plan, PlanItem, Event, Project } from '../types';
+import { FaPlus, FaTrash, FaBrain } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
 import PlanItemCard from './PlanItemCard';
 import ConfirmationModal from './ConfirmationModal';
 import EditPlanItemModal from './EditPlanItemModal';
+import DailySummaryModal from './DailySummaryModal';
+import { generateDailySummary } from '../services/geminiService';
+import { supabase } from '../services/supabaseClient';
+
 
 interface DayPlanViewProps {
     week: Week;
     onUpdatePlan: (plan: Plan) => void;
     onTaskSelect: (item: PlanItem) => void;
     isAuditor: boolean;
+    project: Project;
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSelect, isAuditor, project }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [itemToEdit, setItemToEdit] = useState<PlanItem | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ date: string; item: PlanItem } | null>(null);
+    const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+    const [summaryContent, setSummaryContent] = useState('');
+    const [summaryLoading, setSummaryLoading] = useState(false);
+    const [summaryDate, setSummaryDate] = useState('');
     
     // Determine if the plan can be modified (add, edit, delete tasks)
     const canEditPlan = isAuditor && week.status === 'draft';
@@ -67,6 +76,37 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
         onUpdatePlan(newPlan);
         setItemToDelete(null);
     }
+    
+    const handleGenerateSummary = async (date: string) => {
+        const tasksForDay = week.plan[date]?.tasks || [];
+        if (tasksForDay.length === 0) {
+            alert("На этот день нет задач для анализа.");
+            return;
+        }
+
+        setSummaryDate(date);
+        setIsSummaryModalOpen(true);
+        setSummaryLoading(true);
+
+        try {
+            const taskIds = tasksForDay.map(t => t.id);
+            const { data: events, error } = await supabase
+                .from('events')
+                .select('*')
+                .in('task_id', taskIds);
+            
+            if (error) throw error;
+            
+            const summary = await generateDailySummary(date, tasksForDay, events as Event[]);
+            setSummaryContent(summary);
+
+        } catch (err: any) {
+            setSummaryContent(`Ошибка генерации сводки: ${err.message}`);
+        } finally {
+            setSummaryLoading(false);
+        }
+    };
+
 
     const sortedDates = Object.keys(week.plan).sort();
 
@@ -84,9 +124,12 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                                 <h4 className="font-bold">{dayName}</h4>
                                 <p className="text-sm text-gray-500">{dayDate.toLocaleDateString('ru-RU')}</p>
                             </div>
-                            {canEditPlan && (
-                                <button onClick={() => handleDeleteDay(date)} className="p-1 text-gray-400 hover:text-red-500"><FaTrash size={12}/></button>
-                            )}
+                            <div className="flex items-center">
+                                {isAuditor && <button onClick={() => handleGenerateSummary(date)} className="p-1 text-gray-400 hover:text-blue-500 mr-2" title="Сводка дня с AI"><FaBrain size={14}/></button>}
+                                {canEditPlan && (
+                                    <button onClick={() => handleDeleteDay(date)} className="p-1 text-gray-400 hover:text-red-500"><FaTrash size={12}/></button>
+                                )}
+                            </div>
                         </div>
                         <div className="space-y-2">
                             {dayPlan.tasks.map(item => (
@@ -131,6 +174,14 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, onUpdatePlan, onTaskSel
                 title="Удалить задачу?"
                 message="Вы уверены, что хотите удалить эту задачу из плана?"
              />
+             <DailySummaryModal
+                isOpen={isSummaryModalOpen}
+                onClose={() => setIsSummaryModalOpen(false)}
+                summary={summaryContent}
+                loading={summaryLoading}
+                project={project}
+                date={summaryDate}
+            />
         </div>
     );
 };
