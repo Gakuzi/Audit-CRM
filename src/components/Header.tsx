@@ -30,7 +30,7 @@ const Header: React.FC<HeaderProps> = ({ user, profile, project, companyProfile,
                 </span>
             );
         }
-        if (isGuest) {
+        if (isGuest && !project) { // Only show login on dashboard if guest
              return (
                 <button onClick={onLogin} className="btn-primary">
                     Войти
@@ -47,20 +47,27 @@ const Header: React.FC<HeaderProps> = ({ user, profile, project, companyProfile,
                 </button>
             );
         }
+        // Fallback for non-identified guests on project pages, or general non-user state
         return (
             <button onClick={onLogin} className="btn-primary">
                 Войти
             </button>
         );
     }
+
+    const Logo = ({ className }: { className?: string }) => (
+        <div className={`flex items-center gap-3 ${className}`}>
+            <img src="https://bwwyovaeqnfqqxjmfkir.supabase.co/storage/v1/object/public/avatars/logo.jpeg" alt="АУДИТ & ПРОЕКТ logo" className="h-10 w-10" />
+            <h1 className="text-xl font-bold text-gray-800 hidden md:block">АУДИТ & ПРОЕКТ</h1>
+        </div>
+    );
     
     if (!project) {
         return (
             <header className="bg-white shadow-md">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
-                        <img src="https://bwwyovaeqnfqqxjmfkir.supabase.co/storage/v1/object/public/avatars/logo.jpeg" alt="АУДИТ & ПРОЕКТ logo" className="h-10 w-10" />
-                        <h1 className="text-xl font-bold text-gray-800 hidden md:block">АУДИТ & ПРОЕКТ</h1>
+                    <div className="cursor-pointer" onClick={isGuest ? onLogin : onBack}>
+                        <Logo />
                     </div>
                     <div>{renderUserProfile()}</div>
                 </div>
@@ -72,11 +79,17 @@ const Header: React.FC<HeaderProps> = ({ user, profile, project, companyProfile,
         <header className="bg-white shadow-md">
             <div className="container mx-auto px-4 py-3 grid grid-cols-2 md:grid-cols-3 items-center gap-4">
                 <div className="flex justify-start">
-                    <CompanyHeaderCard project={project} companyProfile={companyProfile} onContactSelect={onContactSelect} />
+                    {isAuditor ? (
+                        <CompanyHeaderCard project={project} companyProfile={companyProfile} onContactSelect={onContactSelect} />
+                    ) : (
+                        // For guests on mobile, show the logo on the left.
+                        <div className="md:hidden cursor-pointer" onClick={isGuest ? onLogin : onBack}>
+                            <Logo />
+                        </div>
+                    )}
                 </div>
-                <div className="hidden md:flex justify-center items-center gap-3 cursor-pointer" onClick={onBack}>
-                    <img src="https://bwwyovaeqnfqqxjmfkir.supabase.co/storage/v1/object/public/avatars/logo.jpeg" alt="АУДИТ & ПРОЕКТ logo" className="h-10 w-10" />
-                    <h1 className="text-xl font-bold text-gray-800">АУДИТ & ПРОЕКТ</h1>
+                <div className="hidden md:flex justify-center items-center gap-3 cursor-pointer" onClick={isGuest ? onLogin : onBack}>
+                    <Logo />
                 </div>
                 <div className="flex justify-end col-start-2 md:col-start-auto">
                     {user && isAuditor ? (

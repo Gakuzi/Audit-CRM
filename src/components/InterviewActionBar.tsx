@@ -4,14 +4,12 @@ import { Event, PlanItem } from '../types';
 import { FaCamera, FaUpload, FaMicrophone } from 'react-icons/fa';
 import { supabase } from '../services/supabaseClient';
 import { recognizeTextFromImage } from '../services/geminiService';
-import { Spinner } from './ui/Spinner';
 import AudioRecorderModal from './AudioRecorderModal';
 import { FILE_SIZE_LIMIT } from '../constants';
 
 interface InterviewActionBarProps {
     user: User;
     context: { item: PlanItem; weekId: string; projectId: string; };
-    events: Event[];
     onNewEvent: (event: Event) => void;
 }
 
@@ -42,7 +40,7 @@ const sanitizeFileName = (fileName: string) => {
 };
 
 
-const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, events, onNewEvent }) => {
+const InterviewActionBar: React.FC<InterviewActionBarProps> = ({ user, context, onNewEvent }) => {
     const [loading, setLoading] = useState<string | null>(null);
     const [isRecorderModalOpen, setIsRecorderModalOpen] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
