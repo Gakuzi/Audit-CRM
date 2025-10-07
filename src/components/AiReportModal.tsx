@@ -1,114 +1,124 @@
-// src/components/AiReportModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project, Profile, CompanyProfile } from '../types';
-import { generateComprehensiveReport } from '../services/geminiService';
-import * as googleApiService from '../services/googleApiService';
+import { Week, Project, Event } from '../types';
+import { generateComprehensiveReport, generateProjectReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
-import { FaSync, FaGoogle, FaPrint } from 'react-icons/fa';
+import { FaSync, FaPrint, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
 
 interface AiReportModalProps {
     isOpen: boolean;
     onClose: () => void;
-    week: Week;
+    week: Week | null; // Nullable for project-wide report
     project: Project;
-    auditor: Profile | null;
-    company: CompanyProfile | null;
-    providerToken: string | null;
-    onUpdate: () => void;
+    scope: 'week' | 'project';
 }
 
-const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, project, auditor, company, providerToken, onUpdate }) => {
+const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, project, scope }) => {
     const [report, setReport] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [isExporting, setIsExporting] = useState(false);
-    const [exportSuccess, setExportSuccess] = useState('');
 
     const fetchAndGenerateReport = useCallback(async () => {
         setLoading(true);
         setError('');
         setReport('');
-        setExportSuccess('');
-
-        if (week.report_content && week.report_generated_at && (new Date().getTime() - new Date(week.report_generated_at).getTime()) < 3600000) {
-            setReport(week.report_content);
-            setLoading(false);
-            return;
-        }
-
         try {
-            const { data: events, error: eventsError } = await supabase.from('events').select('*').eq('week_id', week.id);
-            if (eventsError) throw eventsError;
-            const generatedReport = await generateComprehensiveReport(week, project, events || []);
-            setReport(generatedReport);
-
-            const { error: updateError } = await supabase.from('weeks').update({ report_content: generatedReport, report_generated_at: new Date().toISOString() }).eq('id', week.id);
-            if (updateError) console.error("Failed to cache report", updateError);
-            else onUpdate();
-
+            if (scope === 'week' && week) {
+                const { data: events, error: eventsError } = await supabase
+                    .from('events')
+                    .select('*')
+                    .eq('week_id', week.id);
+                if (eventsError) throw eventsError;
+                const generatedReport = await generateComprehensiveReport(week, project, events || []);
+                setReport(generatedReport);
+            } else if (scope === 'project') {
+                const { data: weeks, error: weeksError } = await supabase.from('weeks').select('*').eq('project_id', project.id);
+                if (weeksError) throw weeksError;
+                const { data: events, error: eventsError } = await supabase.from('events').select('*').eq('project_id', project.id);
+                if (eventsError) throw eventsError;
+                const generatedReport = await generateProjectReport(project, weeks || [], events || []);
+                setReport(generatedReport);
+            }
         } catch (err: any) {
             setError('Не удалось сгенерировать отчет: ' + err.message);
         } finally {
             setLoading(false);
         }
-    }, [isOpen, week, project, onUpdate]);
+    }, [isOpen, week, project, scope]);
 
-    useEffect(() => { if (isOpen) fetchAndGenerateReport(); }, [isOpen, fetchAndGenerateReport]);
 
-    const handleExportToDocs = async () => {
-        if (!providerToken || !report) return;
-        setIsExporting(true);
-        setExportSuccess('');
-        try {
-            const docTitle = `Отчет по аудиту: ${project.name} - ${week.title}`;
-            const link = await googleApiService.createGoogleDoc(providerToken, docTitle, report);
-            setExportSuccess(link);
-        } catch (error: any) {
-            alert("Ошибка экспорта: " + error.message);
-        } finally {
-            setIsExporting(false);
+    useEffect(() => {
+        if (isOpen) {
+            fetchAndGenerateReport();
         }
+    }, [isOpen, fetchAndGenerateReport]);
+
+    const handlePrint = () => {
+        window.print();
     };
     
-    const handlePrint = () => { window.print(); };
+    const stripMarkdown = (text: string) => {
+        return text.replace(/###\s?/g, '').replace(/##\s?/g, '').replace(/#\s?/g, '').replace(/\*\*/g, '*').replace(/(\r\n|\n|\r)/gm, "\n");
+    };
+
+    const title = scope === 'week' ? `Отчет: ${week?.title}` : `Сводный отчет по проекту`;
+    const shareTitle = scope === 'week' ? `Отчет по этапу "${week?.title}"` : `Сводный отчет по проекту "${project.name}"`;
+    const shareText = `${shareTitle}\n\n${stripMarkdown(report)}`;
+    const shareUrl = window.location.href;
+
 
     return (
-        <>
-        <Modal isOpen={isOpen} onClose={onClose} title={`AI Отчет: ${week.title}`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="max-h-[70vh] overflow-y-auto pr-2 print-container">
-                <div className="print-title-block">
-                    <h1>Отчет по этапу аудита</h1>
-                    <h2 className="stage-name">«{week.title}»</h2>
-                    <p>по проекту</p>
-                    <h2 className="project-name">«{project.name}»</h2>
-
-                    <div className="details">
-                        <div><p>Заказчик:</p><p>{company?.company_name || project.name}</p></div>
-                        <div><p>Исполнитель:</p><p>{auditor?.full_name || 'Аудитор'}</p></div>
-                        <div><p>Период этапа:</p><p>{new Date(week.start_date).toLocaleDateString()} - {new Date(week.end_date).toLocaleDateString()}</p></div>
-                        <div><p>Дата отчета:</p><p>{new Date().toLocaleDateString()}</p></div>
-                    </div>
+                 <div className="print-title-block hidden">
+                    {scope === 'week' ? (
+                        <>
+                            <h1>Отчет по этапу аудита</h1>
+                            <h2 className="stage-name">«{week?.title}»</h2>
+                        </>
+                    ) : (
+                        <>
+                            <h1>Сводный отчет по проекту</h1>
+                            <h2 className="project-name">«{project.name}»</h2>
+                        </>
+                    )}
                 </div>
-
                 <div className="print-content">
-                    {loading && <div className="no-print flex flex-col items-center justify-center h-48"><Spinner size="lg" /><p>Анализ данных...</p></div>}
-                    {error && <div className="no-print p-4 bg-red-100 text-red-800 rounded-md"><p>{error}</p></div>}
-                    {report && <div className="prose prose-sm max-w-none"><ReactMarkdown>{report}</ReactMarkdown></div>}
+                    {loading && (
+                        <div className="no-print flex flex-col items-center justify-center h-48">
+                            <Spinner size="lg" />
+                            <p className="mt-4 text-gray-600">Анализирую данные и составляю отчет...</p>
+                        </div>
+                    )}
+                    {error && (
+                        <div className="no-print p-4 bg-red-100 text-red-800 rounded-md">
+                            <p className="font-bold">Произошла ошибка</p>
+                            <p>{error}</p>
+                        </div>
+                    )}
+                    {report && (
+                        <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown>{report}</ReactMarkdown>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="mt-4 pt-4 border-t flex justify-between items-center no-print">
-                <div className="space-x-2">
-                    {providerToken && <button onClick={handleExportToDocs} disabled={loading || isExporting} className="btn-secondary flex items-center gap-2">{isExporting ? <Spinner size="sm"/> : <FaGoogle />} Docs</button>}
-                    <button onClick={handlePrint} disabled={loading} className="btn-secondary flex items-center gap-2"><FaPrint /> Печать</button>
+                 <div className="flex items-center gap-2">
+                    <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaWhatsapp /></a>
+                    <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaTelegramPlane /></a>
+                    <button onClick={handlePrint} disabled={loading} className="btn-secondary flex items-center gap-2"><FaPrint /> Печать/PDF</button>
                 </div>
-                <button onClick={() => { setReport(''); fetchAndGenerateReport(); }} disabled={loading} className="btn-secondary flex items-center gap-2"><FaSync className={loading ? 'animate-spin' : ''} />{loading ? '...' : 'Пересоздать'}</button>
+                <div className="flex items-center gap-2">
+                    <button onClick={fetchAndGenerateReport} disabled={loading} className="btn-secondary flex items-center gap-2">
+                        <FaSync className={loading ? 'animate-spin' : ''} />
+                        {loading ? 'Генерация...' : 'Пересоздать'}
+                    </button>
+                </div>
             </div>
-            {exportSuccess && <div className="no-print mt-2 text-sm text-green-600">Экспорт успешен! <a href={exportSuccess} target="_blank" rel="noopener noreferrer" className="font-bold underline">Открыть документ</a>.</div>}
         </Modal>
-        </>
     );
 };
 

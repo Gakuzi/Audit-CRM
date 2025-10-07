@@ -1,17 +1,16 @@
 import React from 'react';
-import { Event, ContactPerson } from '../types';
-import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip, FaDownload } from 'react-icons/fa';
+import { Event } from '../types';
+import { FaReply, FaTrash, FaEdit, FaRegComment, FaVideo, FaFileAlt, FaMicrophone, FaPaperclip, FaImage } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface EventItemProps {
   event: Event;
-  contacts: ContactPerson[];
+  isGuest: boolean;
   onReply: (event: Event) => void;
   onQuoteClick: (eventId: string) => void;
   onDelete?: () => void;
   onEdit?: () => void;
-  onContactClick: (contactId: string) => void;
 }
 
 const getEventTypeIcon = (type: Event['type']) => {
@@ -21,77 +20,36 @@ const getEventTypeIcon = (type: Event['type']) => {
         case 'interview': return <FaMicrophone className="text-red-500" />;
         default: return <FaRegComment className="text-gray-500" />;
     }
-};
-
-const ContactPills: React.FC<{ contactIds?: string[], allContacts: ContactPerson[], onContactClick: (contactId: string) => void }> = ({ contactIds, allContacts, onContactClick }) => {
-    if (!contactIds || contactIds.length === 0) return null;
-    const linkedContacts = allContacts.filter(c => contactIds.includes(c.id));
-    if (linkedContacts.length === 0) return null;
-
-    return (
-        <div className="mt-2 flex flex-wrap gap-2">
-            {linkedContacts.map(c => (
-                <button key={c.id} onClick={(e) => { e.stopPropagation(); onContactClick(c.id); }} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full hover:bg-blue-200">@{c.name}</button>
-            ))}
-        </div>
-    );
-};
+}
 
 const EventAttachments: React.FC<{ files: { name: string, url: string, type?: string }[] }> = ({ files }) => (
     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
         {files.map(file => {
             const fileType = file.type || '';
             const isImage = fileType.startsWith('image/');
-            if (isImage) return (
-                <a key={file.url} href={file.url} download={file.name} className="relative group block" title={`Скачать ${file.name}`}>
-                    <img src={file.url} alt={file.name} className="rounded-lg max-h-48 w-full object-cover border" />
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FaDownload className="text-white text-2xl" />
-                    </div>
-                </a>
-            );
-            if (fileType.startsWith('audio/')) return (
-                <div key={file.url} className="p-2 bg-slate-100 rounded-lg">
-                    <div className="flex justify-between items-center mb-1">
-                        <p className="text-xs truncate pr-2">{file.name}</p>
-                        <a href={file.url} download={file.name} className="action-btn text-slate-500" title="Скачать">
-                            <FaDownload size={12} />
-                        </a>
-                    </div>
-                    <audio src={file.url} controls className="w-full" />
-                </div>
-            );
-            if (fileType.startsWith('video/')) return (
-                <div key={file.url} className="col-span-1 sm:col-span-2">
-                    <video src={file.url} controls className="rounded-lg w-full max-w-md mx-auto" />
-                    <div className="text-center mt-1">
-                        <a href={file.url} download={file.name} className="text-sm text-blue-600 hover:underline inline-flex items-center gap-2">
-                            <FaDownload /> Скачать видео
-                        </a>
-                    </div>
-                </div>
-            );
-            return (
-                <a key={file.url} href={file.url} download={file.name} className="flex items-center justify-between text-blue-600 p-2 bg-slate-100 rounded-lg group">
-                    <div className="flex items-center gap-2 truncate">
-                        <FaPaperclip />
-                        <span className="truncate group-hover:underline">{file.name}</span>
-                    </div>
-                    <FaDownload className="text-slate-500 flex-shrink-0" />
-                </a>
-            );
+            if (isImage) return <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer"><img src={file.url} alt={file.name} className="rounded-lg max-h-48 w-full object-cover border" /></a>;
+            if (fileType.startsWith('audio/')) return <div key={file.url} className="p-2 bg-gray-100 rounded-lg"><p className="text-xs truncate">{file.name}</p><audio src={file.url} controls className="w-full" /></div>;
+            if (fileType.startsWith('video/')) return <div key={file.url} className="col-span-1 sm:col-span-2"><video src={file.url} controls className="rounded-lg w-full max-w-md mx-auto" /></div>;
+            return <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline p-2 bg-gray-100 rounded-lg"><FaFileAlt className="mr-2" /> <span className="truncate">{file.name}</span></a>;
         })}
     </div>
 );
 
-const EventItem: React.FC<EventItemProps> = ({ event, contacts, onReply, onQuoteClick, onDelete, onEdit, onContactClick }) => {
+const EventItem: React.FC<EventItemProps> = ({ event, isGuest, onReply, onQuoteClick, onDelete, onEdit }) => {
     
+    const guestName = localStorage.getItem('guestName') || 'Гость';
+    let authorDisplayName = event.author_email || 'System';
+
+    if (isGuest && authorDisplayName !== guestName) {
+        authorDisplayName = 'Аудитор';
+    }
+
     return (
-        <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 px-4">
+        <div id={`event-${event.id}`} className="flex items-start space-x-3 py-4 rounded -mx-4 px-4 transition-colors duration-300">
             <div className="flex-shrink-0 h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-xl">{getEventTypeIcon(event.type)}</div>
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium text-slate-900 truncate">{event.author_email || 'System'}</p>
+                    <p className="text-sm font-medium text-slate-900 truncate">{authorDisplayName}</p>
                     <p className="text-xs text-slate-500 flex-shrink-0 ml-2">{new Date(event.created_at).toLocaleString('ru-RU')}</p>
                 </div>
                 
@@ -109,17 +67,13 @@ const EventItem: React.FC<EventItemProps> = ({ event, contacts, onReply, onQuote
                         </div>
                     )}
                     
-                    <ContactPills contactIds={event.data?.contact_ids} allContacts={contacts} onContactClick={onContactClick} />
-
                     {event.data?.file_urls && <EventAttachments files={event.data.file_urls} />}
                 </div>
 
-                <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <button onClick={() => onReply(event)} className="flex items-center text-xs text-slate-500 hover:text-blue-600 font-medium"><FaReply className="mr-1.5" /> Ответить</button>
-                        {onEdit && <button onClick={onEdit} className="flex items-center text-xs text-slate-500 hover:text-green-600 font-medium"><FaEdit className="mr-1.5" /> Редакт.</button>}
-                        {onDelete && <button onClick={onDelete} className="flex items-center text-xs text-slate-500 hover:text-red-600 font-medium"><FaTrash className="mr-1.5" /> Удалить</button>}
-                    </div>
+                <div className="mt-2 flex items-center space-x-4">
+                    <button onClick={() => onReply(event)} className="flex items-center text-xs text-slate-500 hover:text-blue-600 font-medium"><FaReply className="mr-1.5" /> Ответить</button>
+                    {onEdit && <button onClick={onEdit} className="flex items-center text-xs text-slate-500 hover:text-green-600 font-medium"><FaEdit className="mr-1.5" /> Редакт.</button>}
+                    {onDelete && <button onClick={onDelete} className="flex items-center text-xs text-slate-500 hover:text-red-600 font-medium"><FaTrash className="mr-1.5" /> Удалить</button>}
                 </div>
             </div>
         </div>
