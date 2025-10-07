@@ -3,8 +3,9 @@ import { User } from '@supabase/supabase-js';
 import { supabase, sendGuestEventNotification } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
 import { Event, Project, PlanItem, ContactPerson } from '../types';
-import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane, FaUserPlus } from 'react-icons/fa';
+import { FaTimes, FaPaperclip, FaGoogleDrive, FaCamera, FaLink, FaTasks, FaVideo, FaPlus, FaPaperPlane, FaUserPlus, FaFileAlt } from 'react-icons/fa';
 import { FILE_SIZE_LIMIT } from '../constants';
+import * as googleApiService from '../services/googleApiService';
 import UploadToDriveModal from './UploadToDriveModal';
 import AttachLinkModal from './AttachLinkModal';
 import AudioRecorderModal from './AudioRecorderModal';
@@ -31,7 +32,7 @@ const sanitizeFileName = (fileName: string): string => {
 
 const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, context, quotedEvent, onClearQuote, onNewEvent, project, contacts, isGuest, onAddSubTaskRequest, onContactsUpdate }) => {
     const [content, setContent] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState<boolean | string>(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [filesToAttach, setFilesToAttach] = useState<File[]>([]);
     const [contactIds, setContactIds] = useState<string[]>([]);
@@ -118,7 +119,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                 author_email: user ? user.email : (localStorage.getItem('guestName') || 'Гость'),
                 type: 'comment' as const, content: content.trim(),
                 parent_event_id: quotedEvent?.id || null,
-                data: Object.keys(eventData).length > 0 ? eventData : null,
+                data: uploadedFiles.length > 0 || contactIds.length > 0 ? eventData : null,
             }).select().single();
 
             if (error) throw error;
@@ -131,12 +132,36 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         } catch(err: any) { alert('Ошибка: ' + err.message); } 
         finally { setLoading(false); }
     };
+
+    const handleCreateGoogleFile = async (type: 'doc' | 'sheet') => {
+        if (!providerToken) return;
+        const defaultName = `${project.name} - ${context.item.title}`;
+        const fileType = type === 'doc' ? 'документа' : 'таблицы';
+        const fileName = prompt(`Введите название для нового ${fileType}:`, defaultName);
+        if (!fileName) return;
+
+        setLoading(`google-${type}`);
+        try {
+            let url = '';
+            if (type === 'doc') {
+                url = await googleApiService.createGoogleDoc(providerToken, fileName, `Файл создан для задачи: ${context.item.title}\nПроект: ${project.name}`);
+            } else {
+                url = await googleApiService.createGoogleSheet(providerToken, fileName);
+            }
+            setContent(prev => `${prev}\n[${fileName}](${url})`.trim());
+        } catch (error: any) {
+            alert("Ошибка создания файла: " + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
     
     const handleAttachLink = (url: string) => { setContent(prev => `${prev}\n[Ссылка](${url})`.trim()); }
 
-    const ActionButton = ({ icon, label, action, disabled = false }: { icon: React.ReactNode, label: string, action: () => void, disabled?: boolean }) => (
-        <button type="button" onClick={() => { if (!disabled) { action(); setIsActionMenuOpen(false); } }} className="w-full text-left flex items-center p-2 rounded-md text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={disabled}>
-            {icon} <span className="ml-3">{label}</span>
+    const ActionButton = ({ icon, label, action, disabled = false, loadingState }: { icon: React.ReactNode, label: string, action: () => void, disabled?: boolean, loadingState?: boolean }) => (
+        <button type="button" onClick={() => { if (!disabled && !loadingState) { action(); setIsActionMenuOpen(false); } }} className="w-full text-left flex items-center p-2 rounded-md text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={disabled || loadingState}>
+            <div className="w-6 text-center">{loadingState ? <Spinner size="sm"/> : icon}</div>
+            <span className="ml-3">{label}</span>
         </button>
     );
     
@@ -164,13 +189,18 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                                 <ActionButton icon={<FaCamera />} label="Сделать фото" action={() => imageInputRef.current?.click()} />
                                 <ActionButton icon={<FaLink />} label="Прикрепить ссылку" action={() => setIsLinkModalOpen(true)} />
                                 <ActionButton icon={<FaVideo />} label="Записать аудио" action={() => setIsAudioModalOpen(true)} />
-                                {providerToken && <ActionButton icon={<FaGoogleDrive />} label="Файл с Google Drive" action={openPicker} />}
+                                {providerToken && <>
+                                    <ActionButton icon={<FaGoogleDrive />} label="Файл с Google Drive" action={openPicker} />
+                                    <div className="my-1 border-t"></div>
+                                    <ActionButton icon={<FaFileAlt/>} label="Новый Google Doc" action={() => handleCreateGoogleFile('doc')} loadingState={loading === 'google-doc'} />
+                                    <ActionButton icon={<FaFileAlt/>} label="Новая Google Sheet" action={() => handleCreateGoogleFile('sheet')} loadingState={loading === 'google-sheet'} />
+                                </>}
                                 <div className="my-1 border-t"></div>
                                 <ActionButton icon={<FaTasks />} label="Добавить подзадачу" action={onAddSubTaskRequest} />
                             </div>
                         )}
                     </div>
-                    <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={1} placeholder="Напишите комментарий..." disabled={loading} className="w-full p-2 border-0 focus:ring-0 resize-none bg-transparent" />
+                    <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)} rows={1} placeholder="Напишите комментарий..." disabled={!!loading} className="w-full p-2 border-0 focus:ring-0 resize-none bg-transparent max-h-40" />
                     <div className="relative">
                          <button type="button" onClick={() => setIsContactSelectorOpen(p => !p)} className="action-btn flex-shrink-0"><FaUserPlus /></button>
                          {isContactSelectorOpen && (
@@ -190,8 +220,8 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                             </div>
                          )}
                     </div>
-                    <button type="submit" disabled={loading || (!content.trim() && filesToAttach.length === 0)} className="btn-primary p-2.5 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
-                        {loading ? <Spinner size="sm" /> : <FaPaperPlane />}
+                    <button type="submit" disabled={!!loading || (!content.trim() && filesToAttach.length === 0)} className="btn-primary p-2.5 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                        {loading === true ? <Spinner size="sm" /> : <FaPaperPlane />}
                     </button>
                 </form>
             </div>

@@ -46,7 +46,7 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({ isOpen, onClose
                 .from('events')
                 .select('*')
                 .eq('project_id', project.id)
-                .contains('data', { contact_ids: [contact.id] });
+                .contains('data', JSON.stringify({ contact_ids: [contact.id] }));
 
             const { data: weeks, error: weeksError } = await supabase
                 .from('weeks')

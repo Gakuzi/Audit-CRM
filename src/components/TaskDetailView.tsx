@@ -7,7 +7,7 @@ import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
 import { FaTimes } from 'react-icons/fa';
-import AddEventModal from './AddEventModal';
+import AddSubTaskModal from './AddSubTaskModal';
 import ConfirmationModal from './ConfirmationModal';
 import EditEventModal from './EditEventModal';
 import TaskSidebar from './TaskSidebar';
@@ -129,7 +129,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     if (!isOpen || !context) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-40 flex justify-end animate-fade-in">
+        <div className="fixed inset-0 bg-black/60 z-40 flex justify-end animate-fade-in" onClick={onClose}>
             <style>{`.highlight { background-color: #eef2ff; transition: background-color 0.5s; } .animate-fade-in { animation: fadeIn 0.3s ease-out; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
             <div className="bg-white h-full w-full max-w-5xl shadow-xl flex flex-col lg:flex-row relative" onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="lg:hidden absolute top-2 right-2 z-20 p-2 text-gray-500 hover:text-gray-800 rounded-full bg-white/50 hover:bg-white"><FaTimes size={20} /></button>
@@ -178,7 +178,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     </footer>
                 </div>
             </div>
-            {(isAuditor || isGuest) && <AddEventModal isOpen={isAddEventModalOpen} onClose={() => setIsAddEventModalOpen(false)} onAddSubTask={handleAddSubTask} contacts={contacts} project={project} onContactsUpdate={onContactsUpdate} />}
+            {(isAuditor || isGuest) && <AddSubTaskModal isOpen={isAddEventModalOpen} onClose={() => setIsAddEventModalOpen(false)} onAddSubTask={handleAddSubTask} contacts={contacts} project={project} onContactsUpdate={onContactsUpdate} />}
             <ConfirmationModal isOpen={!!eventToDelete} onClose={() => setEventToDelete(null)} onConfirm={handleDeleteEvent} title="Удалить событие?" message="Вы уверены?" />
             {eventToEdit && <EditEventModal isOpen={!!eventToEdit} onClose={() => setEventToEdit(null)} event={eventToEdit} onUpdate={handleUpdateEvent} contacts={contacts} onContactsUpdate={onContactsUpdate} project={project} />}
         </div>

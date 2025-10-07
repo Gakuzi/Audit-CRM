@@ -25,6 +25,25 @@ export const createGoogleDoc = async (token: string, title: string, content: str
     return `https://docs.google.com/document/d/${documentId}`;
 };
 
+export const createGoogleSheet = async (token: string, title: string): Promise<string> => {
+    if (!token) throw new Error("Google authentication token is missing.");
+    const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name: title,
+            mimeType: 'application/vnd.google-apps.spreadsheet',
+        }),
+    });
+    if (!res.ok) throw new Error(`Google Drive API error (create sheet): ${(await res.json()).error.message}`);
+    const file = await res.json();
+    return `https://docs.google.com/spreadsheets/d/${file.id}/edit`;
+};
+
+
 export const uploadToDrive = (token: string, file: File, onProgress: (p: number) => void): Promise<{name: string, url: string}> => {
     return new Promise((resolve, reject) => {
         if (!token) return reject(new Error("Google authentication token is missing."));
