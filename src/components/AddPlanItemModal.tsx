@@ -1,6 +1,7 @@
+// src/components/AddPlanItemModal.tsx
 import React, { useState, useEffect } from 'react';
 import Modal from './ui/Modal';
-import { Week, PlanItem, PlanItemType, Profile, ContactPerson, Project } from '../types';
+import { Week, PlanItem, PlanItemType, Profile, ContactPerson, Project, Plan } from '../types';
 import { FaTasks, FaCalendarCheck, FaUsers, FaFileContract, FaBinoculars, FaArrowLeft, FaClock, FaMapMarkerAlt, FaUsers as FaUsersIcon, FaAlignLeft, FaSitemap, FaTimes } from 'react-icons/fa';
 import { Spinner } from './ui/Spinner';
 import * as googleApiService from '../services/googleApiService';
@@ -9,14 +10,14 @@ import AddContactModal from './AddContactModal';
 interface AddPlanItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdatePlan: (plan: any) => void;
+  onUpdatePlan: (plan: Plan) => void;
   week: Week;
   date: string;
-  profile: Profile | null;
-  providerToken: string | null;
   contacts: ContactPerson[];
   project: Project | null;
   onContactsUpdate: () => void;
+  profile: Profile | null;
+  providerToken: string | null;
 }
 
 const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] = [
@@ -28,7 +29,7 @@ const eventTypes: { type: PlanItemType, name: string, icon: React.ReactNode }[] 
     { type: 'process_analysis', name: 'Анализ процесса', icon: <FaSitemap size={24} className="mb-2 text-teal-600" /> },
 ];
 
-const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, onUpdatePlan, week, date, profile, providerToken, contacts, project, onContactsUpdate }) => {
+const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, onUpdatePlan, week, date: initialDate, contacts, project, onContactsUpdate, profile, providerToken }) => {
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [itemType, setItemType] = useState<PlanItemType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,10 +38,12 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   // Form states
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [date, setDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
   const [contactIds, setContactIds] = useState<string[]>([]);
+  const [addToCalendar, setAddToCalendar] = useState(true);
 
    useEffect(() => {
     if (time) {
@@ -50,6 +53,10 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
       setEndTime(newEndTime);
     }
   }, [time, date]);
+
+  useEffect(() => {
+    if(initialDate) setDate(initialDate);
+  }, [initialDate, isOpen]);
 
   const handleSelectType = (type: PlanItemType) => {
     setItemType(type);
@@ -62,6 +69,7 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
   const resetForm = () => {
       setItemType(null); setTitle(''); setDescription(''); setTime(''); setEndTime('');
       setLocation(''); setContactIds([]); setLoading(false);
+      setDate(initialDate || new Date().toISOString().split('T')[0]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,25 +77,31 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
     if (!title.trim() || !itemType) return;
     setLoading(true);
 
+    const useDate = ['meeting', 'interview'].includes(itemType);
+    const itemDate = useDate ? date : initialDate;
+
     const newItem: PlanItem = {
       id: crypto.randomUUID(),
       title: title.trim(),
       description: description.trim(),
       completed: false,
       type: itemType,
-      data: { contact_ids: contactIds }
+      data: { 
+        contact_ids: contactIds,
+        ...(useDate && { date: itemDate })
+      }
     };
 
     if (itemType === 'meeting') {
       const linkedContacts = contacts.filter(c => contactIds.includes(c.id));
       newItem.data = { ...newItem.data, time, endTime, location, participants: linkedContacts.map(c => c.email) };
 
-      if (providerToken && profile?.google_calendar_id && time && endTime) {
+      if (addToCalendar && providerToken && profile?.google_calendar_id && time && endTime) {
         try {
             const eventDetails = {
                 summary: newItem.title, description: newItem.description || '', location,
-                start: { dateTime: new Date(`${date}T${time}`).toISOString(), timeZone: 'Europe/Moscow' },
-                end: { dateTime: new Date(`${date}T${endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
+                start: { dateTime: new Date(`${itemDate}T${time}`).toISOString(), timeZone: 'Europe/Moscow' },
+                end: { dateTime: new Date(`${itemDate}T${endTime}`).toISOString(), timeZone: 'Europe/Moscow' },
                 attendees: linkedContacts.map(c => ({email: c.email}))
             };
             const calEvent = await googleApiService.createCalendarEvent(providerToken, profile.google_calendar_id, eventDetails);
@@ -102,9 +116,11 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
     }
     
     const newPlan = { ...week.plan };
-    if (!newPlan[date]) newPlan[date] = { tasks: [] };
-    newPlan[date].tasks.push(newItem);
-    
+    if (!newPlan[itemDate]) {
+        newPlan[itemDate] = { tasks: [] };
+    }
+    newPlan[itemDate].tasks.push(newItem);
+  
     onUpdatePlan(newPlan);
     setLoading(false);
     handleClose();
@@ -122,21 +138,25 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
     if (!itemType) return null;
     const currentType = eventTypes.find(et => et.type === itemType);
     const selectedContacts = contacts.filter(c => contactIds.includes(c.id));
+    const isMeetingOrInterview = itemType === 'meeting' || itemType === 'interview';
 
-    if (itemType === 'meeting' || itemType === 'interview') {
-      return (
+    return (
         <form onSubmit={handleSubmit} className="space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-3">{currentType?.icon}<span>Добавить: {currentType?.name}</span></h3>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Добавьте название" className="gcal-title-input" required autoFocus/>
-            <div className="flex items-center gap-4 text-slate-600">
-                <FaClock size={20} className="flex-shrink-0" />
-                 <input type="date" value={date} className="input bg-slate-100" readOnly disabled />
-                 <input type="time" value={time} onChange={e => setTime(e.target.value)} className="input w-32" required={itemType === 'meeting'} />
-                 {itemType === 'meeting' && <><span>-</span><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input w-32" required /></>}
-            </div>
-             {itemType === 'meeting' && 
-                <div className="flex items-center gap-4 text-slate-600"><FaMapMarkerAlt size={20} className="flex-shrink-0" /><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input w-full" placeholder="Место или ссылка на конференцию"/></div>
-             }
-             <div className="flex items-start gap-4 text-slate-600">
+            
+            {isMeetingOrInterview && (
+                <div className="flex items-center gap-4 text-slate-600">
+                    <FaClock size={20} className="flex-shrink-0" />
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" />
+                    <input type="time" value={time} onChange={e => setTime(e.target.value)} className="input w-32" required={itemType === 'meeting'} />
+                    {itemType === 'meeting' && <><span>-</span><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input w-32" required /></>}
+                </div>
+            )}
+            
+            {itemType === 'meeting' && <div className="flex items-center gap-4 text-slate-600"><FaMapMarkerAlt size={20} className="flex-shrink-0" /><input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="input w-full" placeholder="Место или ссылка на конференцию"/></div>}
+            
+            <div className="flex items-start gap-4 text-slate-600">
                 <FaUsersIcon size={20} className="flex-shrink-0 mt-2" />
                 <div className="w-full">
                     <select onChange={e => handleContactToggle(e.target.value)} className="input" value="">
@@ -149,26 +169,22 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
                     </div>
                 </div>
             </div>
-             <div className="flex items-start gap-4 text-slate-600">
+
+            <div className="flex items-start gap-4 text-slate-600">
                 <FaAlignLeft size={20} className="flex-shrink-0 mt-2" />
-                <textarea value={description} onChange={e => setDescription(e.target.value)} className="input w-full" rows={4} placeholder="Добавьте описание или повестку" />
+                <textarea value={description} onChange={e => setDescription(e.target.value)} className="input w-full" rows={isMeetingOrInterview ? 4 : 8} placeholder="Добавьте описание или повестку" />
             </div>
+
+             {itemType === 'meeting' && providerToken && profile?.google_calendar_id && (
+                <div className="flex items-center">
+                    <input id="addToGCal" type="checkbox" checked={addToCalendar} onChange={e => setAddToCalendar(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <label htmlFor="addToGCal" className="ml-2 block text-sm text-gray-900">Добавить в Google Календарь</label>
+                </div>
+             )}
+
             <div className="pt-4 flex justify-between">
                 <button type="button" onClick={handleBack} className="btn-secondary">Назад</button>
                 <button type="submit" disabled={loading} className="btn-primary w-32 flex justify-center">{loading ? <Spinner size="sm" /> : 'Сохранить'}</button>
-            </div>
-        </form>
-      );
-    }
-
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-3">{currentType?.icon}<span>Добавить: {currentType?.name}</span></h3>
-            <div><label className="label">Название / Цель</label><textarea className="input" rows={2} value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus/></div>
-            <div><label className="label">Описание (опционально)</label><textarea className="input" rows={3} value={description} onChange={e => setDescription(e.target.value)} /></div>
-            <div className="pt-2 flex justify-between items-center">
-                <button type="button" onClick={handleBack} className="flex items-center btn-secondary"><FaArrowLeft className="mr-2"/> Назад</button>
-                <button type="submit" disabled={loading} className="w-32 py-2 px-4 btn-primary flex justify-center">{loading ? <Spinner size="sm" /> : 'Добавить'}</button>
             </div>
         </form>
     );
@@ -176,7 +192,7 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
 
   return (
     <>
-    <Modal isOpen={isOpen} onClose={handleClose} title={itemType === 'meeting' || itemType === 'interview' ? '' : "Добавить событие"} size={itemType === 'meeting' || itemType === 'interview' ? 'lg' : 'md'}>
+    <Modal isOpen={isOpen} onClose={handleClose} title="Добавить задачу" size="lg">
       {step === 'select' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {eventTypes.map(({ type, name, icon }) => (
@@ -194,7 +210,6 @@ const AddPlanItemModal: React.FC<AddPlanItemModalProps> = ({ isOpen, onClose, on
         project={project}
         onContactAdded={(newContact) => {
           onContactsUpdate();
-          // Automatically select the newly added contact
           setContactIds(prev => [...prev, newContact.id]);
           setIsAddContactModalOpen(false);
         }}

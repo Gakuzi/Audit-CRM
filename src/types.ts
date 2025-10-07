@@ -31,6 +31,7 @@ export interface PlanItem {
   type: PlanItemType;
   event_count?: number;
   sub_tasks?: PlanItem[];
+  parent_task_id?: string; // Added to link sub-tasks displayed in the main plan
   data?: {
     date?: string; // For meetings
     time?: string;

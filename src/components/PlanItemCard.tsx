@@ -12,9 +12,11 @@ interface PlanItemCardProps {
   onDelete?: () => void;
   onToggleComplete?: () => void;
   onContactClick: (contactId: string) => void;
+  onParentTaskSelect?: (taskId: string) => void;
+  parentTaskTitle?: string;
 }
 
-const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, contacts, onSelect, onEdit, onDelete, onToggleComplete, onContactClick }) => {
+const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, contacts, onSelect, onEdit, onDelete, onToggleComplete, onContactClick, onParentTaskSelect, parentTaskTitle }) => {
   
   const hasActions = onEdit && onDelete;
 
@@ -78,6 +80,12 @@ const PlanItemCard: React.FC<PlanItemCardProps> = ({ item, contacts, onSelect, o
         )}
         <div className="flex-shrink-0 mt-1">{getIcon()}</div>
         <div className="flex-1 min-w-0 pr-2">
+            {parentTaskTitle && item.parent_task_id && onParentTaskSelect && (
+                 <button onClick={(e) => { e.stopPropagation(); onParentTaskSelect(item.parent_task_id!); }} className="flex items-center gap-1.5 text-xs text-slate-500 hover:underline mb-1">
+                    <FaSitemap size={10} className="transform -rotate-90" />
+                    <span className="truncate">{parentTaskTitle}</span>
+                </button>
+            )}
             <div className={`text-sm text-slate-800 prose prose-sm max-w-none line-clamp-2 ${item.completed ? 'line-through text-slate-500' : ''}`}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.title}</ReactMarkdown>
             </div>

@@ -72,7 +72,14 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    useEffect(() => { if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; } }, [content]);
+    useEffect(() => { 
+        if (textareaRef.current) { 
+            textareaRef.current.style.height = 'auto'; 
+            const maxHeight = 160; // Corresponds to max-h-40
+            const scrollHeight = textareaRef.current.scrollHeight;
+            textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+        } 
+    }, [content]);
 
     const uploadFiles = async (files: File[]) => {
         if (files.length === 0) return [];
@@ -149,6 +156,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                 url = await googleApiService.createGoogleSheet(providerToken, fileName);
             }
             setContent(prev => `${prev}\n[${fileName}](${url})`.trim());
+            window.open(url, '_blank'); // Open the new document for editing
         } catch (error: any) {
             alert("Ошибка создания файла: " + error.message);
         } finally {
@@ -213,7 +221,7 @@ const AddEventForm: React.FC<AddEventFormProps> = ({ user, providerToken, contex
                                     </label>
                                 ))}
                                  <div className="border-t mt-1 pt-1">
-                                    <button onClick={() => { setIsContactSelectorOpen(false); setIsAddContactModalOpen(true); }} className="w-full text-left flex items-center p-2 rounded-md text-sm text-blue-600 hover:bg-slate-100 font-semibold">
+                                    <button type="button" onClick={() => { setIsContactSelectorOpen(false); setIsAddContactModalOpen(true); }} className="w-full text-left flex items-center p-2 rounded-md text-sm text-blue-600 hover:bg-slate-100 font-semibold">
                                         <FaPlus className="mr-2"/> Добавить контакт
                                     </button>
                                 </div>

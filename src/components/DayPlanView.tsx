@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
+import { Week, Plan, PlanItem, Profile, CompanyProfile, Project } from '../types';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import { DAY_NAMES } from '../constants';
 import AddPlanItemModal from './AddPlanItemModal';
@@ -20,9 +20,10 @@ interface DayPlanViewProps {
     providerToken: string | null;
     onContactClick: (contactId: string) => void;
     onContactsUpdate: () => void;
+    project: Project; // Added prop
 }
 
-const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, profile, providerToken, onContactClick, onContactsUpdate }) => {
+const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdatePlan, onTaskSelect, isAuditor, onUpdateTask, profile, providerToken, onContactClick, onContactsUpdate, project }) => {
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [itemToEdit, setItemToEdit] = useState<{ date: string; item: PlanItem } | null>(null);
@@ -131,7 +132,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                     </div>
                 );
             })}
-            {isAddItemModalOpen && (
+             {isAddItemModalOpen && (
                 <AddPlanItemModal
                     isOpen={isAddItemModalOpen}
                     onClose={() => setIsAddItemModalOpen(false)}
@@ -141,7 +142,7 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                     profile={profile}
                     providerToken={providerToken}
                     contacts={contacts}
-                    project={week.project_id ? { id: week.project_id } as any : null}
+                    project={project}
                     onContactsUpdate={onContactsUpdate}
                 />
             )}
@@ -155,17 +156,17 @@ const DayPlanView: React.FC<DayPlanViewProps> = ({ week, companyProfile, onUpdat
                     profile={profile}
                     providerToken={providerToken}
                     contacts={contacts}
-                    project={week.project_id ? { id: week.project_id } as any : null}
+                    project={project}
                     onContactsUpdate={onContactsUpdate}
                 />
             )}
-            <ConfirmationModal 
+             <ConfirmationModal 
                 isOpen={!!itemToDelete}
                 onClose={() => setItemToDelete(null)}
                 onConfirm={handleDeleteItem}
                 title="Удалить задачу?"
                 message="Вы уверены, что хотите удалить эту задачу из плана?"
-            />
+             />
         </div>
     );
 };

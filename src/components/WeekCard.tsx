@@ -237,6 +237,7 @@ const WeekCard: React.FC<WeekCardProps> = ({ week, isAuditor, isGuest, project, 
                     providerToken={providerToken}
                     onContactClick={onContactClick}
                     onContactsUpdate={onContactsUpdate}
+                    project={project}
                 />
               </div>
               
