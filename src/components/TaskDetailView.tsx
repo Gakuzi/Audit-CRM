@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Event, PlanItem, Project } from '../types';
+import { Event, PlanItem, Project, Plan, Week } from '../types';
 import EventItem from './EventItem';
 import AddEventForm from './AddEventForm';
 import { Spinner } from './ui/Spinner';
@@ -19,20 +19,22 @@ interface TaskDetailViewProps {
   context: { item: PlanItem; weekId: string; projectId: string; };
   onEventCountChange: (weekId: string, taskId: string, change: 1 | -1) => void;
   isGuest: boolean;
+  project: Project;
+  onSubTaskAdded: (parentTask: PlanItem, subTask: PlanItem) => void;
+  week: Week | null;
+  onUpdatePlan: (plan: Plan) => void;
 }
 
-const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, isGuest }) => {
+const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, context, onEventCountChange, isGuest, project, onSubTaskAdded, week, onUpdatePlan }) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
+    const [isAddSubTaskModalOpen, setIsAddSubTaskModalOpen] = useState(false);
     const [quotedEvent, setQuotedEvent] = useState<Event | null>(null);
     const feedRef = useRef<HTMLDivElement>(null);
     const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
     const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
-    const [project, setProject] = useState<Project | null>(null);
-
     const fetchEvents = useCallback(async (showLoading = true) => {
         if (!context) return;
         if (showLoading) setLoading(true);
@@ -41,13 +43,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
         else setEvents(data || []);
         if (showLoading) setLoading(false);
     }, [context]);
-    
-     useEffect(() => {
-        if (isOpen && context) {
-            supabase.from('projects').select('*').eq('id', context.projectId).single().then(({data}) => setProject(data));
-        }
-    }, [isOpen, context]);
-
 
     useEffect(() => {
         if (isOpen) {
@@ -96,7 +91,25 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
     };
     
     const handleAddSubTask = (subTask: PlanItem) => {
-        console.log("Subtask added (not persisted):", subTask);
+        if (!week) return;
+        const newPlan = { ...week.plan };
+        let parentTaskUpdated = false;
+
+        for (const date in newPlan) {
+            const day = newPlan[date];
+            const taskIndex = day.tasks.findIndex(t => t.id === context.item.id);
+            if (taskIndex > -1) {
+                const parentTask = day.tasks[taskIndex];
+                const newSubTasks = [...(parentTask.sub_tasks || []), { ...subTask, parent_task_id: parentTask.id }];
+                day.tasks[taskIndex] = { ...parentTask, sub_tasks: newSubTasks };
+                parentTaskUpdated = true;
+                onSubTaskAdded(parentTask, subTask);
+                break;
+            }
+        }
+        if (parentTaskUpdated) {
+            onUpdatePlan(newPlan);
+        }
     };
     
     const handleNewAiEvent = async (event: Partial<Event>) => {
@@ -134,7 +147,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         project={project} 
                         isAuditor={!!user} 
                         isGuest={isGuest} 
-                        onAddSubTask={() => setIsAddEventModalOpen(true)} 
+                        onAddSubTask={() => setIsAddSubTaskModalOpen(true)} 
                         onNewAiEvent={handleNewAiEvent} 
                     />
                 )}
@@ -157,8 +170,8 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                             isGuest={isGuest}
                                             onReply={setQuotedEvent} 
                                             onQuoteClick={handleQuoteClick} 
-                                            onDelete={(!!user && event.author_email === user?.email) ? () => setEventToDelete(event) : undefined} 
-                                            onEdit={(!!user && event.author_email === user?.email) ? () => setEventToEdit(event) : undefined} 
+                                            onDelete={(!!user && event.author_email === user?.email) || (isGuest && event.author_email === (localStorage.getItem('guestName') || 'Гость')) ? () => setEventToDelete(event) : undefined} 
+                                            onEdit={(!!user && event.author_email === user?.email) || (isGuest && event.author_email === (localStorage.getItem('guestName') || 'Гость')) ? () => setEventToEdit(event) : undefined} 
                                         />
                                     ))}
                                 </div>
@@ -166,11 +179,11 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         )}
                     </main>
                     <footer className={`flex-shrink-0 p-4 bg-slate-50 border-t ${!isSidebarCollapsed && 'lg:border-l'}`}>
-                        <AddEventForm user={user} providerToken={null} context={{...context, taskId: context.item.id}} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} isGuest={!user} onAddSubTaskRequest={() => setIsAddEventModalOpen(true)} />
+                        <AddEventForm user={user} context={{...context, taskId: context.item.id}} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} isGuest={isGuest} onAddSubTaskRequest={() => setIsAddSubTaskModalOpen(true)} />
                     </footer>
                 </div>
             </div>
-            <AddSubTaskModal isOpen={isAddEventModalOpen} onClose={() => setIsAddEventModalOpen(false)} onAddSubTask={handleAddSubTask} />
+            <AddSubTaskModal isOpen={isAddSubTaskModalOpen} onClose={() => setIsAddSubTaskModalOpen(false)} onAddSubTask={handleAddSubTask} />
             <ConfirmationModal isOpen={!!eventToDelete} onClose={() => setEventToDelete(null)} onConfirm={handleDeleteEvent} title="Удалить событие?" message="Вы уверены?" />
             {eventToEdit && <EditEventModal isOpen={!!eventToEdit} onClose={() => setEventToEdit(null)} event={eventToEdit} onUpdate={handleUpdateEvent} />}
         </div>

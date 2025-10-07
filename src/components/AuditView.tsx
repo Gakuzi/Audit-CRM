@@ -37,6 +37,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
   const [isAddWeekModalOpen, setIsAddWeekModalOpen] = useState(false);
   const [isAiReportModalOpen, setIsAiReportModalOpen] = useState(false);
   const [selectedWeekForReport, setSelectedWeekForReport] = useState<Week | null>(null);
+  const [reportScope, setReportScope] = useState<'week' | 'project' | null>(null);
   const [weekToShareForApproval, setWeekToShareForApproval] = useState<Week | null>(null);
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<{ item: PlanItem; weekId: string; } | null>(null);
   const [weekToDelete, setWeekToDelete] = useState<Week | null>(null);
@@ -196,8 +197,9 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
 
   const handleOpenReport = (week: Week) => {
       setSelectedWeekForReport(week);
+      setReportScope('week');
       setIsAiReportModalOpen(true);
-  };
+  }
   
   const handleContactsUpdate = useCallback(() => {
     fetchData(false);
@@ -225,10 +227,10 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
         {weeks.length > 0 ? weeks.map(week => ( 
             <WeekCard 
                 key={week.id} week={week} isAuditor={isAuditor} isGuest={isGuest} project={project} profile={profile} companyProfile={companyProfile}
-                providerToken={providerToken} onUpdatePlan={(plan) => handleUpdatePlan(week.id, plan)} 
+                providerToken={providerToken} onUpdatePlan={(plan: Plan) => handleUpdatePlan(week.id, plan)} 
                 onTaskSelect={(item) => setSelectedTaskForDetail({item, weekId: week.id})} 
                 onDeleteRequest={() => setWeekToDelete(week)} onUpdateRequest={() => fetchData(false)} onGenerateReport={() => handleOpenReport(week)} 
-                onSentForApproval={setWeekToShareForApproval} onUpdateTask={handleUpdateTask} onContactClick={onContactClick}
+                onSentForApproval={setWeekToShareForApproval} onUpdateTask={(task) => handleUpdateTask(week.id, task)} onContactClick={onContactClick}
                 onContactsUpdate={handleContactsUpdate}
             /> 
         )) : (
@@ -258,20 +260,14 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
          <TaskDetailView 
             isOpen={!!selectedTaskForDetail} 
             onClose={() => setSelectedTaskForDetail(null)} 
-            user={user} providerToken={providerToken} 
+            user={user} 
             context={{...selectedTaskForDetail, projectId: project.id}} 
-            companyProfile={companyProfile} 
             onEventCountChange={handleEventCountChange} 
-            onUpdateTask={handleUpdateTask} 
-            isAuditor={isAuditor} 
             isGuest={isGuest} 
             project={project} 
-            onSubTaskAdded={(parent, sub) => sendGuestSubTaskNotification(project, parent, sub, window.location.origin)} 
+            onSubTaskAdded={(parent: PlanItem, sub: PlanItem) => sendGuestSubTaskNotification(project, parent, sub, window.location.origin)} 
             week={selectedWeekForDetail ?? null}
-            onContactClick={onContactClick}
-            onContactsUpdate={handleContactsUpdate}
-            profile={profile}
-            onUpdatePlan={(plan) => handleUpdatePlan(selectedTaskForDetail!.weekId, plan)}
+            onUpdatePlan={(plan: Plan) => handleUpdatePlan(selectedTaskForDetail!.weekId, plan)}
           />
        )}
 
@@ -287,9 +283,9 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
           <AiReportModal
             isOpen={isAiReportModalOpen}
             onClose={() => { setIsAiReportModalOpen(false); setSelectedWeekForReport(null); }}
-            week={selectedWeekForReport} project={project}
-            auditor={profile} company={companyProfile} providerToken={providerToken}
-            onUpdate={() => fetchData(false)}
+            week={selectedWeekForReport} 
+            project={project}
+            scope={'week'}
            />
        )}
        

@@ -191,8 +191,6 @@ const _processEventsWithFileContent = async (events: Event[]) => {
 }
 
 export const generateComprehensiveReport = async (week: Week, project: Project, events: Event[]): Promise<string> => {
-    // Fix: Both completedTasks and inProgressTasks should be arrays, and .length should be used in the prompt.
-    // This resolves the inconsistency and the likely cause of the reported error.
     const allTasks = Object.values(week.plan).flatMap(day => day.tasks);
     const completedTasks = allTasks.filter(task => (task.event_count || 0) > 0);
     const inProgressTasks = allTasks.filter(task => !((task.event_count || 0) > 0));
@@ -203,6 +201,7 @@ export const generateComprehensiveReport = async (week: Week, project: Project, 
     const prompt = `
     Ты — профессиональный бизнес-аудитор. Твоя задача — сгенерировать исчерпывающий отчет о ходе аудита за прошедший этап (неделю) для собственника бизнеса.
     Отчет должен быть структурированным, официальным, но при этом ясным и понятным. Используй Markdown для форматирования.
+    ВАЖНО: В твоем ответе не должно быть никаких упоминаний 'AI', 'ИИ', 'искусственного интеллекта', 'AI-ассистент', 'модели' или 'Gemini'. Отчет должен выглядеть так, как будто его полностью написал человек-аудитор.
 
     **Входные данные для анализа:**
 
@@ -556,6 +555,7 @@ export const generateDailySummary = async (date: string, tasks: PlanItem[], even
 
     const prompt = `
     Ты — AI-ассистент аудитора. Твоя задача — составить краткую сводку по итогам рабочего дня.
+    ВАЖНО: В твоем ответе не должно быть никаких упоминаний 'AI', 'ИИ', 'искусственного интеллекта', 'AI-ассистент', 'модели' или 'Gemini'. Отчет должен выглядеть так, как будто его полностью написал человек-аудитор.
 
     **Дата:** ${new Date(date + 'T00:00:00').toLocaleDateString('ru-RU')}
 
@@ -586,6 +586,7 @@ export const generateProjectReport = async (project: Project, weeks: Week[], eve
     const prompt = `
     Ты — ведущий бизнес-аудитор. Тебе поручено подготовить итоговый отчет для руководства по всему проекту аудита.
     Отчет должен быть структурированным, официальным и содержать стратегические выводы. Используй Markdown.
+    ВАЖНО: В твоем ответе не должно быть никаких упоминаний 'AI', 'ИИ', 'искусственного интеллекта', 'AI-ассистент', 'модели' или 'Gemini'. Отчет должен выглядеть так, как будто его полностью написал человек-аудитор.
 
     **Входные данные для анализа:**
 

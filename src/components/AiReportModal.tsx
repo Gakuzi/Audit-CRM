@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project, Event } from '../types';
+import { Week, Project } from '../types';
 import { generateComprehensiveReport, generateProjectReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
-import { FaSync, FaPrint, FaWhatsapp, FaTelegramPlane } from 'react-icons/fa';
+import { FaSync, FaPrint, FaWhatsapp, FaTelegramPlane, FaCopy } from 'react-icons/fa';
 
 interface AiReportModalProps {
     isOpen: boolean;
@@ -19,6 +19,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
     const [report, setReport] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [copied, setCopied] = useState(false);
 
     const fetchAndGenerateReport = useCallback(async () => {
         setLoading(true);
@@ -55,14 +56,21 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
         }
     }, [isOpen, fetchAndGenerateReport]);
 
+    const stripMarkdown = (text: string) => {
+        return text.replace(/###\s?/g, '').replace(/##\s?/g, '').replace(/#\s?/g, '').replace(/\*\*/g, '*').replace(/(\r\n|\n|\r)/gm, "\n");
+    };
+    
+    const handleCopy = () => {
+        navigator.clipboard.writeText(stripMarkdown(report)).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
     const handlePrint = () => {
         window.print();
     };
     
-    const stripMarkdown = (text: string) => {
-        return text.replace(/###\s?/g, '').replace(/##\s?/g, '').replace(/#\s?/g, '').replace(/\*\*/g, '*').replace(/(\r\n|\n|\r)/gm, "\n");
-    };
-
     const title = scope === 'week' ? `Отчет: ${week?.title}` : `Сводный отчет по проекту`;
     const shareTitle = scope === 'week' ? `Отчет по этапу "${week?.title}"` : `Сводный отчет по проекту "${project.name}"`;
     const shareText = `${shareTitle}\n\n${stripMarkdown(report)}`;
@@ -107,12 +115,13 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
             </div>
             <div className="mt-4 pt-4 border-t flex justify-between items-center no-print">
                  <div className="flex items-center gap-2">
+                    <button onClick={handleCopy} className="btn-secondary flex items-center gap-2"><FaCopy /> {copied ? 'Готово!' : 'Копировать'}</button>
                     <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaWhatsapp /></a>
                     <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaTelegramPlane /></a>
-                    <button onClick={handlePrint} disabled={loading} className="btn-secondary flex items-center gap-2"><FaPrint /> Печать/PDF</button>
+                    <button onClick={handlePrint} disabled={loading} className="btn-secondary flex items-center gap-2"><FaPrint /> PDF</button>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={fetchAndGenerateReport} disabled={loading} className="btn-secondary flex items-center gap-2">
+                    <button onClick={fetchAndGenerateReport} disabled={loading} className="btn-primary flex items-center gap-2">
                         <FaSync className={loading ? 'animate-spin' : ''} />
                         {loading ? 'Генерация...' : 'Пересоздать'}
                     </button>

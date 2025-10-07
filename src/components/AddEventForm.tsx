@@ -7,7 +7,6 @@ import { FaTimes, FaPlus, FaPaperPlane } from 'react-icons/fa';
 
 interface AddEventFormProps {
   user: User | null;
-  providerToken: string | null;
   context: { weekId: string; taskId: string; projectId: string; };
   quotedEvent: Event | null;
   onClearQuote: () => void;
