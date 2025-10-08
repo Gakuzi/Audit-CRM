@@ -34,7 +34,7 @@ const describeApprovalPeriod = (period: ApprovalPeriod): string => {
         const dayName = days[period.dayOfWeek || 0];
         return `каждую неделю по ${dayName}`;
     }
-    return 'еженельно'; // fallback
+    return 'еженедельно'; // fallback
 }
 
 const safeJsonParse = (jsonString: string) => {
