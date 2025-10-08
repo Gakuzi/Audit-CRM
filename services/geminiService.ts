@@ -53,7 +53,7 @@ export const generateAuditPlan = async (
   projectName: string,
   projectDescription: string,
   startDate: string,
-  endDate: string | undefined,
+  endDate: string,
   approvalPeriod: ApprovalPeriod
 ): Promise<{ weeks: { title: string, description: string, plan: any, start_date: string, end_date: string }[] }> => {
 
@@ -64,7 +64,7 @@ export const generateAuditPlan = async (
     **Информация о проекте:**
     - Название: "${projectName}"
     - Описание/цели: "${projectDescription}"
-    - Даты проведения: с ${startDate} по ${endDate || 'не указана'}.
+    - Даты проведения: с ${startDate} по ${endDate}.
     - Период отчетности: ${approvalDescription}.
 
     **Твоя задача:**
@@ -281,18 +281,18 @@ export const generateStagePlan = async (
   title: string,
   description: string,
   startDate: string,
-  endDate: string | undefined
+  endDate: string
 ): Promise<Plan> => {
   const prompt = `
     Основываясь на данных этапа аудита, создай подробный ежедневный план работы для аудитора в формате JSON.
 
     **Название этапа:** "${title}"
-    **Период проведения:** с ${startDate} по ${endDate || 'не указана'}
+    **Период проведения:** с ${startDate} по ${endDate}
     **Ключевые цели и задачи этапа:** "${description}"
 
     **ТРЕБОВАНИЯ К JSON:**
     1.  Результат должен быть одним JSON-объектом.
-    2.  Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate || 'не указана'} включительно).
+    2.  Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate} включительно).
     3.  **ВАЖНО: Не включай субботу и воскресенье в ключи объекта.**
     4.  Значением для каждой даты должен быть объект вида \`{ "tasks": [] }\`.
     5.  Наполни массив \`tasks\` для каждого рабочего дня 2-4 конкретными задачами, которые логически вытекают из целей этапа. Распредели задачи равномерно и последовательно по рабочим дням.
@@ -305,4 +305,322 @@ export const generateStagePlan = async (
     Верни ТОЛЬКО JSON-объект без каких-либо дополнительных пояснений или markdown-форматирования. Пример структуры:
     {
       "2025-10-01": {
-        "tasks":
+        "tasks": [ /* массив задач на эту дату */ ]
+      },
+      "2025-10-02": {
+        "tasks": [ /* массив задач на эту дату */ ]
+      }
+    }
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      systemInstruction: "You are an expert AI assistant for business auditors. Your task is to generate a detailed daily plan for a single audit stage in JSON format. Strictly adhere to the user's instructions and the schema described in the prompt. Your response MUST be only the raw JSON text, without any markdown, comments, or other text.",
+      responseMimeType: 'application/json',
+    },
+  });
+
+  try {
+    const parsedPlan = safeJsonParse(response.text);
+
+    Object.values(parsedPlan).forEach((day: any) => {
+        if (day.tasks && Array.isArray(day.tasks)) {
+            day.tasks.forEach((task: any) => {
+                task.id = crypto.randomUUID();
+                task.completed = false;
+            });
+        }
+    });
+
+    return parsedPlan as Plan;
+  } catch (e) {
+    console.error("Failed to parse Gemini plan response:", e);
+    console.error("Raw response:", response.text);
+    throw new Error("Не удалось сгенерировать план этапа. Ответ от AI имел неверный формат.");
+  }
+};
+
+export const generateInterviewQuestions = async (taskContext: string): Promise<string> => {
+    const prompt = `Ты — AI-ассистент аудитора. Основываясь на контексте задачи, сгенерируй список из 5-7 ключевых вопросов для проведения интервью. Вопросы должны быть открытыми, конкретными и направленными на выяснение фактов, необходимых для аудита.
+
+**Контекст задачи:**
+${taskContext}
+
+Верни только список вопросов в формате Markdown.`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateMindMapFromEvents = async (taskContext: string, events: Event[]): Promise<string> => {
+    const prompt = `Ты — AI-ассистент, который умеет создавать ментальные карты (Mind Map) в формате Mermaid. Проанализируй контекст задачи и историю обсуждения, а затем создай ментальную карту, структурирующую ключевые темы, проблемы и выводы.
+
+**Контекст задачи:**
+${taskContext}
+
+**История обсуждения (события):**
+\`\`\`json
+${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content })), null, 2)}
+\`\`\`
+
+**ЗАДАЧА:**
+Создай ментальную карту в синтаксисе Mermaid. Карта должна быть логичной и наглядной. Начни с \`mindmap\`. Верни только код диаграммы в блоке \`\`\`mermaid ... \`\`\`.`;
+
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateMeetingAgenda = async (taskContext: string): Promise<string> => {
+    const prompt = `Ты — AI-ассистент аудитора. Основываясь на контексте задачи, сгенерируй повестку для встречи (Meeting Agenda). Повестка должна включать 3-5 ключевых пунктов для обсуждения.
+
+**Контекст задачи:**
+${taskContext}
+
+Верни только нумерованный список пунктов в формате Markdown.`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const summarizeDiscussion = async (taskContext: string, events: Event[]): Promise<string> => {
+    const prompt = `Ты — AI-ассистент, который составляет резюме встреч (Meeting Minutes). Проанализируй контекст задачи и историю обсуждения, а затем напиши краткое резюме.
+
+**Контекст задачи:**
+${taskContext}
+
+**История обсуждения (события):**
+\`\`\`json
+${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content })), null, 2)}
+\`\`\`
+
+**ЗАДАЧА:**
+Сформируй резюме, включающее:
+1.  **Ключевые решения:** Список принятых решений.
+2.  **Дальнейшие шаги:** Список задач с указанием (если возможно) ответственных.
+3.  **Открытые вопросы:** Пункты, требующие дальнейшего обсуждения.
+
+Используй Markdown.`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateDocReviewChecklist = async (taskContext: string): Promise<string> => {
+    const prompt = `Ты — AI-ассистент аудитора. Основываясь на контексте задачи, сгенерируй чек-лист для проверки документов. Чек-лист должен содержать 5-8 ключевых пунктов, на которые стоит обратить внимание.
+
+**Контекст задачи:**
+${taskContext}
+
+Верни чек-лист в формате Markdown со стандартными чекбоксами (\`- [ ]\`).`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateProcessFlowchart = async (taskContext: string, events: Event[]): Promise<string> => {
+    const prompt = `Ты — AI-ассистент, который строит блок-схемы (flowcharts) в формате Mermaid. Проанализируй контекст задачи и историю обсуждения, чтобы понять бизнес-процесс. Затем создай блок-схему этого процесса.
+
+**Контекст задачи:**
+${taskContext}
+
+**История обсуждения (события):**
+\`\`\`json
+${JSON.stringify(events.map(e => ({ author: e.author_email, content: e.content })), null, 2)}
+\`\`\`
+
+**ЗАДАЧА:**
+Создай блок-схему в синтаксисе Mermaid. Схема должна быть простой и логичной. Начни с \`graph TD\`. Верни только код диаграммы в блоке \`\`\`mermaid ... \`\`\`.`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const analyzeImageFromUrl = async (imageUrl: string): Promise<string> => {
+    const prompt = `Представь, что ты проанализировал изображение по URL: ${imageUrl}. Напиши краткое заключение (2-3 предложения) о том, что могло быть на изображении в контексте аудита (например, "проанализирован документ...", "зафиксировано состояние склада...").`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const processInterviewAudio = async (
+  interviewContext: string
+): Promise<string> => {
+    const prompt = `
+        Представь, что ты - ассистент аудитора. Тебе предоставлен контекст интервью.
+        Твоя задача - проанализировать этот контекст и сгенерировать краткую сводку, основные выводы и ключевые моменты, которые могли бы обсуждаться.
+        
+        Контекст интервью: "${interviewContext}"
+        
+        Основываясь на контексте, напиши отчет, который мог бы получиться после анализа аудиозаписи.
+        Отчет должен включать:
+        1.  **Краткая сводка:** 1-2 предложения о теме разговора.
+        2.  **Ключевые моменты:** Список из 3-5 самых важных тезисов или фактов, упомянутых в ходе интервью.
+        3.  **Выводы и риски:** Какие выводы можно сделать? Есть ли какие-то потенциальные риски, о которых стоит упомянуть?
+        4.  **Дальнейшие шаги:** Какие действия следует предпринять аудитору на основе этого интервью?
+
+        Отформатируй ответ, используя markdown.
+    `;
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+    });
+
+    return response.text ?? '';
+};
+
+export const analyzeAudioRecording = async (taskContext: string, fileName: string): Promise<string> => {
+    const prompt = `Представь, что ты прослушал и проанализировал аудиофайл "${fileName}" в контексте задачи: "${taskContext}". Сгенерируй краткое резюме (3-4 пункта) ключевых моментов, которые могли обсуждаться.`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const analyzeDiagram = async (diagramCode: string): Promise<string> => {
+    const prompt = `Проанализируй следующую диаграмму в формате Mermaid. Дай краткое заключение (2-3 предложения) о процессе, который она описывает, и укажи на один потенциальный риск или узкое место.
+
+\`\`\`mermaid
+${diagramCode}
+\`\`\`
+`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+const formatChatHistory = (events: Event[]): string => {
+    return events
+        .map(e => {
+            const author = e.author_email === 'AI Ассистент' ? 'AI' : `User (${e.author_email})`;
+            let content = e.content;
+            if (e.data?.file_urls && e.data.file_urls.length > 0) {
+                content += ` [Прикреплен файл: ${e.data.file_urls[0].name}]`;
+            }
+            return `${author}: ${content}`;
+        })
+        .join('\n');
+};
+
+export const continueConversation = async (task: PlanItem, events: Event[], userQuery: string): Promise<string> => {
+    const processedEvents = await _processEventsWithFileContent(events);
+    const history = formatChatHistory(processedEvents as Event[]);
+
+    const prompt = `
+        Ты — AI-ассистент в системе аудита. Ведется обсуждение задачи.
+        Твоя задача — осмысленно ответить на последний вопрос пользователя, основываясь на всей истории переписки и контексте задачи.
+
+        **Контекст задачи:**
+        - Название: ${task.title}
+        - Описание: ${task.description || 'Нет'}
+
+        **История диалога:**
+        ${history}
+        User (${userQuery.split(':')[0]}): ${userQuery.split(':')[1]}
+
+        Твой ответ:
+    `;
+
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const summarizeAndContinue = async (task: PlanItem, events: Event[]): Promise<string> => {
+    const processedEvents = await _processEventsWithFileContent(events);
+    
+    const history = formatChatHistory(processedEvents as Event[]);
+    
+    const prompt = `
+        Ты — AI-ассистент в системе аудита. Аудитор попросил тебя проанализировать всю переписку по задаче.
+        Твоя задача — синтезировать всю информацию из диалога и приложенных файлов, подвести итог, выявить нерешенные вопросы и предложить следующий логический шаг.
+        Твой ответ должен быть структурированным и полезным для аудитора.
+
+        **Контекст задачи:**
+        - Название: ${task.title}
+        - Описание: ${task.description || 'Нет'}
+
+        **История диалога для анализа:**
+        ${history}
+
+        **Сформируй ответ, включающий:**
+        1.  **Краткое резюме:** В 1-2 предложениях опиши текущий статус задачи.
+        2.  **Ключевые выводы:** Список из 2-3 основных моментов, которые были выяснены.
+        3.  **Открытые вопросы:** Что до сих пор неясно или требует дополнительной информации?
+        4.  **Рекомендация:** Какой следующий шаг ты предлагаешь сделать?
+
+        Используй Markdown для форматирования.
+    `;
+
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateDailySummary = async (date: string, tasks: PlanItem[], events: Event[]): Promise<string> => {
+    const taskTitles = tasks.map(t => `- ${t.title}`).join('\n');
+    const processedEvents = await _processEventsWithFileContent(events);
+
+    const prompt = `
+    Ты — AI-ассистент аудитора. Твоя задача — составить краткую сводку по итогам рабочего дня.
+
+    **Дата:** ${new Date(date + 'T00:00:00').toLocaleDateString('ru-RU')}
+
+    **Задачи на день:**
+    ${taskTitles.length > 0 ? taskTitles : "Задач не было."}
+
+    **События и обсуждения за день (комментарии, файлы):**
+    Проанализируй этот JSON массив событий. Основывай свой анализ ИСКЛЮЧИТЕЛЬНО на предоставленных данных.
+    \`\`\`json
+    ${JSON.stringify(processedEvents.map(e => ({ type: e.type, content: e.content, author: e.author_email, files: e.data?.file_urls?.map(f => f.name) })), null, 2)}
+    \`\`\`
+
+    **ЗАДАЧА: Сформируй краткий отчет (2-3 абзаца) в формате Markdown, отвечая на вопросы:**
+    1.  **Что было сделано?** Опиши ключевые выполненные действия и достигнутые результаты.
+    2.  **Какие возникли проблемы или вопросы?** Укажи на любые трудности или нерешенные моменты.
+    3.  **Каковы дальнейшие шаги?** Предложи, что нужно сделать дальше на основе итогов дня.
+
+    Отчет должен быть лаконичным и по делу.
+    `;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};
+
+export const generateProjectReport = async (project: Project, weeks: Week[], events: Event[]): Promise<string> => {
+    const processedEvents = await _processEventsWithFileContent(events);
+    const weekSummaries = weeks.map(w => `- **${w.title}** (с ${w.start_date} по ${w.end_date}): Статус - ${w.status}. ${w.description}`).join('\n');
+
+    const prompt = `
+    Ты — ведущий бизнес-аудитор. Тебе поручено подготовить итоговый отчет для руководства по всему проекту аудита.
+    Отчет должен быть структурированным, официальным и содержать стратегические выводы. Используй Markdown.
+
+    **Входные данные для анализа:**
+
+    1.  **Проект:**
+        *   Название: "${project.name}"
+        *   Главные цели: "${project.description}"
+        *   Период проведения: с ${project.start_date} по ${project.end_date || '...'}
+
+    2.  **Этапы проекта:**
+        ${weekSummaries}
+
+    3.  **Полный журнал всех событий по проекту (комментарии, встречи, файлы):**
+        *Проанализируй весь этот JSON массив. Если в объекте файла есть "content", оно содержит либо Data URI изображения, либо текст. Используй это для точных выводов.*
+        \`\`\`json
+        ${JSON.stringify(processedEvents.map(e => ({ week: weeks.find(w => w.id === e.week_id)?.title, task: '...', type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: (f as any).content })) })), null, 2)}
+        \`\`\`
+
+    **ЗАДАЧА: Сформируй комплексный отчет, включающий следующие разделы:**
+
+    ### 1. Исполнительное резюме (Executive Summary)
+    Краткая сводка (1-2 абзаца) о целях аудита, общем прогрессе и самых главных выводах. Это самая важная часть для руководства.
+
+    ### 2. Основные результаты по этапам
+    Проанализируй ход выполнения каждого этапа. Опиши ключевые достижения, находки и результаты, полученные в ходе каждого этапа.
+
+    ### 3. Критические риски и выявленные проблемы
+    Синтезируй информацию из всех обсуждений, файлов и событий. Сформулируй 3-5 наиболее критических рисков или системных проблем, выявленных в ходе всего аудита. Оцени их потенциальное влияние на бизнес.
+
+    ### 4. Стратегические рекомендации
+    На основе всего анализа, дай 3-4 конкретные, высокоуровневые рекомендации для руководства. Рекомендации должны быть направлены на устранение выявленных проблем и улучшение бизнес-процессов.
+
+    ### 5. Заключение
+    Подведи итог проделанной работы и оцени степень достижения первоначальных целей аудита.
+
+    Твой отчет должен быть убедительным и подкрепленным фактами из предоставленных данных.
+    `;
+
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text ?? '';
+};

@@ -144,6 +144,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     <TaskSidebar 
                         task={context.item} 
                         events={events} 
+                        project={project} 
                         isAuditor={!!user} 
                         isGuest={isGuest} 
                         onAddSubTask={() => setIsAddSubTaskModalOpen(true)} 
@@ -152,11 +153,22 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 )}
                 
                 <div className="flex-1 flex flex-col min-w-0" style={{minHeight: 0}}>
-                    <header className={`flex-shrink-0 h-12 ${!isSidebarCollapsed && 'lg:border-l'} flex justify-between items-center pr-4`}>
-                        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-2 ml-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100 hidden lg:block">
+                    <header className={`flex-shrink-0 h-12 ${!isSidebarCollapsed && 'lg:border-l'} flex justify-between items-center px-4`}>
+                        <button 
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                            className="p-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100 hidden lg:block"
+                            aria-label={isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+                        >
                             {isSidebarCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
                         </button>
-                         <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100"><FaTimes size={20} /></button>
+                        <div className="lg:hidden flex-1" /> {/* This spacer pushes the close button to the right on mobile */}
+                        <button 
+                            onClick={onClose} 
+                            className="p-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100"
+                            aria-label="Close task details"
+                        >
+                            <FaTimes size={20} />
+                        </button>
                     </header>
                     <main ref={feedRef} className="flex-1 overflow-y-auto p-4" style={{minHeight: 0}}>
                         {loading ? <div className="flex justify-center pt-10"><Spinner size="lg" /></div> : (
