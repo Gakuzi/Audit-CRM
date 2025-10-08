@@ -7,10 +7,9 @@ interface ModalProps {
   children: React.ReactNode;
   title: string;
   size?: 'md' | 'lg' | 'xl';
-  footer?: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md', footer }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md' }) => {
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -37,7 +36,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -45,25 +44,18 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 
     >
       <style>{`.animate-fade-in { animation: fadeIn 0.2s ease-out; } @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}</style>
       <div
-        className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} relative flex flex-col animate-fade-in`}
+        className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} relative flex flex-col max-h-[90vh] animate-fade-in`}
         onClick={(e) => e.stopPropagation()}
       >
-        {title && (
-          <header className="flex-shrink-0 flex justify-between items-center p-4 border-b border-slate-200">
-            <h2 id="modal-title" className="text-lg font-semibold text-slate-800">{title}</h2>
-            <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100" aria-label="Close modal">
-              <FaTimes/>
-            </button>
-          </header>
-        )}
+        <header className="flex-shrink-0 flex justify-between items-center p-4 border-b">
+          <h2 id="modal-title" className="text-xl font-bold">{title}</h2>
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100" aria-label="Close modal">
+            <FaTimes/>
+          </button>
+        </header>
         <div className="p-6 overflow-y-auto">
           {children}
         </div>
-        {footer && (
-            <footer className="flex-shrink-0 flex justify-end items-center gap-2 p-4 border-t border-slate-200 bg-slate-50 rounded-b-lg">
-                {footer}
-            </footer>
-        )}
       </div>
     </div>
   );

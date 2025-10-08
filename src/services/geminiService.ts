@@ -53,7 +53,7 @@ export const generateAuditPlan = async (
   projectName: string,
   projectDescription: string,
   startDate: string,
-  endDate: string | undefined,
+  endDate: string,
   approvalPeriod: ApprovalPeriod
 ): Promise<{ weeks: { title: string, description: string, plan: any, start_date: string, end_date: string }[] }> => {
 
@@ -281,7 +281,7 @@ export const generateStagePlan = async (
   title: string,
   description: string,
   startDate: string,
-  endDate: string | undefined
+  endDate: string
 ): Promise<Plan> => {
   const prompt = `
     Основываясь на данных этапа аудита, создай подробный ежедневный план работы для аудитора в формате JSON.
