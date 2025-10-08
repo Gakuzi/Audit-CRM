@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Project, Week, Event, Plan, ApprovalPeriod, PlanItem } from '../types';
 
@@ -53,7 +54,7 @@ export const generateAuditPlan = async (
   projectName: string,
   projectDescription: string,
   startDate: string,
-  endDate: string,
+  endDate: string | undefined,
   approvalPeriod: ApprovalPeriod
 ): Promise<{ weeks: { title: string, description: string, plan: any, start_date: string, end_date: string }[] }> => {
 
@@ -64,7 +65,7 @@ export const generateAuditPlan = async (
     **Информация о проекте:**
     - Название: "${projectName}"
     - Описание/цели: "${projectDescription}"
-    - Даты проведения: с ${startDate} по ${endDate}.
+    - Даты проведения: с ${startDate} по ${endDate || 'не указана'}.
     - Период отчетности: ${approvalDescription}.
 
     **Твоя задача:**
@@ -281,18 +282,18 @@ export const generateStagePlan = async (
   title: string,
   description: string,
   startDate: string,
-  endDate: string
+  endDate: string | undefined
 ): Promise<Plan> => {
   const prompt = `
     Основываясь на данных этапа аудита, создай подробный ежедневный план работы для аудитора в формате JSON.
 
     **Название этапа:** "${title}"
-    **Период проведения:** с ${startDate} по ${endDate}
+    **Период проведения:** с ${startDate} по ${endDate || 'не указана'}
     **Ключевые цели и задачи этапа:** "${description}"
 
     **ТРЕБОВАНИЯ К JSON:**
     1.  Результат должен быть одним JSON-объектом.
-    2.  Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate} включительно).
+    2.  Ключами этого объекта должны быть только **рабочие дни (понедельник-пятница)** в указанном диапазоне (с ${startDate} по ${endDate || startDate} включительно).
     3.  **ВАЖНО: Не включай субботу и воскресенье в ключи объекта.**
     4.  Значением для каждой даты должен быть объект вида \`{ "tasks": [] }\`.
     5.  Наполни массив \`tasks\` для каждого рабочего дня 2-4 конкретными задачами, которые логически вытекают из целей этапа. Распредели задачи равномерно и последовательно по рабочим дням.
