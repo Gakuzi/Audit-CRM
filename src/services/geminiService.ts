@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Project, Week, Event, Plan, ApprovalPeriod, PlanItem } from '../types';
 
