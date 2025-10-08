@@ -13,6 +13,7 @@ interface AiReportModalProps {
     week: Week | null; // Nullable for project-wide report
     project: Project;
     scope: 'week' | 'project';
+    onUpdateRequest?: () => void;
 }
 
 const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, project, scope }) => {

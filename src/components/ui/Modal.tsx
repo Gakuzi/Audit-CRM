@@ -7,9 +7,10 @@ interface ModalProps {
   children: React.ReactNode;
   title: string;
   size?: 'md' | 'lg' | 'xl';
+  footer?: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md', footer }) => {
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -56,6 +57,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 
         <div className="p-6 overflow-y-auto">
           {children}
         </div>
+        {footer && (
+          <footer className="flex-shrink-0 flex justify-end items-center p-4 border-t gap-2">
+            {footer}
+          </footer>
+        )}
       </div>
     </div>
   );
