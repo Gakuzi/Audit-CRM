@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project } from '../types';
+import { Week, Project, Event } from '../types';
 import { generateComprehensiveReport, generateProjectReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
@@ -13,9 +13,10 @@ interface AiReportModalProps {
     week: Week | null; // Nullable for project-wide report
     project: Project;
     scope: 'week' | 'project';
+    onUpdateRequest: () => void;
 }
 
-const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, project, scope }) => {
+const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, project, scope, onUpdateRequest }) => {
     const [report, setReport] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -34,7 +35,17 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
                 if (eventsError) throw eventsError;
                 const generatedReport = await generateComprehensiveReport(week, project, events || []);
                 setReport(generatedReport);
+
+                // Save the generated report
+                const { error: updateError } = await supabase
+                    .from('weeks')
+                    .update({ report_content: generatedReport, report_generated_at: new Date().toISOString() })
+                    .eq('id', week.id);
+                if (updateError) throw updateError;
+                onUpdateRequest(); // Notify parent to refetch
+
             } else if (scope === 'project') {
+                // Project-wide report generation remains ephemeral for now
                 const { data: weeks, error: weeksError } = await supabase.from('weeks').select('*').eq('project_id', project.id);
                 if (weeksError) throw weeksError;
                 const { data: events, error: eventsError } = await supabase.from('events').select('*').eq('project_id', project.id);
@@ -47,14 +58,20 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
         } finally {
             setLoading(false);
         }
-    }, [isOpen, week, project, scope]);
+    }, [week, project, scope, onUpdateRequest]);
 
 
     useEffect(() => {
         if (isOpen) {
-            fetchAndGenerateReport();
+             // If report for the week already exists, show it. Otherwise, generate it.
+            if (scope === 'week' && week?.report_content) {
+                setReport(week.report_content);
+                setLoading(false);
+            } else {
+                fetchAndGenerateReport();
+            }
         }
-    }, [isOpen, fetchAndGenerateReport]);
+    }, [isOpen, week, scope, fetchAndGenerateReport]);
     
     const stripMarkdown = (text: string) => {
         return text.replace(/###\s?/g, '').replace(/##\s?/g, '').replace(/#\s?/g, '').replace(/\*\*/g, '*').replace(/(\r\n|\n|\r)/gm, "\n");
@@ -79,7 +96,7 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
-            <div className="max-h-[70vh] overflow-y-auto pr-2 print-container">
+            <div className="print-container">
                  <div className="print-title-block hidden">
                     {scope === 'week' ? (
                         <>
@@ -93,6 +110,11 @@ const AiReportModal: React.FC<AiReportModalProps> = ({ isOpen, onClose, week, pr
                         </>
                     )}
                 </div>
+                 {scope === 'week' && week?.report_generated_at && !loading && (
+                    <p className="text-xs text-gray-500 mb-2 no-print">
+                        Отчет создан: {new Date(week.report_generated_at).toLocaleString('ru-RU')}
+                    </p>
+                )}
                 <div className="print-content">
                     {loading && (
                         <div className="no-print flex flex-col items-center justify-center h-48">

@@ -45,7 +45,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 
     >
       <style>{`.animate-fade-in { animation: fadeIn 0.2s ease-out; } @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}</style>
       <div
-        className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} relative flex flex-col max-h-[90vh] animate-fade-in`}
+        className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} relative flex flex-col animate-fade-in`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
@@ -56,7 +56,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 
             </button>
           </header>
         )}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 overflow-y-auto">
           {children}
         </div>
         {footer && (

@@ -277,13 +277,14 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, profile, providerT
           message={`Вы уверены, что хотите удалить этап "${weekToDelete?.title}" и все связанные с ним задачи?`}
        />
 
-       {selectedWeekForReport && (
+       {isAiReportModalOpen && (
           <AiReportModal
             isOpen={isAiReportModalOpen}
             onClose={() => { setIsAiReportModalOpen(false); setSelectedWeekForReport(null); }}
             week={selectedWeekForReport} 
             project={project}
             scope={'week'}
+            onUpdateRequest={() => fetchData(false)}
            />
        )}
        
