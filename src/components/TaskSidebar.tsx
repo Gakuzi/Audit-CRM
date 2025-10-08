@@ -1,6 +1,6 @@
 // src/components/TaskSidebar.tsx
 import React, { useState } from 'react';
-import { PlanItem, Event } from '../types';
+import { PlanItem, Event, Project } from '../types';
 import SubTaskItem from './SubTaskItem';
 import TaskAiActions from './TaskAiActions';
 import ReactMarkdown from 'react-markdown';
@@ -10,13 +10,14 @@ import { FaPlus, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 interface TaskSidebarProps {
   task: PlanItem;
   events: Event[];
+  project: Project;
   isAuditor: boolean;
   isGuest: boolean;
   onAddSubTask: () => void;
   onNewAiEvent: (event: Partial<Event>) => void;
 }
 
-const TaskSidebar: React.FC<TaskSidebarProps> = ({ task, events, isAuditor, isGuest, onAddSubTask, onNewAiEvent }) => {
+const TaskSidebar: React.FC<TaskSidebarProps> = ({ task, events, project, isAuditor, isGuest, onAddSubTask, onNewAiEvent }) => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const descriptionNeedsTruncation = (task.description?.length || 0) > 200;
 
