@@ -4,7 +4,7 @@ import Modal from './ui/Modal';
 import { supabase } from '../services/supabaseClient';
 import { Profile } from '../types';
 import { Spinner } from './ui/Spinner';
-import { FaQuestionCircle, FaGoogle } from 'react-icons/fa';
+import { FaQuestionCircle, FaGoogle, FaCopy } from 'react-icons/fa';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const getProfile = useCallback(async () => {
       setLoading(true);
@@ -71,6 +72,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
     });
   };
 
+  const handleCopyReferral = () => {
+    const referralUrl = `${window.location.origin}/?referrer_id=${user.id}`;
+    navigator.clipboard.writeText(referralUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Настройки профиля">
@@ -97,6 +106,18 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, onSi
               <input id="telegram" name="telegram" type="text" value={profile.telegram || ''} onChange={handleChange} className="w-full mt-1 input" placeholder="@username" />
             </div>
             
+             <div className="pt-4 mt-4 border-t">
+                <h3 className="text-lg font-semibold text-gray-800">Пригласить пользователя</h3>
+                <p className="text-sm text-gray-600 mt-1">Отправьте эту ссылку новому аудитору для регистрации в системе.</p>
+                <div className="flex items-center space-x-2 mt-2">
+                    <input type="text" readOnly value={`${window.location.origin}/?referrer_id=${user.id}`} className="input bg-gray-100" />
+                    <button type="button" onClick={handleCopyReferral} className={`p-2 rounded-md text-white ${copied ? 'bg-green-500' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                        <FaCopy />
+                    </button>
+                </div>
+                {copied && <p className="text-xs text-green-600 mt-1">Ссылка скопирована!</p>}
+            </div>
+
             <div className="pt-4 mt-4 border-t">
                 <h3 className="text-lg font-semibold text-gray-800">Интеграции</h3>
                 <div className="mt-2 p-3 border rounded-md flex justify-between items-center">

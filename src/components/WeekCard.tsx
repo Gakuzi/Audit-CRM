@@ -172,7 +172,7 @@ const WeekCard: React.FC<WeekCardProps> = (props) => {
             <DayPlanView {...props} />
             <div className="mt-6 pt-4 border-t flex justify-between items-center flex-wrap gap-2">
                 <div className="flex items-center gap-2">{getActionButtons()}
-                    {isAuditor && <button onClick={onGenerateReport} className="btn-secondary bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"><FaMagic/> Отчет по этапу</button>}
+                    {isAuditor && (week.status === 'approved' || week.status === 'completed') && <button onClick={onGenerateReport} className="btn-secondary bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"><FaMagic/> Отчет по этапу</button>}
                 </div>
                 {isAuditor && (week.status === 'draft' || week.status === 'approved') && <button onClick={() => setIsAddDayModalOpen(true)} className="flex items-center text-sm btn-secondary"><FaPlus className="mr-2"/> Добавить день</button>}
             </div>

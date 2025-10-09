@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
-import { FaArrowLeft, FaCog, FaShareAlt, FaPlus, FaFilePdf } from 'react-icons/fa';
+import { FaArrowLeft, FaCog, FaShareAlt, FaPlus, FaMagic } from 'react-icons/fa';
 import WeekCard from './WeekCard';
 import SettingsModal from './SettingsModal';
 import ShareModal from './ShareModal';
@@ -166,7 +166,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
         </button>
         <div className="flex items-center space-x-2">
           {isAuditor && (
-             <button onClick={handleOpenProjectReport} className="flex items-center btn-secondary"><FaFilePdf className="mr-2"/> Общий отчет</button>
+             <button onClick={handleOpenProjectReport} className="flex items-center btn-secondary bg-purple-600 text-white hover:bg-purple-700"><FaMagic className="mr-2"/> Сводный отчет</button>
           )}
           {isAuditor && (
              <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 btn-secondary"><FaCog/></button>

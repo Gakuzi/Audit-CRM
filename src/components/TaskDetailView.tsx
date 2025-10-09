@@ -115,7 +115,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
       }
     };
     
-    // Fix: Add handler for updating the plan when a subtask is added.
     const handleUpdatePlan = async (plan: any) => {
         const { error } = await supabase.from('weeks').update({ plan }).eq('id', context.weekId);
         if (error) alert("Failed to update plan: " + error.message);
@@ -132,8 +131,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     <TaskSidebar 
                         task={context.item} 
                         events={events} 
-                        // Fix: Pass the required 'project' prop.
-                        project={project} 
                         isAuditor={!!user} 
                         isGuest={!user} 
                         onAddSubTask={() => setIsAddSubTaskModalOpen(true)} 
@@ -160,7 +157,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                                             onQuoteClick={handleQuoteClick} 
                                             onDelete={(!!user && event.author_email === user?.email) ? () => setEventToDelete(event) : undefined} 
                                             onEdit={(!!user && event.author_email === user?.email) ? () => setEventToEdit(event) : undefined} 
-                                            // Fix: Add missing 'isGuest' prop
                                             isGuest={!user}
                                         />
                                     ))}
@@ -169,7 +165,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                         )}
                     </main>
                     <footer className={`flex-shrink-0 p-4 bg-slate-50 border-t ${!isSidebarCollapsed && 'lg:border-l'}`}>
-                        {/* Fix: Remove non-existent 'providerToken' prop */}
                         <AddEventForm user={user} context={{...context, taskId: context.item.id}} quotedEvent={quotedEvent} onClearQuote={() => setQuotedEvent(null)} onNewEvent={handleNewEvent} project={project} isGuest={!user} onAddSubTaskRequest={() => setIsAddSubTaskModalOpen(true)} />
                     </footer>
                 </div>
@@ -179,7 +174,6 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                 <AddPlanItemModal
                     isOpen={isAddSubTaskModalOpen}
                     onClose={() => setIsAddSubTaskModalOpen(false)}
-                    // Fix: Add missing 'onUpdatePlan' prop.
                     onUpdatePlan={handleUpdatePlan}
                     week={null!}
                     date={''}

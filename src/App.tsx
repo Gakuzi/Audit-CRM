@@ -28,6 +28,15 @@ function App() {
 
 
   useEffect(() => {
+    // Handle referrer link on initial load
+    const urlParams = new URLSearchParams(window.location.search);
+    const referrerId = urlParams.get('referrer_id');
+    if (referrerId) {
+        localStorage.setItem('referrer_id', referrerId);
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       fetchProfile(session?.user ?? null);

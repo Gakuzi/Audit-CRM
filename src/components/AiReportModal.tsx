@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
-import { Week, Project, Event } from '../types';
+import { Week, Project } from '../types';
 import { generateComprehensiveReport, generateProjectReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import ReactMarkdown from 'react-markdown';
