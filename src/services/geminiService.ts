@@ -579,6 +579,7 @@ export const generateDailySummary = async (date: string, tasks: PlanItem[], even
 
 export const generateProjectReport = async (project: Project, weeks: Week[], events: Event[]): Promise<string> => {
     const processedEvents = await _processEventsWithFileContent(events);
+    // Fix: Add fallback for w.description to prevent 'undefined' in prompt.
     const weekSummaries = weeks.map(w => `- **${w.title}** (с ${w.start_date} по ${w.end_date}): Статус - ${w.status}. ${w.description || ''}`).join('\n');
 
     const prompt = `

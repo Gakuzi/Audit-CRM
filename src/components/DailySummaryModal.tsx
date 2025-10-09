@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Modal from './ui/Modal';
 import { Spinner } from './ui/Spinner';
 import ReactMarkdown from 'react-markdown';
-import { FaWhatsapp, FaTelegramPlane, FaPrint, FaCopy } from 'react-icons/fa';
+import { FaWhatsapp, FaTelegramPlane, FaPrint } from 'react-icons/fa';
 import { Project } from '../types';
 
 interface DailySummaryModalProps {
@@ -15,28 +15,21 @@ interface DailySummaryModalProps {
 }
 
 const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ isOpen, onClose, summary, loading, project, date }) => {
-    const [copied, setCopied] = useState(false);
-    const formattedDate = date ? new Date(date + 'T00:00:00').toLocaleDateString('ru-RU') : '';
+
+    const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU');
     const title = `Сводка за ${formattedDate}`;
 
-    // A helper to strip markdown for sharing
     const stripMarkdown = (text: string) => {
         return text
             .replace(/###\s?/g, '')
             .replace(/##\s?/g, '')
             .replace(/#\s?/g, '')
             .replace(/\*\*/g, '*')
-            .replace(/(\r\n|\n|\r)/gm, "\n"); // Normalize line breaks
-    };
-    
-    const handleCopy = () => {
-        navigator.clipboard.writeText(stripMarkdown(summary)).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        });
+            .replace(/(\r\n|\n|\r)/gm, "\n");
     };
 
-    const shareText = `*Сводка по проекту "${project.name}" за ${formattedDate}*\n\n${stripMarkdown(summary)}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/${project.id}`;
+    const shareText = `*Сводка по проекту "${project.name}" за ${formattedDate}*\n\n${stripMarkdown(summary)}\n\n*Просмотреть в приложении:*\n${shareUrl}`;
 
     const handlePrint = () => {
         window.print();
@@ -56,10 +49,9 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ isOpen, onClose, 
             </div>
             {!loading && summary && (
                 <div className="mt-4 pt-4 border-t flex justify-between items-center no-print">
-                    <div className="flex items-center gap-2 flex-wrap">
-                         <button onClick={handleCopy} className="btn-secondary flex items-center gap-2"><FaCopy /> {copied ? 'Готово!' : 'Копировать'}</button>
-                         <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaWhatsapp /></a>
-                         <a href={`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaTelegramPlane /></a>
+                    <div className="flex items-center gap-2">
+                         <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaWhatsapp /> WhatsApp</a>
+                         <a href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn-secondary flex items-center gap-2"><FaTelegramPlane /> Telegram</a>
                     </div>
                     <button onClick={handlePrint} className="btn-primary flex items-center gap-2"><FaPrint /> Печать/PDF</button>
                 </div>

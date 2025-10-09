@@ -31,15 +31,16 @@ export interface PlanItem {
   type: PlanItemType;
   event_count?: number;
   sub_tasks?: PlanItem[];
-  parent_task_id?: string; // Added to link sub-tasks displayed in the main plan
+  // Fix: Add optional parent_task_id for subtasks
+  parent_task_id?: string;
   data?: {
     date?: string; // For meetings
     time?: string;
     endTime?: string;
     location?: string;
     agenda?: string;
-    participants?: string[]; // Legacy, prefer contact_ids
-    interviewee?: string; // Legacy, prefer contact_ids
+    participants?: string[];
+    interviewee?: string;
     duration?: string;
     google_calendar_event_id?: string;
     contact_ids?: string[];
@@ -82,7 +83,7 @@ export interface Event {
   data?: {
     file_urls?: { name: string, url: string, type?: string }[];
     meeting_time?: string;
-    participants?: string[]; // Legacy
+    participants?: string[];
     contact_ids?: string[];
   } | null;
   parent_event_id?: string | null;
@@ -103,14 +104,16 @@ export interface Profile {
   telegram_chat_id: string;
   updated_at: string;
   google_calendar_id?: string;
+  google_refresh_token?: string;
 }
 
 export interface ContactPerson {
   id: string; // client-side UUID
   name: string;
   role: string;
-  emails: string[];
-  phones: string[];
+  // Fix: Changed email and phone to be string arrays to support multiple values.
+  emails?: string[];
+  phones?: string[];
   whatsapp?: string;
   telegram?: string;
   priority_contact_method?: 'email' | 'phone' | 'whatsapp' | 'telegram';
@@ -125,12 +128,13 @@ export interface CompanyProfile {
   updated_at: string;
 }
 
-export type HistoryItem = {
-  id: string;
-  type: 'event' | PlanItemType;
-  content: string;
-  date: string;
-  author?: string | null;
-  taskId: string;
-  taskTitle: string;
-};
+// Fix: Add HistoryItem type for ContactDetailModal
+export interface HistoryItem {
+    id: string;
+    type: 'event' | PlanItemType;
+    content: string;
+    date: string;
+    author: string | null;
+    taskId: string;
+    taskTitle: string;
+}

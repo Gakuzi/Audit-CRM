@@ -5,17 +5,16 @@ import { Project } from '../types';
 import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
 import { Spinner } from './ui/Spinner';
-import { FaPlus, FaUserLock } from 'react-icons/fa';
+import { FaPlus } from 'react-icons/fa';
 import ConfirmationModal from './ConfirmationModal';
 
 
 interface DashboardProps {
     user: User | null;
     onSelectProject: (project: Project) => void;
-    onLoginRequest: (mode: 'signIn' | 'signUp') => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginRequest }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject }) => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,14 +22,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
 
 
     const fetchProjects = async () => {
+        if (!user) {
+            setLoading(false);
+            return;
+        };
         setLoading(true);
-        // Only fetch projects if the user is logged in.
-        const query = supabase
+        const { data, error } = await supabase
             .from('projects')
             .select('*')
             .order('created_at', { ascending: false });
-        
-        const { data, error } = await query;
         
         if (error) {
             console.error('Ошибка при загрузке проектов:', error.message);
@@ -41,11 +41,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
     };
 
     useEffect(() => {
-        // Only fetch projects if there is a logged-in user.
-        if (user) {
-            fetchProjects();
+        fetchProjects();
         
-            const subscription = supabase.channel('public:projects')
+        const channel = supabase.channel('public:projects');
+        
+        if (user) {
+            const subscription = channel
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, fetchProjects)
                 .subscribe();
 
@@ -53,9 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
                 supabase.removeChannel(subscription);
             };
         } else {
-            // If no user, stop loading and show the guest view.
-            setProjects([]);
-            setLoading(false);
+            supabase.removeChannel(channel);
         }
     }, [user]);
 
@@ -66,29 +65,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
         if (error) {
             alert('Ошибка при удалении проекта: ' + error.message);
         } else {
-            // UI will update automatically via subscription
             setProjectToDelete(null);
         }
     };
 
-
     if (loading) {
         return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
     }
-    
-    // Guest view: Show a placeholder instead of project list
+
     if (!user) {
         return (
-            <div className="text-center py-16 px-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto">
-                <FaUserLock className="mx-auto text-5xl text-blue-400 mb-4" />
-                <h3 className="text-2xl font-bold text-gray-800">Добро пожаловать в АУДИТ & ПРОЕКТ</h3>
-                <p className="text-gray-600 mt-2">Это защищенная система для совместной работы над аудиторскими проектами.</p>
-                <p className="text-gray-600 mt-2">Для доступа к вашему проекту, пожалуйста, запросите персональную ссылку у вашего аудитора.</p>
-                <div className="mt-6">
-                    <button onClick={() => onLoginRequest('signIn')} className="btn-primary">
-                        Войти в систему
-                    </button>
-                </div>
+            <div className="text-center py-16 bg-white rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold text-gray-700">Добро пожаловать в AuditFlow!</h3>
+                <p className="text-gray-500 mt-2">Пожалуйста, войдите в систему, чтобы управлять вашими аудитами.</p>
             </div>
         );
     }
@@ -113,15 +102,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject, onLoginReq
                             project={project} 
                             onSelect={onSelectProject} 
                             onDelete={user?.id === project.user_id ? () => setProjectToDelete(project) : undefined}
-                            isPublicView={!user}
-                            onLoginRequest={() => onLoginRequest('signIn')}
+                            // Fix: Add missing properties. This view is for authenticated users, so isPublicView is false.
+                            isPublicView={false}
+                            onLoginRequest={() => {}}
                          />
                     ))}
                 </div>
             ) : (
                 <div className="text-center py-16 bg-white rounded-lg shadow-md">
                     <h3 className="text-xl font-semibold text-gray-700">Аудитов пока нет!</h3>
-                     <p className="text-gray-500 mt-2">Начните работу, создав новый план аудита.</p>
+                    <p className="text-gray-500 mt-2">Начните работу, создав новый план аудита.</p>
                      <button 
                         onClick={() => setIsModalOpen(true)}
                         className="mt-4 flex items-center mx-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"

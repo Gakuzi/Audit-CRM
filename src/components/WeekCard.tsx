@@ -39,7 +39,7 @@ const statusConfig: { [key in Week['status']]: { label: string; color: string; }
 };
 
 const WeekCard: React.FC<WeekCardProps> = (props) => {
-  const { week, isAuditor, isGuest, project, profile, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval } = props;
+  const { week, isAuditor, isGuest, project, profile, onUpdatePlan, onTaskSelect, onDeleteRequest, onUpdateRequest, onGenerateReport, onSentForApproval, companyProfile } = props;
 
   const isCurrentWeek = () => {
       const today = new Date();
