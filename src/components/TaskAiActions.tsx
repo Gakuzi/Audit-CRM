@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { PlanItem, Event } from '../types';
 import * as geminiService from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
+import { ManualToolModal } from './ManualToolModal';
 import { FaBrain, FaQuestion, FaListUl, FaComments, FaSitemap, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import ManualToolModal from './ManualToolModal';
 
 type AiTool = 'questions' | 'agenda' | 'summary' | 'checklist' | 'mindmap' | 'flowchart' | 'continue' | 'summarize-and-continue';
 

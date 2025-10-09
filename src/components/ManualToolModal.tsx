@@ -14,7 +14,7 @@ interface ManualToolModalProps {
   } | null;
 }
 
-const ManualToolModal: React.FC<ManualToolModalProps> = ({ isOpen, onClose, onSubmit, config }) => {
+export const ManualToolModal: React.FC<ManualToolModalProps> = ({ isOpen, onClose, onSubmit, config }) => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
 

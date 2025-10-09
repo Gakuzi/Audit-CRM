@@ -35,7 +35,6 @@ const Header: React.FC<HeaderProps> = ({ user, profile, project, companyProfile,
             );
         }
         if (isAuditor) {
-            // Fix: Pass required onContactSelect prop. This component doesn't have the logic, so we pass a no-op function.
             return <CompanyHeaderCard project={project} companyProfile={companyProfile} onContactSelect={() => {}} />;
         }
         return <AuditorHeaderCard auditorId={project.user_id} />;

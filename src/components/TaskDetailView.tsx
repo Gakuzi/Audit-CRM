@@ -132,7 +132,8 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({ isOpen, onClose, user, 
                     <TaskSidebar 
                         task={context.item} 
                         events={events} 
-                        // Fix: Remove 'project' prop as it's not in the component's props interface according to the error.
+                        // Fix: Pass the required 'project' prop.
+                        project={project} 
                         isAuditor={!!user} 
                         isGuest={!user} 
                         onAddSubTask={() => setIsAddSubTaskModalOpen(true)} 

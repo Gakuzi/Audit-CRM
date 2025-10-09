@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
-// Fix: Import all necessary types
 import { Project, Week, Plan, PlanItem, Profile, CompanyProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Spinner } from './ui/Spinner';
@@ -34,7 +33,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
   
   const [weekToDelete, setWeekToDelete] = useState<Week | null>(null);
 
-  // Fix: Add state for profile, companyProfile, and providerToken
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [providerToken, setProviderToken] = useState<string | null>(null);
@@ -58,7 +56,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
 
   useEffect(() => {
     fetchWeeks();
-    // Fix: Fetch additional data needed by child components
     if (user) {
       supabase.from('profiles').select('*').eq('id', user.id).single().then(({data}) => setProfile(data as Profile));
       supabase.auth.getSession().then(({data}) => setProviderToken(data.session?.provider_token || null));
@@ -199,12 +196,11 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
                 onUpdateRequest={() => fetchWeeks(false)}
                 onGenerateReport={() => handleOpenReport(week)}
                 project={project}
-                // Fix: Pass all the missing required props to WeekCard
                 isGuest={!user}
                 profile={profile}
                 companyProfile={companyProfile}
                 providerToken={providerToken}
-                onSentForApproval={() => {}} // Placeholder, real logic might be more complex
+                onSentForApproval={() => {}}
                 onUpdateTask={(updatedTask) => {
                     const newPlan = { ...week.plan };
                     let found = false;
@@ -218,7 +214,7 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
                     }
                     if (found) handleUpdatePlan(week.id, newPlan);
                 }}
-                onContactClick={() => {}} // Placeholder
+                onContactClick={() => {}}
                 onContactsUpdate={() => supabase.from('company_profiles').select('*').eq('project_id', project.id).single().then(({data}) => setCompanyProfile(data as CompanyProfile))}
             />
           ))}
@@ -243,7 +239,6 @@ const AuditView: React.FC<AuditViewProps> = ({ project, user, onBack, isAuditor 
       <ShareModal 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        // Fix: Pass the 'project' object instead of 'projectId'
         project={project}
       />
       

@@ -71,7 +71,6 @@ export const sendGuestEventNotification = async (project: Project, task: PlanIte
 
     if (priorityContact) {
       let url = '', text = '';
-      // Fix: Use array properties `phones` and `emails` instead of singular `phone` and `email`.
       const { priority_contact_method, telegram, whatsapp, phones, emails, name } = priorityContact;
       const primaryPhone = phones?.[0];
       const primaryEmail = emails?.[0];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './services/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import Header from './components/Header';
@@ -9,7 +9,6 @@ import ProfileModal from './components/ProfileModal';
 import { Project, CompanyProfile, Profile } from './types';
 
 function App() {
-  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -30,13 +29,11 @@ function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
       setUser(session?.user ?? null);
       fetchProfile(session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
       setUser(session?.user ?? null);
       fetchProfile(session?.user ?? null);
       if (session?.user) {

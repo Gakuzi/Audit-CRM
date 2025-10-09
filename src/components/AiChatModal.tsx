@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from './ui/Modal';
-// Fix: Use relative path for service import.
 import { generateStageDescription } from '../services/geminiService';
 import { Spinner } from './ui/Spinner';
 import { FaPaperPlane } from 'react-icons/fa';

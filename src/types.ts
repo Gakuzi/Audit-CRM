@@ -31,7 +31,6 @@ export interface PlanItem {
   type: PlanItemType;
   event_count?: number;
   sub_tasks?: PlanItem[];
-  // Fix: Add optional parent_task_id for subtasks
   parent_task_id?: string;
   data?: {
     date?: string; // For meetings
@@ -111,7 +110,6 @@ export interface ContactPerson {
   id: string; // client-side UUID
   name: string;
   role: string;
-  // Fix: Changed email and phone to be string arrays to support multiple values.
   emails?: string[];
   phones?: string[];
   whatsapp?: string;
@@ -128,7 +126,6 @@ export interface CompanyProfile {
   updated_at: string;
 }
 
-// Fix: Add HistoryItem type for ContactDetailModal
 export interface HistoryItem {
     id: string;
     type: 'event' | PlanItemType;

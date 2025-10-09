@@ -54,7 +54,6 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, proj
 
       if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
 
-      // Fix: Use 'emails' and 'phones' array properties to align with the updated ContactPerson type.
       const newContact: ContactPerson = {
         id: crypto.randomUUID(),
         name: name.trim(),

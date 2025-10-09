@@ -102,7 +102,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onSelectProject }) => {
                             project={project} 
                             onSelect={onSelectProject} 
                             onDelete={user?.id === project.user_id ? () => setProjectToDelete(project) : undefined}
-                            // Fix: Add missing properties. This view is for authenticated users, so isPublicView is false.
                             isPublicView={false}
                             onLoginRequest={() => {}}
                          />
