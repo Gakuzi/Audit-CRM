@@ -579,7 +579,7 @@ export const generateDailySummary = async (date: string, tasks: PlanItem[], even
 
 export const generateProjectReport = async (project: Project, weeks: Week[], events: Event[]): Promise<string> => {
     const processedEvents = await _processEventsWithFileContent(events);
-    const weekSummaries = weeks.map(w => `- **${w.title}** (с ${w.start_date} по ${w.end_date}): Статус - ${w.status}. ${w.description}`).join('\n');
+    const weekSummaries = weeks.map(w => `- **${w.title}** (с ${w.start_date} по ${w.end_date}): Статус - ${w.status}. ${w.description || ''}`).join('\n');
 
     const prompt = `
     Ты — ведущий бизнес-аудитор. Тебе поручено подготовить итоговый отчет для руководства по всему проекту аудита.
@@ -598,7 +598,7 @@ export const generateProjectReport = async (project: Project, weeks: Week[], eve
     3.  **Полный журнал всех событий по проекту (комментарии, встречи, файлы):**
         *Проанализируй весь этот JSON массив. Если в объекте файла есть "content", оно содержит либо Data URI изображения, либо текст. Используй это для точных выводов.*
         \`\`\`json
-        ${JSON.stringify(processedEvents.map(e => ({ week: weeks.find(w => w.id === e.week_id)?.title, task: '...', type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: (f as any).content })) })), null, 2)}
+        ${JSON.stringify(processedEvents.map(e => ({ week: weeks.find(w => w.id === e.week_id)?.title ?? 'Неизвестный этап', task: '...', type: e.type, content: e.content, author: e.author_email, date: e.created_at, files: e.data?.file_urls?.map(f => ({ name: f.name, type: f.type, content: (f as any).content })) })), null, 2)}
         \`\`\`
 
     **ЗАДАЧА: Сформируй комплексный отчет, включающий следующие разделы:**
